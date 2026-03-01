@@ -1,0 +1,15 @@
+---
+description: Enforce modular DRY standards for mobile UI work
+alwaysApply: true
+---
+
+# Mobile Modular Standards
+
+- Keep screen components focused on composition; move static config, role rules, formatters, and helpers into separate modules.
+- Do not hardcode repeated UI blocks or option lists in JSX; render from typed config objects.
+- Reuse existing components/hooks before creating new ones; if logic appears twice, extract it.
+- Keep colors, spacing, typography, and shared UI tokens in `src/theme.ts` (or a dedicated token file), not inline literals.
+- Prefer small pure helpers for filtering/visibility/transforms instead of duplicating conditionals.
+- For UI parity changes from screenshots, match visuals while preserving DRY structure and readability.
+- Avoid unused code/props/styles and remove dead paths in the same change.
+- Run lint checks after substantive edits and fix any newly introduced issues.

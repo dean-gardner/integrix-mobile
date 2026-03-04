@@ -30,6 +30,7 @@ import {
 import { changeTaskStepStatus, getTaskSectionsWithTaskSteps } from '../api/tasks';
 import { createDefect as apiCreateDefect, getTaskStepDefects } from '../api/defects';
 import { createObservation as apiCreateObservation } from '../api/observations';
+import { getUsersBySearch } from '../api/users';
 import { getTaskPosts } from '../api/feed';
 import type {
   TaskReadDTO,
@@ -202,6 +203,8 @@ export default function TaskDetailScreen() {
 
   const [pickerVisible, setPickerVisible] = useState(false);
   const [shareQuery, setShareQuery] = useState('');
+  const [shareSearchResults, setShareSearchResults] = useState<FoundUserDTO[]>([]);
+  const [shareSearchLoading, setShareSearchLoading] = useState(false);
   const [editVisible, setEditVisible] = useState(false);
   const [workOrderNumber, setWorkOrderNumber] = useState('');
   const [notificationNumber, setNotificationNumber] = useState('');
@@ -540,6 +543,46 @@ export default function TaskDetailScreen() {
     ]);
   };
 
+  const sharedUserEmails = useMemo(
+    () => new Set((task?.usersSharedWith ?? []).map((u) => u.email.toLowerCase())),
+    [task?.usersSharedWith]
+  );
+
+  useEffect(() => {
+    const trimmed = shareQuery.trim();
+    if (trimmed.length < 2) {
+      setShareSearchResults([]);
+      setShareSearchLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setShareSearchLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await getUsersBySearch({
+          search: trimmed,
+          shouldFindTeams: true,
+          onlyRegisteredUsers: false,
+          onlyCompanyTeamUsers: false,
+          includeOwnPerson: true,
+        });
+        if (cancelled) return;
+        const list = (res.data ?? []).filter(
+          (u) => !sharedUserEmails.has((u.email ?? '').toLowerCase())
+        );
+        setShareSearchResults(list);
+      } catch {
+        if (!cancelled) setShareSearchResults([]);
+      } finally {
+        if (!cancelled) setShareSearchLoading(false);
+      }
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [shareQuery, sharedUserEmails]);
+
   const handleUserPick = async (user: FoundUserDTO) => {
     if (!task.documentId || !task.versionId || !task.id) return;
     try {
@@ -552,6 +595,7 @@ export default function TaskDetailScreen() {
         })
       ).unwrap();
       setShareQuery('');
+      setShareSearchResults([]);
     } catch (e) {
       Alert.alert('Task', (e as string) || 'Failed to share task.');
     }
@@ -943,6 +987,40 @@ export default function TaskDetailScreen() {
               <Text style={styles.shareButtonText}>Share</Text>
             </TouchableOpacity>
           </View>
+          {shareSearchLoading ? (
+            <View style={styles.shareSearchLoader}>
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+            </View>
+          ) : null}
+          {!shareSearchLoading && shareSearchResults.length > 0 ? (
+            <View style={styles.shareSearchResults}>
+              <ScrollView
+                style={styles.shareSearchResultsScroll}
+                nestedScrollEnabled
+                keyboardShouldPersistTaps="handled"
+              >
+                {shareSearchResults.map((user, idx) => (
+                  <TouchableOpacity
+                    key={`${user.email}-${user.userId ?? idx}`}
+                    style={styles.shareSearchResultRow}
+                    onPress={() => {
+                      handleUserPick(user);
+                      setShareQuery('');
+                      setShareSearchResults([]);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.shareSearchResultName}>
+                      {user.fullName || user.email}
+                    </Text>
+                    {user.fullName ? (
+                      <Text style={styles.shareSearchResultEmail}>{user.email}</Text>
+                    ) : null}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          ) : null}
 
           <Text style={styles.sharedWithTitle}>Shared with:</Text>
           {sharedUsers.length === 0 ? (
@@ -1151,6 +1229,7 @@ export default function TaskDetailScreen() {
         onClose={() => setPickerVisible(false)}
         onSelect={handleUserPick}
         title="Share task with user"
+        initialQuery={pickerVisible ? shareQuery : undefined}
       />
 
       <TaskStepPostModal
@@ -1379,6 +1458,40 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  shareSearchLoader: {
+    paddingVertical: 8,
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  shareSearchResults: {
+    maxHeight: 200,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e0e2e8',
+    borderRadius: 4,
+    backgroundColor: '#fafbfc',
+    overflow: 'hidden',
+    elevation: 2,
+  },
+  shareSearchResultsScroll: {
+    maxHeight: 200,
+  },
+  shareSearchResultRow: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e8eaef',
+  },
+  shareSearchResultName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1a1b21',
+    marginBottom: 2,
+  },
+  shareSearchResultEmail: {
+    fontSize: 13,
+    color: '#6c757d',
   },
   sharedWithTitle: {
     color: '#14151c',

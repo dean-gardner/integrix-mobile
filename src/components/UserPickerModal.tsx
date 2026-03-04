@@ -2,7 +2,7 @@
  * Reusable modal to search and pick a user (e.g. for share/assign flows).
  * Uses getUsersBySearch; on row tap calls onSelect(user) and onClose().
  */
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,8 @@ export type UserPickerModalProps = {
   onClose: () => void;
   onSelect: (user: FoundUserDTO) => void;
   title?: string;
+  /** When provided, modal opens with this query and runs search automatically (match web share UX). */
+  initialQuery?: string;
 };
 
 export function UserPickerModal({
@@ -34,12 +36,36 @@ export function UserPickerModal({
   onClose,
   onSelect,
   title = 'Select user',
+  initialQuery,
 }: UserPickerModalProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<FoundUserDTO[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
+
+  useEffect(() => {
+    if (!visible) return;
+    const q = (initialQuery ?? '').trim();
+    if (q.length < MIN_QUERY_LENGTH) return;
+    setQuery(q);
+    setError(null);
+    setSearched(true);
+    setLoading(true);
+    getUsersBySearch({
+      search: q,
+      shouldFindTeams: true,
+      onlyRegisteredUsers: false,
+      onlyCompanyTeamUsers: false,
+      includeOwnPerson: true,
+    })
+      .then((res) => setResults(res.data ?? []))
+      .catch((e: unknown) => {
+        setResults([]);
+        setError((e as { message?: string })?.message ?? 'Search failed.');
+      })
+      .finally(() => setLoading(false));
+  }, [visible, initialQuery]);
 
   const onSearch = useCallback(async () => {
     const q = (query ?? '').trim();

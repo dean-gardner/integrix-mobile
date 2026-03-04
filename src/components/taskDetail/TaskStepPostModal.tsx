@@ -987,7 +987,7 @@ export function TaskStepPostModal({
   const renderDefectItem = (defect: DefectReadDTO) => {
     const isExpanded = expandedDefectId === defect.id;
     const isUpdating = updatingDefect?.id === defect.id;
-    const canEditDefect = (defect as { canEdit?: boolean }).canEdit !== false;
+    const showUpdateInHeader = canCreateDefect;
     const remediationDetails = typeof defect.remediationDetails === 'string' ? defect.remediationDetails : '';
     const modifiedOrCreatedOnUtc =
       (typeof defect.modifiedOnUtc === 'string' ? defect.modifiedOnUtc : null) ?? defect.createdOnUtc;
@@ -1003,7 +1003,7 @@ export function TaskStepPostModal({
           <Text style={styles.defectAccordionTitle} numberOfLines={1} ellipsizeMode="tail">
             {toReadableText(defect.description)}
           </Text>
-          {canEditDefect ? (
+          {showUpdateInHeader ? (
             <TouchableOpacity
               style={styles.defectUpdateButton}
               onPress={() => {
@@ -1235,25 +1235,53 @@ export function TaskStepPostModal({
                 </View>
               </View>
             ) : (
-              /* ── Read-only expanded view ── */
+              /* ── Read-only expanded view (match web: creator, Defect heading, label-value fields, image) ── */
               <View>
                 <View style={styles.postHead}>
                   <MaterialIcons name="account-circle" size={30} color="#b9bdc8" />
                   <View style={styles.postHeadTextWrap}>
                     <Text style={styles.postAuthor}>{toReadableText(defect.createdByName)}</Text>
-                    <Text style={styles.postDate}>{formatPostDate(modifiedOrCreatedOnUtc)}</Text>
+                    <Text style={styles.postDate}>
+                      {defect.modifiedOnUtc
+                        ? `Edited ${formatRelativeTime(defect.modifiedOnUtc)}`
+                        : `Created ${formatRelativeTime(defect.createdOnUtc)}`}
+                    </Text>
                   </View>
                 </View>
-                <View style={styles.defectMetaRow}>
-                  <Text style={styles.defectMetaText}>#{toReadableText(defect.defectNumber)}</Text>
-                  <Text style={styles.defectMetaText}>{toReadableText(defect.statusCode)}</Text>
+                <Text style={styles.defectBodyHeading}>Defect</Text>
+                <View style={styles.defectFieldRow}>
+                  <Text style={styles.defectFieldLabel}>Defect Number</Text>
+                  <Text style={styles.defectFieldValue}>{toReadableText(defect.defectNumber)}</Text>
                 </View>
-                <Text style={styles.postText}>{toReadableText(defect.description)}</Text>
-                {remediationDetails ? (
-                  <>
-                    <Text style={styles.postLabel}>Remediation details</Text>
-                    <Text style={styles.postText}>{toReadableText(remediationDetails)}</Text>
-                  </>
+                <View style={styles.defectFieldRow}>
+                  <Text style={styles.defectFieldLabel}>Status</Text>
+                  <Text style={styles.defectFieldValue}>{toReadableText(defect.statusCode)}</Text>
+                </View>
+                <View style={styles.defectFieldRow}>
+                  <Text style={styles.defectFieldLabel}>Defect description</Text>
+                  <Text style={styles.defectFieldValue}>{toReadableText(defect.description)}</Text>
+                </View>
+                <View style={styles.defectFieldRow}>
+                  <Text style={styles.defectFieldLabel}>Asset name</Text>
+                  <Text style={styles.defectFieldValue}>{toReadableText(assetName ?? defect.assetName)}</Text>
+                </View>
+                <View style={styles.defectFieldRow}>
+                  <Text style={styles.defectFieldLabel}>Remediation details</Text>
+                  <Text style={styles.defectFieldValue}>{toReadableText(remediationDetails)}</Text>
+                </View>
+                {(defect.files ?? []).length > 0 ? (
+                  <View style={styles.defectImagesWrap}>
+                    {(defect.files ?? []).map((file, i) =>
+                      file.thumbnailUrl ?? file.url ? (
+                        <Image
+                          key={`ro-${i}`}
+                          source={{ uri: file.thumbnailUrl ?? file.url }}
+                          style={styles.defectBodyImage}
+                          resizeMode="cover"
+                        />
+                      ) : null
+                    )}
+                  </View>
                 ) : null}
               </View>
             )}
@@ -1473,7 +1501,9 @@ export function TaskStepPostModal({
                 ) : defects.length === 0 ? (
                   <Text style={styles.emptyText}>There are no defects yet...</Text>
                 ) : (
-                  defects.map((defect) => renderDefectItem(defect))
+                  <View style={styles.defectsAccordionWrap}>
+                    {defects.map((defect) => renderDefectItem(defect))}
+                  </View>
                 )
               ) : postsLoading ? (
                 <View style={styles.loaderWrap}>
@@ -1800,6 +1830,9 @@ const styles = StyleSheet.create({
     marginTop: 12,
     gap: 12,
   },
+  defectsAccordionWrap: {
+    marginTop: 0,
+  },
   emptyText: {
     color: '#6e7790',
     fontSize: 16,
@@ -1959,18 +1992,20 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#ffffff',
     overflow: 'hidden',
+    marginBottom: 8,
   },
   defectAccordionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 20,
     paddingVertical: 10,
     gap: 8,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#eef0f7',
   },
   defectAccordionTitle: {
     flex: 1,
     fontSize: 14,
+    fontWeight: '700',
     color: '#1f2233',
   },
   defectUpdateButton: {
@@ -1978,19 +2013,47 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: '#bec7dc',
-    backgroundColor: '#f5f7fd',
+    borderColor: theme.colors.primary,
+    backgroundColor: 'transparent',
   },
   defectUpdateButtonText: {
     fontSize: 13,
-    color: '#2f3fb0',
-    fontWeight: '500',
+    color: theme.colors.primary,
+    fontWeight: '600',
   },
   defectAccordionBody: {
     borderTopWidth: 1,
     borderTopColor: '#eaecf5',
-    padding: 12,
-    backgroundColor: '#fafbff',
+    padding: 15,
+    backgroundColor: '#ffffff',
+  },
+  defectBodyHeading: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1f2233',
+    marginBottom: 10,
+  },
+  defectFieldRow: {
+    marginBottom: 10,
+  },
+  defectFieldLabel: {
+    fontSize: 14,
+    color: '#959292',
+    marginBottom: 2,
+  },
+  defectFieldValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000000',
+  },
+  defectImagesWrap: {
+    marginTop: 12,
+    gap: 8,
+  },
+  defectBodyImage: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    borderRadius: 4,
   },
   commentsSection: {
     marginBottom: 12,

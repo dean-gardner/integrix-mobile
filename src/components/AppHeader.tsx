@@ -49,7 +49,9 @@ export function AppHeader({ title = 'Integrix', showMenu = true }: AppHeaderProp
   const openNotificationsPreview = () => {
     closeActions();
     setNotificationsPreviewVisible(true);
-    dispatch(fetchNotifications());
+    dispatch(fetchNotifications()).then(() => {
+      dispatch(markAllNotificationsRead());
+    });
   };
 
   const closeNotificationsPreview = () => setNotificationsPreviewVisible(false);

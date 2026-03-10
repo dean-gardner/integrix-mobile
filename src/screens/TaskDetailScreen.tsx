@@ -1243,50 +1243,57 @@ export default function TaskDetailScreen() {
 
       <Modal visible={editVisible} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
+          <View style={styles.editModalCard}>
             <Text style={styles.modalTitle}>Edit task</Text>
-            {editError ? (
-              <View style={screenStyles.errorBox}>
-                <Text style={screenStyles.errorText}>{editError}</Text>
-              </View>
-            ) : null}
-            <Text style={screenStyles.formLabel}>Work order</Text>
-            <TextInput
-              style={screenStyles.formInput}
-              value={workOrderNumber}
-              onChangeText={setWorkOrderNumber}
-              placeholder="Work order number"
-              placeholderTextColor="#6c757d"
-              editable={!isActionLoading}
-            />
-            <Text style={screenStyles.formLabel}>Notification</Text>
-            <TextInput
-              style={screenStyles.formInput}
-              value={notificationNumber}
-              onChangeText={setNotificationNumber}
-              placeholder="Notification number"
-              placeholderTextColor="#6c757d"
-              editable={!isActionLoading}
-            />
-            <Text style={screenStyles.formLabel}>Project</Text>
-            <TextInput
-              style={screenStyles.formInput}
-              value={projectNumber}
-              onChangeText={setProjectNumber}
-              placeholder="Project number"
-              placeholderTextColor="#6c757d"
-              editable={!isActionLoading}
-            />
-            <Text style={screenStyles.formLabel}>Asset ID</Text>
-            <TextInput
-              style={screenStyles.formInput}
-              value={assetId}
-              onChangeText={setAssetId}
-              placeholder="Asset ID"
-              placeholderTextColor="#6c757d"
-              keyboardType="number-pad"
-              editable={!isActionLoading}
-            />
+            <ScrollView
+              style={styles.editModalScroll}
+              contentContainerStyle={styles.editModalScrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator
+            >
+              {editError ? (
+                <View style={screenStyles.errorBox}>
+                  <Text style={screenStyles.errorText}>{editError}</Text>
+                </View>
+              ) : null}
+              <Text style={screenStyles.formLabel}>Work order</Text>
+              <TextInput
+                style={screenStyles.formInput}
+                value={workOrderNumber}
+                onChangeText={setWorkOrderNumber}
+                placeholder="Work order number"
+                placeholderTextColor="#6c757d"
+                editable={!isActionLoading}
+              />
+              <Text style={screenStyles.formLabel}>Notification</Text>
+              <TextInput
+                style={screenStyles.formInput}
+                value={notificationNumber}
+                onChangeText={setNotificationNumber}
+                placeholder="Notification number"
+                placeholderTextColor="#6c757d"
+                editable={!isActionLoading}
+              />
+              <Text style={screenStyles.formLabel}>Project</Text>
+              <TextInput
+                style={screenStyles.formInput}
+                value={projectNumber}
+                onChangeText={setProjectNumber}
+                placeholder="Project number"
+                placeholderTextColor="#6c757d"
+                editable={!isActionLoading}
+              />
+              <Text style={screenStyles.formLabel}>Asset ID</Text>
+              <TextInput
+                style={screenStyles.formInput}
+                value={assetId}
+                onChangeText={setAssetId}
+                placeholder="Asset ID"
+                placeholderTextColor="#6c757d"
+                keyboardType="number-pad"
+                editable={!isActionLoading}
+              />
+            </ScrollView>
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={styles.modalCancelBtn}
@@ -1296,7 +1303,7 @@ export default function TaskDetailScreen() {
                 <Text style={styles.modalCancelBtnText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[screenStyles.formButton, isActionLoading && styles.buttonDisabled]}
+                style={[styles.modalSaveBtn, screenStyles.formButton, isActionLoading && styles.buttonDisabled]}
                 onPress={submitEdit}
                 disabled={isActionLoading}
               >
@@ -1738,6 +1745,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 24,
   },
+  editModalCard: {
+    backgroundColor: theme.colors.cardBg,
+    borderRadius: 12,
+    padding: theme.spacing.cardPadding,
+    maxHeight: '90%',
+  },
+  editModalScroll: {
+    maxHeight: 320,
+  },
+  editModalScrollContent: {
+    paddingBottom: 8,
+  },
   modalCard: {
     backgroundColor: theme.colors.cardBg,
     borderRadius: 12,
@@ -1761,6 +1780,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: theme.colors.border,
+  },
+  modalSaveBtn: {
+    flex: 1,
   },
   modalCancelBtnText: {
     fontSize: 16,

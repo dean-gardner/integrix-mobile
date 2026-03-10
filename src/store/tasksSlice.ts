@@ -122,6 +122,9 @@ export const changeCurrentTaskStatus = createAsyncThunk<
           fullError: e,
         });
       }
+      if (statusCode != null && statusCode >= 500) {
+        return rejectWithValue('Unable to update task status at this time. Please try again later.');
+      }
       const detail =
         responseData != null
           ? typeof responseData === 'object'

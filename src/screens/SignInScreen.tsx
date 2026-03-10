@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   ScrollView,
   Linking,
   useWindowDimensions,
+  StatusBar,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '../store';
@@ -34,6 +35,7 @@ const getTimeZoneId = () => {
 
 export default function SignInScreen() {
   const dispatch = useDispatch<AppDispatch>();
+  const scrollViewRef = useRef<ScrollView>(null);
   const { height } = useWindowDimensions();
   const { isLoading, error } = useSelector((s: RootState) => s.auth);
   const [email, setEmail] = useState('');
@@ -59,13 +61,17 @@ export default function SignInScreen() {
 
 
   const topSpacing = Math.max(120, Math.min(220, Math.round(height * 0.28)));
+  const keyboardVerticalOffset =
+    Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0;
 
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior="padding"
+      keyboardVerticalOffset={keyboardVerticalOffset}
     >
       <ScrollView
+        ref={scrollViewRef}
         contentContainerStyle={[styles.formWrapper, { paddingTop: topSpacing }]}
         keyboardShouldPersistTaps="handled"
       >
@@ -99,6 +105,13 @@ export default function SignInScreen() {
             onChangeText={setPassword}
             secureTextEntry
             editable={!isLoading}
+            onFocus={() =>
+              setTimeout(
+                () =>
+                  scrollViewRef.current?.scrollToEnd({ animated: true }),
+                100
+              )
+            }
           />
 
           <TouchableOpacity

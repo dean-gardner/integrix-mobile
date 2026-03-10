@@ -8,12 +8,24 @@ export const signIn = createAsyncThunk<
   UserDTO,
   SignInDTO,
   { rejectValue: string }
->('auth/signIn', async (dto) => {
-  const res = await apiSignIn(dto);
-  const token = typeof res.data === 'string' ? res.data : (res.data as unknown as string);
-  await setToken(token);
-  const userRes = await apiGetUserData();
-  return userRes.data;
+>('auth/signIn', async (dto, { rejectWithValue }) => {
+  try {
+    const res = await apiSignIn(dto);
+    const token = typeof res.data === 'string' ? res.data : (res.data as unknown as string);
+    await setToken(token);
+    const userRes = await apiGetUserData();
+    return userRes.data;
+  } catch (e: any) {
+    const status = e?.response?.status;
+    if (status === 429) {
+      return rejectWithValue('Too many failed attempts. Please try again later.');
+    }
+    const message =
+      e?.response?.data != null && typeof e.response.data === 'object' && 'message' in e.response.data
+        ? String((e.response.data as { message?: string }).message)
+        : e?.message ?? 'Sign in failed';
+    return rejectWithValue(message);
+  }
 });
 
 export const loadUser = createAsyncThunk<UserDTO | null>(

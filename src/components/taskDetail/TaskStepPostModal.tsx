@@ -1543,6 +1543,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   modalCard: {
+    height: '85%',
     maxHeight: '92%',
     borderRadius: 4,
     borderWidth: 1,
@@ -1592,7 +1593,7 @@ const styles = StyleSheet.create({
     color: '#2f3fb0',
   },
   scroll: {
-    flexGrow: 0,
+    flex: 1,
   },
   scrollContent: {
     paddingHorizontal: 18,

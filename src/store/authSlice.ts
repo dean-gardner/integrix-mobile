@@ -3,6 +3,7 @@ import type { UserDTO } from '../types/UserDTO';
 import { apiSignIn, apiGetUserData, apiSignOut } from '../api/auth';
 import type { SignInDTO } from '../types/SignInDTO';
 import { getToken, setToken, removeToken } from '../storage/tokenStorage';
+import { getHttpErrorMessage } from '../utils/httpErrorMessage';
 
 export const signIn = createAsyncThunk<
   UserDTO,
@@ -15,16 +16,18 @@ export const signIn = createAsyncThunk<
     await setToken(token);
     const userRes = await apiGetUserData();
     return userRes.data;
-  } catch (e: any) {
-    const status = e?.response?.status;
+  } catch (e: unknown) {
+    const status = (e as { response?: { status?: number } })?.response?.status;
     if (status === 429) {
       return rejectWithValue('Too many failed attempts. Please try again later.');
     }
-    const message =
-      e?.response?.data != null && typeof e.response.data === 'object' && 'message' in e.response.data
-        ? String((e.response.data as { message?: string }).message)
-        : e?.message ?? 'Sign in failed';
-    return rejectWithValue(message);
+    if (status === 400) {
+      const detail = getHttpErrorMessage(e, '');
+      return rejectWithValue(
+        detail || 'Invalid email or password. Please try again.'
+      );
+    }
+    return rejectWithValue(getHttpErrorMessage(e, 'Sign in failed'));
   }
 });
 

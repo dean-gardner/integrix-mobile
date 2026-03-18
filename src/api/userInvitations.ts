@@ -19,7 +19,16 @@ export function getUserInvitations(
 export function createUserInvitation(
   model: UserInvitationCreateDTO
 ): Promise<AxiosResponse<UserInvitationReadDTO>> {
-  return axios.post<UserInvitationReadDTO>('api/userinvitations/create-invitation', model);
+  const phone = (model.phoneNumber ?? '').trim();
+  return axios.post<UserInvitationReadDTO>('api/userinvitations/create-invitation', {
+    email: model.email,
+    firstName: model.firstName,
+    lastName: model.lastName,
+    userRoleId: model.userRoleId,
+    companyTeamId: model.companyTeamId,
+    /** Omit when empty — empty string often triggers 400 on [Phone] validators */
+    ...(phone.length > 0 ? { phoneNumber: phone } : {}),
+  });
 }
 
 export function deleteUserInvitation(id: string): Promise<AxiosResponse<string>> {

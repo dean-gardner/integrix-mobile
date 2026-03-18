@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -33,6 +34,7 @@ export default function SubscriptionScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
+  const [contactInfoVisible, setContactInfoVisible] = useState(false);
   const currentPlan = useMemo(() => getCurrentPlanKey(subscription), [subscription]);
 
   useEffect(() => {
@@ -53,17 +55,17 @@ export default function SubscriptionScreen() {
   };
 
   const openContactUs = async () => {
-    const url = `mailto:${supportEmail}`;
+    const mailUrl = `mailto:${supportEmail}`;
     try {
-      const canOpen = await Linking.canOpenURL(url);
-      if (!canOpen) {
-        Alert.alert('Subscription', 'Unable to open mail app.');
+      const canOpen = await Linking.canOpenURL(mailUrl);
+      if (canOpen) {
+        await Linking.openURL(mailUrl);
         return;
       }
-      await Linking.openURL(url);
     } catch {
-      Alert.alert('Subscription', 'Unable to open mail app.');
+      /* No mail client or open failed — show support details like web */
     }
+    setContactInfoVisible(true);
   };
 
   const handlePlanPress = async (tariffPlan: number | null) => {
@@ -220,6 +222,43 @@ export default function SubscriptionScreen() {
       >
         <MaterialIcons name="keyboard-double-arrow-up" size={30} color="#ffffff" />
       </TouchableOpacity>
+
+      <Modal
+        visible={contactInfoVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setContactInfoVisible(false)}
+      >
+        <View style={styles.contactModalBackdrop}>
+          <View style={styles.contactModalCard}>
+            <View style={styles.contactModalHeader}>
+              <Text style={styles.contactModalTitle}>Info</Text>
+              <TouchableOpacity
+                onPress={() => setContactInfoVisible(false)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <MaterialIcons name="close" size={24} color="#2f3444" />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.contactModalBody}>
+              Please contact{' '}
+              <Text
+                style={styles.contactModalEmail}
+                onPress={() => Linking.openURL(`mailto:${supportEmail}`).catch(() => {})}
+              >
+                {supportEmail}
+              </Text>
+            </Text>
+            <TouchableOpacity
+              style={styles.contactModalCloseBtn}
+              onPress={() => setContactInfoVisible(false)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.contactModalCloseBtnText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -392,5 +431,55 @@ const styles = StyleSheet.create({
     backgroundColor: '#243aa8',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  contactModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+  },
+  contactModalCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 20,
+    maxWidth: 400,
+    alignSelf: 'center',
+    width: '100%',
+  },
+  contactModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  contactModalTitle: {
+    fontSize: 20,
+    fontWeight: '500',
+    color: theme.colors.text,
+  },
+  contactModalBody: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#2a2f3d',
+    marginBottom: 20,
+  },
+  contactModalEmail: {
+    color: theme.colors.primary,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  contactModalCloseBtn: {
+    backgroundColor: theme.colors.primary,
+    borderRadius: 4,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contactModalCloseBtnText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

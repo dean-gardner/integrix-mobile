@@ -26,15 +26,34 @@ export function getTaskById(
   return axios.get<TaskWithDetailsReadDTO>(`api/versions/${versionId}/tasks/${taskId}`);
 }
 
+/** Map numeric status to API enum name (matches web app). */
+const TASK_STATUS_TO_API: Record<number, string> = {
+  0: 'JInProgress',
+  1: 'JComplete',
+  2: 'JCancelled',
+  3: 'JLocked',
+  4: 'JPlanned',
+};
+
+function taskStatusToApiValue(status: number | string | null): string | null {
+  if (status == null || status === '') return null;
+  const num = typeof status === 'string' ? parseInt(status, 10) : status;
+  if (Number.isFinite(num) && TASK_STATUS_TO_API[num as keyof typeof TASK_STATUS_TO_API] != null) {
+    return TASK_STATUS_TO_API[num as keyof typeof TASK_STATUS_TO_API];
+  }
+  return typeof status === 'string' ? status : String(status);
+}
+
 export function changeTaskStatus(
   documentId: string,
   versionId: string,
   taskId: string,
-  status: string | null
+  status: number | string | null
 ): Promise<AxiosResponse<TaskWithDetailsReadDTO>> {
+  const value = taskStatusToApiValue(status);
   return axios.patch<TaskWithDetailsReadDTO>(
     `api/documents/${documentId}/versions/${versionId}/tasks/${taskId}/change-status`,
-    [{ op: 'replace', path: '/JobStatusCode', value: status ? status.toString() : null }]
+    [{ op: 'replace', path: '/JobStatusCode', value }]
   );
 }
 

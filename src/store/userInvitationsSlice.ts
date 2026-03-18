@@ -10,6 +10,7 @@ import type {
   UserInvitationFilteringModel,
   UserInvitationReadDTO,
 } from '../types/invitation';
+import { getHttpErrorMessage } from '../utils/httpErrorMessage';
 
 export const fetchUserInvitations = createAsyncThunk<
   { items: UserInvitationReadDTO[]; totalCount: number },
@@ -23,7 +24,7 @@ export const fetchUserInvitations = createAsyncThunk<
     const res = await getUserInvitations(getState().userInvitations.filteringModel);
     return { items: res.data.items, totalCount: res.data.totalCount };
   } catch (e: unknown) {
-    return rejectWithValue((e as { message?: string })?.message ?? 'Failed to load invitations');
+    return rejectWithValue(getHttpErrorMessage(e, 'Failed to load invitations'));
   }
 });
 
@@ -36,9 +37,7 @@ export const createInvitation = createAsyncThunk<
     const res = await apiCreateUserInvitation(model);
     return res.data;
   } catch (e: unknown) {
-    return rejectWithValue(
-      (e as { message?: string })?.message ?? 'Failed to send invitation'
-    );
+    return rejectWithValue(getHttpErrorMessage(e, 'Failed to send invitation'));
   }
 });
 
@@ -51,9 +50,7 @@ export const deleteInvitation = createAsyncThunk<
     await apiDeleteUserInvitation(id);
     return id;
   } catch (e: unknown) {
-    return rejectWithValue(
-      (e as { message?: string })?.message ?? 'Failed to delete invitation'
-    );
+    return rejectWithValue(getHttpErrorMessage(e, 'Failed to delete invitation'));
   }
 });
 
@@ -66,9 +63,7 @@ export const resendInvitation = createAsyncThunk<
     await apiResendUserInvitation(id);
     return id;
   } catch (e: unknown) {
-    return rejectWithValue(
-      (e as { message?: string })?.message ?? 'Failed to resend invitation'
-    );
+    return rejectWithValue(getHttpErrorMessage(e, 'Failed to resend invitation'));
   }
 });
 

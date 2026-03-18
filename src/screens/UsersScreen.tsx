@@ -225,8 +225,12 @@ export default function UsersScreen() {
       setInviteError('Role is not available yet. Try again.');
       throw new Error('Role is not available.');
     }
-    if (teamId == null) {
-      setInviteError('Team is not available yet. Try again.');
+    if (teamId == null || teamId === 0) {
+      setInviteError(
+        teamId === 0
+          ? 'You must be assigned to a team before inviting members.'
+          : 'Team is not available yet. Try again.'
+      );
       throw new Error('Team is not available.');
     }
 
@@ -242,6 +246,7 @@ export default function UsersScreen() {
       ).unwrap();
       await dispatch(fetchUserInvitations()).unwrap();
       setActiveTab('invitations');
+      Alert.alert('Invitation sent', 'The team member will receive an email invitation.');
     } catch (e) {
       const fallback = 'Failed to invite team member.';
       const message =

@@ -13,7 +13,8 @@ export type UserInvitationCreateDTO = {
   email: string;
   firstName: string;
   lastName: string;
-  phoneNumber: string;
+  /** Omitted or null when empty for API validation */
+  phoneNumber?: string | null;
   userRoleId: string;
   companyTeamId: number | null;
 };

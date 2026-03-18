@@ -76,6 +76,9 @@ const notificationsSlice = createSlice({
         const n = state.items.find((i) => i.id === payload);
         if (n) n.isRead = true;
       })
+      .addCase(markAllNotificationsRead.pending, (state) => {
+        state.items.forEach((n) => (n.isRead = true));
+      })
       .addCase(markAllNotificationsRead.fulfilled, (state) => {
         state.items.forEach((n) => (n.isRead = true));
       });

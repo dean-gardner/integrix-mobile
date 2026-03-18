@@ -6,6 +6,7 @@ import type {
   TaskCreateDTO,
 } from '../types/task';
 import type { FoundUserDTO } from '../types/user';
+import { TASK_STATUS_CANCELLED } from '../config/taskDetail';
 import {
   getTasks,
   getTaskById,
@@ -114,16 +115,23 @@ export const changeCurrentTaskStatus = createAsyncThunk<
     } catch (e: any) {
       const statusCode = e?.response?.status;
       const responseData = e?.response?.data;
-      if (__DEV__) {
+      const is5xx = statusCode != null && statusCode >= 500;
+      if (__DEV__ && !is5xx) {
         console.log('[tasks/changeStatus] error', {
           message: e?.message,
           status: statusCode,
           responseData,
           fullError: e,
         });
+      } else if (__DEV__ && is5xx) {
+        console.log('[tasks/changeStatus] server error (5xx), user-friendly message shown');
       }
-      if (statusCode != null && statusCode >= 500) {
-        return rejectWithValue('Unable to update task status at this time. Please try again later.');
+      if (is5xx) {
+        const friendlyMessage =
+          status === TASK_STATUS_CANCELLED
+            ? 'Unable to cancel task at this moment. Please try again later.'
+            : 'Unable to update task status at this time. Please try again later.';
+        return rejectWithValue(friendlyMessage);
       }
       const detail =
         responseData != null
@@ -194,6 +202,10 @@ export const editTaskEntry = createAsyncThunk<
       const res = await apiEditTask(documentId, versionId, taskId, model);
       return res.data;
     } catch (e: any) {
+      const statusCode = e?.response?.status;
+      if (statusCode != null && statusCode >= 500) {
+        return rejectWithValue('Unable to save task at this moment. Please try again later.');
+      }
       return rejectWithValue(e?.message ?? 'Failed to edit task');
     }
   }

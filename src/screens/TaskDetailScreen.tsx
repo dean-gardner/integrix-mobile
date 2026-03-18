@@ -1139,12 +1139,26 @@ export default function TaskDetailScreen() {
       >
         <View style={styles.doneConfirmBackdrop}>
           <View style={styles.doneConfirmCard}>
-            <View style={styles.doneConfirmHeader}>
-              <Text style={styles.doneConfirmTitle}>Photo Confirmation Required</Text>
-              <TouchableOpacity onPress={closeDoneConfirmationModal} disabled={doneConfirmSubmitting}>
-                <MaterialIcons name="close" size={24} color="#2f3444" />
+            <View style={styles.doneConfirmHeaderRow}>
+              <Text
+                style={styles.doneConfirmTitle}
+                maxFontSizeMultiplier={1.2}
+                accessibilityRole="header"
+              >
+                Photo confirmation
+              </Text>
+              <TouchableOpacity
+                onPress={closeDoneConfirmationModal}
+                disabled={doneConfirmSubmitting}
+                style={styles.doneConfirmCloseBtn}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <MaterialIcons name="close" size={22} color="#2f3444" />
               </TouchableOpacity>
             </View>
+            <Text style={styles.doneConfirmSubtitle} maxFontSizeMultiplier={1.3}>
+              Add a description and at least one photo to mark this step done.
+            </Text>
 
             <Text style={styles.doneConfirmLabel}>Description</Text>
             <View style={styles.doneConfirmInputWrap}>
@@ -1245,12 +1259,13 @@ export default function TaskDetailScreen() {
         <View style={styles.modalBackdrop}>
           <View style={styles.editModalCard}>
             <Text style={styles.modalTitle}>Edit task</Text>
-            <ScrollView
-              style={styles.editModalScroll}
-              contentContainerStyle={styles.editModalScrollContent}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator
-            >
+            <View style={styles.editModalBody}>
+              <ScrollView
+                style={styles.editModalScroll}
+                contentContainerStyle={styles.editModalScrollContent}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator
+              >
               {editError ? (
                 <View style={screenStyles.errorBox}>
                   <Text style={screenStyles.errorText}>{editError}</Text>
@@ -1293,7 +1308,8 @@ export default function TaskDetailScreen() {
                 keyboardType="number-pad"
                 editable={!isActionLoading}
               />
-            </ScrollView>
+              </ScrollView>
+            </View>
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={styles.modalCancelBtn}
@@ -1303,7 +1319,12 @@ export default function TaskDetailScreen() {
                 <Text style={styles.modalCancelBtnText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalSaveBtn, screenStyles.formButton, isActionLoading && styles.buttonDisabled]}
+                style={[
+                  styles.modalSaveBtn,
+                  screenStyles.formButton,
+                  styles.modalSaveBtnInRow,
+                  isActionLoading && styles.buttonDisabled,
+                ]}
                 onPress={submitEdit}
                 disabled={isActionLoading}
               >
@@ -1634,18 +1655,31 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 4,
   },
-  doneConfirmHeader: {
+  /** Matches web MUI DialogTitle (h6): ~1.25rem, medium weight */
+  doneConfirmHeaderRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 6,
+  },
+  doneConfirmCloseBtn: {
+    marginTop: 2,
+    marginLeft: 8,
   },
   doneConfirmTitle: {
-    color: '#2a2f3d',
-    fontSize: 32,
-    fontWeight: '600',
+    color: theme.colors.text,
+    fontSize: 20,
+    fontWeight: '500',
+    lineHeight: 26,
     flex: 1,
-    paddingRight: 8,
+    letterSpacing: 0.15,
+  },
+  /** MUI DialogContentText-style secondary line */
+  doneConfirmSubtitle: {
+    color: theme.colors.textMuted,
+    fontSize: theme.typography.body,
+    lineHeight: 20,
+    marginBottom: 12,
   },
   doneConfirmLabel: {
     color: '#161b27',
@@ -1749,10 +1783,15 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.cardBg,
     borderRadius: 12,
     padding: theme.spacing.cardPadding,
+    height: '85%',
     maxHeight: '90%',
   },
+  editModalBody: {
+    flex: 1,
+    minHeight: 0,
+  },
   editModalScroll: {
-    maxHeight: 320,
+    flex: 1,
   },
   editModalScrollContent: {
     paddingBottom: 8,
@@ -1770,19 +1809,33 @@ const styles = StyleSheet.create({
   },
   modalActions: {
     flexDirection: 'row',
+    alignItems: 'stretch',
+    justifyContent: 'space-between',
     gap: 12,
-    marginTop: 8,
+    marginTop: 12,
+    flexShrink: 0,
+    width: '100%',
   },
   modalCancelBtn: {
     flex: 1,
+    minHeight: 44,
     paddingVertical: 12,
     alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: 8,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
   modalSaveBtn: {
     flex: 1,
+    minHeight: 44,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalSaveBtnInRow: {
+    marginTop: 0,
   },
   modalCancelBtnText: {
     fontSize: 16,

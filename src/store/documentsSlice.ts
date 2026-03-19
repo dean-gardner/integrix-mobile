@@ -7,6 +7,7 @@ import {
   editDocument as apiEditDocument,
   deleteDocument as apiDeleteDocument,
 } from '../api/documents';
+import i18n from '../i18n';
 
 export const fetchDocuments = createAsyncThunk<
   { items: DocumentVersionReadDTO[]; totalCount: number },
@@ -19,7 +20,7 @@ export const fetchDocuments = createAsyncThunk<
       const res = await getDocuments(getState().documents.filteringModel);
       return { items: res.data.items, totalCount: res.data.totalCount };
     } catch (e: any) {
-      return rejectWithValue(e?.message ?? 'Failed to load documents');
+      return rejectWithValue(e?.message ?? i18n.t('app.errors.loadDocuments'));
     }
   }
 );
@@ -51,7 +52,7 @@ export const fetchMoreDocuments = createAsyncThunk<
         nextPageNumber: next.pageNumber,
       };
     } catch (e: any) {
-      return rejectWithValue(e?.message ?? 'Failed to load more');
+      return rejectWithValue(e?.message ?? i18n.t('app.errors.loadMore'));
     }
   }
 );
@@ -68,7 +69,7 @@ export const goToDocumentsPage = createAsyncThunk<
       const res = await getDocuments({ ...filteringModel, pageNumber: pageNumber - 1 });
       return { items: res.data.items, totalCount: res.data.totalCount, pageNumber };
     } catch (e: any) {
-      return rejectWithValue(e?.message ?? 'Failed to load documents');
+      return rejectWithValue(e?.message ?? i18n.t('app.errors.loadDocuments'));
     }
   }
 );
@@ -84,7 +85,7 @@ export const fetchDocumentById = createAsyncThunk<
       const res = await getDocumentById(documentId, versionId);
       return res.data;
     } catch (e: any) {
-      return rejectWithValue(e?.message ?? 'Failed to load document');
+      return rejectWithValue(e?.message ?? i18n.t('app.errors.loadDocument'));
     }
   }
 );
@@ -98,7 +99,7 @@ export const createDocument = createAsyncThunk<
     const res = await apiCreateDocument(model);
     return res.data;
   } catch (e: any) {
-    return rejectWithValue(e?.message ?? 'Failed to create document');
+    return rejectWithValue(e?.message ?? i18n.t('app.errors.createDocument'));
   }
 });
 
@@ -113,7 +114,7 @@ export const editDocument = createAsyncThunk<
       const res = await apiEditDocument(documentId, versionId, model);
       return res.data;
     } catch (e: any) {
-      return rejectWithValue(e?.message ?? 'Failed to edit document');
+      return rejectWithValue(e?.message ?? i18n.t('app.errors.editDocument'));
     }
   }
 );
@@ -127,7 +128,7 @@ export const deleteDocument = createAsyncThunk<
     await apiDeleteDocument(versionId);
     return versionId;
   } catch (e: any) {
-    return rejectWithValue(e?.message ?? 'Failed to delete document');
+    return rejectWithValue(e?.message ?? i18n.t('app.errors.deleteDocument'));
   }
 });
 
@@ -176,7 +177,7 @@ const documentsSlice = createSlice({
       })
       .addCase(fetchDocuments.rejected, (state, { payload }) => {
         state.isLoading = false;
-        state.error = payload ?? 'Failed to load documents';
+        state.error = payload ?? i18n.t('app.errors.loadDocuments');
       });
     builder
       .addCase(fetchMoreDocuments.pending, (state) => {

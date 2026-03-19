@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -15,6 +16,7 @@ import type { AppDispatch, RootState } from '../store';
 import { fetchTasks, goToTasksPage, setTasksFilter } from '../store/tasksSlice';
 import { screenStyles } from '../styles/screenStyles';
 import { theme } from '../theme';
+import { TaskTypeEnum } from '../types/task';
 import type { TaskReadDTO } from '../types/task';
 import { DocumentsSelect } from '../components/documents/DocumentsSelect';
 import { DocumentsSortModal } from '../components/documents/DocumentsSortModal';
@@ -27,16 +29,13 @@ import {
   defaultTasksStatusValue,
   defaultTasksTypeValue,
   parseTaskReferenceFilter,
-  taskSortFieldOptions,
-  taskSortOrderOptions,
-  taskStatusOptions,
-  taskTypeOptions,
   TASK_STATUS_ALL_VALUE,
   toTaskReferenceFilterValue,
   type TasksFilterForm,
 } from '../config/tasksScreen';
 
 export default function TasksScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation();
   const dispatch = useDispatch<AppDispatch>();
   const tasksState = useSelector((s: RootState) => s.tasks);
@@ -100,6 +99,42 @@ export default function TasksScreen() {
   const pageSize = filteringModel.pageSize || 10;
   const pageCount = Math.max(1, Math.ceil(totalCount / Math.max(1, pageSize)));
   const currentPage = Math.min(pageCount, (filteringModel.pageNumber ?? 0) + 1);
+
+  const taskStatusOptionsT = useMemo(
+    () => [
+      { value: TASK_STATUS_ALL_VALUE, label: t('app.taskFilter.all') },
+      { value: 0, label: t('app.tasksScreen.inProgress') },
+      { value: 1, label: t('app.tasksScreen.complete') },
+      { value: 2, label: t('app.tasksScreen.cancelled') },
+    ],
+    [t]
+  );
+  const taskTypeOptionsT = useMemo(
+    () => [
+      { value: null as number | null, label: t('app.taskFilter.all') },
+      { value: TaskTypeEnum.TeamTasks, label: t('app.tasksScreen.teamTasks') },
+      { value: TaskTypeEnum.SharedTasks, label: t('app.tasksScreen.sharedTasks') },
+    ],
+    [t]
+  );
+  const taskSortFieldOptionsT = useMemo(
+    () => [
+      { value: 'taskNumber', label: t('app.tasksScreen.taskNo') },
+      { value: 'createdOnUtc', label: t('app.tasksScreen.date') },
+      { value: 'description', label: t('app.tasksScreen.description') },
+      { value: 'assetName', label: t('app.tasksScreen.asset') },
+      { value: 'status', label: t('app.tasks.status') },
+      { value: 'createdBy', label: t('app.tasksScreen.createdBy') },
+    ],
+    [t]
+  );
+  const taskSortOrderOptionsT = useMemo(
+    () => [
+      { value: 0, label: t('app.tasksScreen.ascending') },
+      { value: 1, label: t('app.tasksScreen.descending') },
+    ],
+    [t]
+  );
 
   useEffect(() => {
     dispatch(
@@ -199,17 +234,21 @@ export default function TasksScreen() {
     >
       <View style={styles.panel}>
         <View style={styles.topFilterRow}>
-          <Text style={styles.topFilterLabel}>Status</Text>
+          <Text style={styles.topFilterLabel}>{t('app.tasks.status')}</Text>
           <DocumentsSelect
             value={selectedStatusValue}
-            options={taskStatusOptions}
+            options={taskStatusOptionsT}
             onChange={handleStatusChange}
           />
         </View>
 
         <View style={styles.topFilterRow}>
-          <Text style={styles.topFilterLabel}>Type</Text>
-          <DocumentsSelect value={selectedTypeValue} options={taskTypeOptions} onChange={handleTypeChange} />
+          <Text style={styles.topFilterLabel}>{t('app.tasks.type')}</Text>
+          <DocumentsSelect
+            value={selectedTypeValue}
+            options={taskTypeOptionsT}
+            onChange={handleTypeChange}
+          />
         </View>
 
         <View style={styles.actionBar}>
@@ -219,7 +258,7 @@ export default function TasksScreen() {
               onPress={() => setFilterModalVisible(true)}
             >
               <Text style={[styles.filterSortText, hasAppliedFilters && styles.filterSortTextActive]}>
-                Filter
+                {t('app.tasks.filter')}
               </Text>
               <MaterialIcons
                 name="filter-alt"
@@ -229,7 +268,7 @@ export default function TasksScreen() {
             </TouchableOpacity>
             <View style={styles.filterSortDivider} />
             <TouchableOpacity style={styles.filterSortButton} onPress={() => setSortModalVisible(true)}>
-              <Text style={styles.filterSortText}>Sort</Text>
+              <Text style={styles.filterSortText}>{t('app.tasks.sort')}</Text>
               <MaterialIcons name="sort" size={21} color="#2f3a59" />
             </TouchableOpacity>
           </View>
@@ -246,7 +285,7 @@ export default function TasksScreen() {
             <ActivityIndicator size="small" color={theme.colors.primary} />
           </View>
         ) : items.length === 0 ? (
-          <Text style={styles.emptyText}>No tasks found.</Text>
+          <Text style={styles.emptyText}>{t('app.tasks.empty')}</Text>
         ) : (
           <View>
             {items.map((task) => (
@@ -274,8 +313,8 @@ export default function TasksScreen() {
         visible={sortModalVisible}
         sortingField={currentSortingField}
         sortingOrder={currentSortingOrder}
-        sortingFieldOptions={taskSortFieldOptions}
-        sortingOrderOptions={taskSortOrderOptions}
+        sortingFieldOptions={taskSortFieldOptionsT}
+        sortingOrderOptions={taskSortOrderOptionsT}
         onClose={() => setSortModalVisible(false)}
         onApply={handleApplySorting}
       />

@@ -25,10 +25,6 @@ import {
   defaultDocumentsStatusValue,
   defaultDocumentsTypeValue,
   DOCUMENT_STATUS_ALL_VALUE,
-  documentSortFieldOptions,
-  documentSortOrderOptions,
-  documentStatusOptions,
-  documentTypeOptions,
 } from '../config/documentsScreen';
 import { DocumentsSelect } from '../components/documents/DocumentsSelect';
 import { DocumentsListCard } from '../components/documents/DocumentsListCard';
@@ -38,8 +34,10 @@ import { StartTaskModal } from '../components/documents/StartTaskModal';
 import { ShareDocumentModal } from '../components/documents/ShareDocumentModal';
 import { IntegrixLoader } from '../components/IntegrixLoader';
 import { Paginator } from '../components/Paginator';
+import { useTranslation } from 'react-i18next';
 
 export default function DocumentsScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation();
   const dispatch = useDispatch<AppDispatch>();
   const documentsState = useSelector((s: RootState) => s.documents);
@@ -89,6 +87,43 @@ export default function DocumentsScreen() {
   const pageSize = filteringModel.pageSize || 10;
   const pageCount = Math.max(1, Math.ceil(totalCount / Math.max(1, pageSize)));
   const currentPage = Math.min(pageCount, (filteringModel.pageNumber ?? 0) + 1);
+
+  const documentStatusOptionsT = useMemo(
+    () => [
+      { value: DOCUMENT_STATUS_ALL_VALUE, label: t('app.documentsScreen.all') },
+      { value: 0, label: t('app.documentsScreen.draft') },
+      { value: 1, label: t('app.documentsScreen.published') },
+      { value: 2, label: t('app.documentsScreen.archived') },
+      { value: 3, label: t('app.documentsScreen.inWorkflow') },
+    ],
+    [t]
+  );
+  const documentTypeOptionsT = useMemo(
+    () => [
+      { value: null as number | null, label: t('app.documentsScreen.all') },
+      { value: 0, label: t('app.documentsScreen.myDocuments') },
+      { value: 1, label: t('app.documentsScreen.teamDocuments') },
+      { value: 2, label: t('app.documentsScreen.sharedDocuments') },
+    ],
+    [t]
+  );
+  const documentSortFieldOptionsT = useMemo(
+    () => [
+      { value: 'documentNumberStr', label: t('app.documentsScreen.docNo') },
+      { value: 'description', label: t('app.documentsScreen.docTitle') },
+      { value: 'versionStatusCode', label: t('app.documentsScreen.status') },
+      { value: 'createdByName', label: t('app.documentsScreen.author') },
+      { value: 'createdOnUtc', label: t('app.documentsScreen.createdDate') },
+    ],
+    [t]
+  );
+  const documentSortOrderOptionsT = useMemo(
+    () => [
+      { value: 0, label: t('app.tasksScreen.ascending') },
+      { value: 1, label: t('app.tasksScreen.descending') },
+    ],
+    [t]
+  );
 
   useEffect(() => {
     dispatch(
@@ -188,7 +223,7 @@ export default function DocumentsScreen() {
         task: taskForRoute,
       });
     } catch (e) {
-      Alert.alert('Start task', (e as string) || 'Failed to start task.');
+      Alert.alert(t('app.alerts.startTask'), (e as string) || t('app.documents.startTaskFailed'));
     } finally {
       setStartTaskSubmitting(false);
     }
@@ -252,19 +287,19 @@ export default function DocumentsScreen() {
     >
       <View style={styles.panel}>
         <View style={styles.topFilterRow}>
-          <Text style={styles.topFilterLabel}>Status</Text>
+          <Text style={styles.topFilterLabel}>{t('app.documentsScreen.status')}</Text>
           <DocumentsSelect
             value={selectedStatusValue}
-            options={documentStatusOptions}
+            options={documentStatusOptionsT}
             onChange={handleStatusChange}
           />
         </View>
 
         <View style={styles.topFilterRow}>
-          <Text style={styles.topFilterLabel}>Type</Text>
+          <Text style={styles.topFilterLabel}>{t('app.documentsScreen.type')}</Text>
           <DocumentsSelect
             value={selectedTypeValue}
-            options={documentTypeOptions}
+            options={documentTypeOptionsT}
             onChange={handleTypeChange}
           />
         </View>
@@ -276,7 +311,7 @@ export default function DocumentsScreen() {
               onPress={() => setFilterModalVisible(true)}
             >
               <Text style={[styles.filterSortText, hasAppliedFilters && styles.filterSortTextActive]}>
-                Filter
+                {t('app.documents.filter')}
               </Text>
               <MaterialIcons
                 name="filter-alt"
@@ -289,7 +324,7 @@ export default function DocumentsScreen() {
               style={styles.filterSortButton}
               onPress={() => setSortModalVisible(true)}
             >
-              <Text style={styles.filterSortText}>Sort</Text>
+              <Text style={styles.filterSortText}>{t('app.documents.sort')}</Text>
               <MaterialIcons name="sort" size={21} color="#2f3a59" />
             </TouchableOpacity>
           </View>
@@ -306,7 +341,7 @@ export default function DocumentsScreen() {
             <IntegrixLoader size={44} />
           </View>
         ) : items.length === 0 ? (
-          <Text style={styles.emptyText}>No documents found.</Text>
+          <Text style={styles.emptyText}>{t('app.documentsScreen.empty')}</Text>
         ) : (
           <View>
             {items.map((document) => (
@@ -335,8 +370,9 @@ export default function DocumentsScreen() {
         visible={sortModalVisible}
         sortingField={currentSortingField}
         sortingOrder={currentSortingOrder}
-        sortingFieldOptions={documentSortFieldOptions}
-        sortingOrderOptions={documentSortOrderOptions}
+        sortingFieldOptions={documentSortFieldOptionsT}
+        sortingOrderOptions={documentSortOrderOptionsT}
+        headerTitle={t('app.documents.sort')}
         onClose={() => setSortModalVisible(false)}
         onApply={handleApplySorting}
       />

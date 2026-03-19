@@ -12,12 +12,14 @@ import {
 } from 'react-native';
 import { getUsersBySearch } from '../api/users';
 import type { FoundUserDTO } from '../types/user';
+import { useTranslation } from 'react-i18next';
 import { screenStyles } from '../styles/screenStyles';
 import { theme } from '../theme';
 
 const MIN_QUERY_LENGTH = 2;
 
 export default function UserSearchScreen() {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<FoundUserDTO[]>([]);
   const [loading, setLoading] = useState(false);
@@ -27,7 +29,7 @@ export default function UserSearchScreen() {
   const onSearch = useCallback(async () => {
     const q = (query ?? '').trim();
     if (q.length < MIN_QUERY_LENGTH) {
-      setError(`Enter at least ${MIN_QUERY_LENGTH} characters.`);
+      setError(t('app.userSearch.minChars', { min: MIN_QUERY_LENGTH }));
       return;
     }
     setError(null);
@@ -42,11 +44,11 @@ export default function UserSearchScreen() {
       setResults(res.data ?? []);
     } catch (e: unknown) {
       setResults([]);
-      setError((e as { message?: string })?.message ?? 'Search failed.');
+      setError((e as { message?: string })?.message ?? t('app.userSearch.failed'));
     } finally {
       setLoading(false);
     }
-  }, [query]);
+  }, [query, t]);
 
   const isEmpty = searched && !loading && results.length === 0;
   const showResults = searched && !loading;
@@ -62,19 +64,19 @@ export default function UserSearchScreen() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={screenStyles.title}>Search users</Text>
+        <Text style={screenStyles.title}>{t('app.userSearch.title')}</Text>
         <Text style={styles.hint}>
-          Find users by name or email (for share/assign). Min {MIN_QUERY_LENGTH} characters.
+          {t('app.userSearch.hint', { min: MIN_QUERY_LENGTH })}
         </Text>
         <View style={styles.searchRow}>
           <TextInput
             style={styles.input}
             value={query}
-            onChangeText={(t) => {
-              setQuery(t);
+            onChangeText={(text) => {
+              setQuery(text);
               setError(null);
             }}
-            placeholder="Name or email..."
+            placeholder={t('app.userSearch.placeholder')}
             placeholderTextColor="#6c757d"
             autoCapitalize="none"
             autoCorrect={false}
@@ -90,7 +92,7 @@ export default function UserSearchScreen() {
             {loading ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text style={styles.searchBtnText}>Search</Text>
+              <Text style={styles.searchBtnText}>{t('app.userSearch.search')}</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -107,7 +109,7 @@ export default function UserSearchScreen() {
         {showResults && !loading ? (
           <View style={screenStyles.list}>
             {isEmpty ? (
-              <Text style={screenStyles.muted}>No users found.</Text>
+              <Text style={screenStyles.muted}>{t('app.userSearch.noResults')}</Text>
             ) : (
               results.map((u, idx) => (
                 <View key={`${u.email}-${u.userId ?? idx}`} style={screenStyles.card}>
@@ -116,7 +118,9 @@ export default function UserSearchScreen() {
                     <Text style={screenStyles.muted}>{u.email}</Text>
                   ) : null}
                   {u.companyTeam ? (
-                    <Text style={styles.team}>Team: {u.companyTeam.name}</Text>
+                    <Text style={styles.team}>
+                      {t('app.userSearch.teamLabel', { name: u.companyTeam.name })}
+                    </Text>
                   ) : null}
                 </View>
               ))

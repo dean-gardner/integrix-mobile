@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
+import { useTranslation } from 'react-i18next';
 import { theme } from '../../theme';
 import type { FeedTaskFilterId, FeedTaskFilterOption } from '../../config/feedScreen';
 
@@ -16,6 +17,7 @@ type TaskFilterSelectProps = {
 };
 
 export function TaskFilterSelect({ options, selectedFilterId, onSelect }: TaskFilterSelectProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
   const selectedOption = useMemo(
@@ -30,14 +32,14 @@ export function TaskFilterSelect({ options, selectedFilterId, onSelect }: TaskFi
 
   return (
     <View style={styles.wrapper}>
-      <Text style={styles.floatingLabel}>Filter</Text>
+      <Text style={styles.floatingLabel}>{t('app.feed.filterFloat')}</Text>
       <TouchableOpacity
         style={[styles.trigger, open && styles.triggerOpen]}
         onPress={() => setOpen((prev) => !prev)}
         activeOpacity={0.8}
       >
         <Text style={[styles.triggerText, !selectedOption && styles.placeholderText]} numberOfLines={1}>
-          {selectedOption?.label ?? 'Select filter'}
+          {selectedOption ? t(selectedOption.titleKey) : t('app.feed.selectFilter')}
         </Text>
         <MaterialIcons
           name={open ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
@@ -56,7 +58,7 @@ export function TaskFilterSelect({ options, selectedFilterId, onSelect }: TaskFi
               activeOpacity={0.8}
             >
               <View style={[styles.filterChip, { backgroundColor: option.indicatorColor }]}>
-                <Text style={styles.optionText}>{option.label}</Text>
+                <Text style={styles.optionText}>{t(option.titleKey)}</Text>
               </View>
             </TouchableOpacity>
           ))}

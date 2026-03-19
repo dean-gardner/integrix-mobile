@@ -27,9 +27,9 @@ import { TaskTypeEnum } from '../types/task';
 import type { TaskReadDTO } from '../types/task';
 import type { FeedItemDTO } from '../types/feed';
 import { theme } from '../theme';
+import { useTranslation } from 'react-i18next';
 import {
   defaultFeedTaskIndicatorColor,
-  feedEmptyStateText,
   feedTabOptions,
   feedTaskFilterOptions,
   type FeedTabKey,
@@ -47,6 +47,7 @@ type TaskWithFeedMeta = TaskReadDTO & {
 };
 
 export default function FeedScreen() {
+  const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation();
   const scrollRef = useRef<ScrollView>(null);
@@ -235,7 +236,7 @@ export default function FeedScreen() {
             ) : feedState.error ? (
               <Text style={styles.errorText}>{feedState.error}</Text>
             ) : feedState.items.length === 0 ? (
-              <Text style={styles.emptyStateText}>{feedEmptyStateText}</Text>
+              <Text style={styles.emptyStateText}>{t('app.feed.emptyFeed')}</Text>
             ) : (
               <View style={styles.feedList}>
                 {feedState.items.map((item) => (
@@ -259,7 +260,7 @@ export default function FeedScreen() {
                     {loadingMoreFeed ? (
                       <ActivityIndicator size="small" color={theme.colors.primary} />
                     ) : (
-                      <Text style={styles.loadMoreText}>Load more</Text>
+                      <Text style={styles.loadMoreText}>{t('app.feed.loadMore')}</Text>
                     )}
                   </TouchableOpacity>
                 ) : null}
@@ -269,9 +270,9 @@ export default function FeedScreen() {
         ) : (
           <View>
             <View style={styles.tasksHeader}>
-              <Text style={styles.tasksTitle}>Tasks in progress</Text>
+              <Text style={styles.tasksTitle}>{t('app.feed.tasksInProgress')}</Text>
               <TouchableOpacity style={styles.seeAllLink} onPress={() => navigation.navigate('Tasks' as never)}>
-                <Text style={styles.seeAllText}>See all</Text>
+                <Text style={styles.seeAllText}>{t('app.feed.seeAll')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -287,7 +288,7 @@ export default function FeedScreen() {
                   <ActivityIndicator size="small" color={theme.colors.primary} />
                 </View>
               ) : tasksState.items.length === 0 ? (
-                <Text style={styles.emptyStateText}>No tasks yet.</Text>
+                <Text style={styles.emptyStateText}>{t('app.feed.noTasksYet')}</Text>
               ) : (
                 <>
                   {tasksState.items.map((task) => (

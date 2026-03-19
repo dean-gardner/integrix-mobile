@@ -22,6 +22,7 @@ import {
 } from '../../api/documents';
 import type { DocumentVersionReadDTO } from '../../types/document';
 import type { FoundUserDTO } from '../../types/user';
+import { useTranslation } from 'react-i18next';
 import { theme } from '../../theme';
 
 type ShareDocumentModalProps = {
@@ -63,6 +64,7 @@ function dedupeUsers(users: FoundUserDTO[]): FoundUserDTO[] {
 }
 
 export function ShareDocumentModal({ visible, document, onClose }: ShareDocumentModalProps) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchResults, setSearchResults] = useState<FoundUserDTO[]>([]);
@@ -252,12 +254,12 @@ export function ShareDocumentModal({ visible, document, onClose }: ShareDocument
               'message' in err.response.data &&
               typeof (err.response.data as { message?: string }).message === 'string'
             ? (err.response.data as { message?: string }).message
-            : 'Failed to save share changes.';
-      Alert.alert('Share Documents', message);
+            : t('app.document.shareSaveFail');
+      Alert.alert(t('app.document.shareDocs'), message);
     } finally {
       setSaving(false);
     }
-  }, [closeModal, document?.id, queryUsersToShare, usersToShare, usersToUnshare]);
+  }, [closeModal, document?.id, queryUsersToShare, usersToShare, usersToUnshare, t]);
 
   if (!visible) return null;
 
@@ -272,7 +274,7 @@ export function ShareDocumentModal({ visible, document, onClose }: ShareDocument
         <View style={styles.modalCard}>
           {/* Header */}
           <View style={styles.headerRow}>
-            <Text style={styles.title}>Share Documents</Text>
+            <Text style={styles.title}>{t('app.document.shareDocs')}</Text>
             <TouchableOpacity onPress={closeModal} hitSlop={10}>
               <MaterialIcons name="close" size={22} color="#2f2f33" />
             </TouchableOpacity>

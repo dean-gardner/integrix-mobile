@@ -7,16 +7,35 @@ import type {
 } from '../types/task';
 import type { FoundUserDTO } from '../types/user';
 import { TASK_STATUS_CANCELLED } from '../config/taskDetail';
+import i18n from '../i18n';
 import {
   getTasks,
   getTaskById,
   changeTaskStatus,
+  shareTasks as apiShareTasks,
+  unshareUsers as apiUnshareUsers,
   shareTaskWithUser,
   unshareTaskWithUser,
   createTask as apiCreateTask,
   editTask as apiEditTask,
   deleteTask as apiDeleteTask,
 } from '../api/tasks';
+
+/**
+ * Match web task-share payload shape:
+ * - companyTeam is always null
+ * - userId/fullName nullable
+ * - keep isImplicitShare when present
+ */
+function normalizeTaskShareUser(user: FoundUserDTO): FoundUserDTO {
+  return {
+    fullName: user.fullName ?? null,
+    email: (user.email ?? '').trim(),
+    userId: user.userId ?? null,
+    companyTeam: null,
+    isImplicitShare: user.isImplicitShare ?? null,
+  };
+}
 
 export const fetchTasks = createAsyncThunk<
   { items: TaskReadDTO[]; totalCount: number },
@@ -29,7 +48,7 @@ export const fetchTasks = createAsyncThunk<
       const res = await getTasks(getState().tasks.filteringModel);
       return { items: res.data.items, totalCount: res.data.totalCount };
     } catch (e: any) {
-      return rejectWithValue(e?.message ?? 'Failed to load tasks');
+      return rejectWithValue(e?.message ?? i18n.t('app.errors.loadTasks'));
     }
   }
 );
@@ -64,7 +83,7 @@ export const fetchMoreTasks = createAsyncThunk<
         nextPageNumber: next.pageNumber,
       };
     } catch (e: any) {
-      return rejectWithValue(e?.message ?? 'Failed to load more tasks');
+      return rejectWithValue(e?.message ?? i18n.t('app.errors.loadMoreTasks'));
     }
   }
 );
@@ -81,7 +100,7 @@ export const goToTasksPage = createAsyncThunk<
       const res = await getTasks({ ...filteringModel, pageNumber: pageNumber - 1 });
       return { items: res.data.items, totalCount: res.data.totalCount, pageNumber };
     } catch (e: any) {
-      return rejectWithValue(e?.message ?? 'Failed to load tasks');
+      return rejectWithValue(e?.message ?? i18n.t('app.errors.loadTasks'));
     }
   }
 );
@@ -95,7 +114,7 @@ export const fetchTaskById = createAsyncThunk<
     const res = await getTaskById(versionId, taskId);
     return res.data;
   } catch (e: any) {
-    return rejectWithValue(e?.message ?? 'Failed to load task details');
+    return rejectWithValue(e?.message ?? i18n.t('app.errors.loadTaskDetails'));
   }
 });
 
@@ -129,8 +148,8 @@ export const changeCurrentTaskStatus = createAsyncThunk<
       if (is5xx) {
         const friendlyMessage =
           status === TASK_STATUS_CANCELLED
-            ? 'Unable to cancel task at this moment. Please try again later.'
-            : 'Unable to update task status at this time. Please try again later.';
+            ? i18n.t('app.errors.unableCancelTask')
+            : i18n.t('app.errors.unableUpdateTaskStatus');
         return rejectWithValue(friendlyMessage);
       }
       const detail =
@@ -138,9 +157,11 @@ export const changeCurrentTaskStatus = createAsyncThunk<
           ? typeof responseData === 'object'
             ? JSON.stringify(responseData)
             : String(responseData)
-          : e?.message ?? 'Failed to change task status';
+            : e?.message ?? i18n.t('app.errors.changeTaskStatus');
       return rejectWithValue(
-        statusCode != null ? `Request failed with status code ${statusCode}. ${detail}` : detail
+        statusCode != null
+          ? i18n.t('app.errors.requestFailedStatus', { code: statusCode, detail })
+          : detail
       );
     }
   }
@@ -153,11 +174,60 @@ export const shareCurrentTaskWithUser = createAsyncThunk<
 >(
   'tasks/shareWithUser',
   async ({ documentId, versionId, taskId, user }, { rejectWithValue }) => {
+    const requestUser = normalizeTaskShareUser(user);
+    if (!requestUser.email) {
+      return rejectWithValue(i18n.t('app.errors.shareTask'));
+    }
+    const isFoundUser = (v: unknown): v is FoundUserDTO =>
+      Boolean(v) && typeof v === 'object' && typeof (v as { email?: unknown }).email === 'string';
+    const usersMatch = (a: FoundUserDTO, b: FoundUserDTO) =>
+      (a.userId && b.userId && a.userId === b.userId) ||
+      a.email.toLowerCase() === b.email.toLowerCase();
+    const getValidUsers = (data: unknown): FoundUserDTO[] => {
+      const maybe = (data as { validUsers?: unknown } | null)?.validUsers;
+      return Array.isArray(maybe) ? maybe.filter(isFoundUser) : [];
+    };
+    const getResponseMessage = (data: unknown): string | null => {
+      const msg = (data as { message?: unknown } | null)?.message;
+      return typeof msg === 'string' && msg.trim().length > 0 ? msg : null;
+    };
+    const pickUserFromData = (data: unknown): FoundUserDTO | null => {
+      if (Array.isArray(data)) {
+        const users = data.filter(isFoundUser);
+        return users.find((u) => usersMatch(u, requestUser)) ?? users[0] ?? null;
+      }
+      if (isFoundUser(data)) return data;
+      const validUsers = getValidUsers(data);
+      return validUsers.find((u) => usersMatch(u, requestUser)) ?? validUsers[0] ?? null;
+    };
+
     try {
-      const res = await shareTaskWithUser(documentId, versionId, taskId, user);
-      return res.data;
+      // Match web app context: share by task id via /api/tasks/share-tasks
+      const res = await apiShareTasks({ tasksIds: [taskId], usersToShare: [requestUser] });
+      const picked = pickUserFromData(res.data);
+      if (picked) return picked;
+
+      if (res.status === 202) {
+        return rejectWithValue(getResponseMessage(res.data) ?? i18n.t('app.errors.shareTask'));
+      }
+
+      // Endpoint can succeed without returning user details; keep optimistic local entry.
+      if (res.status >= 200 && res.status < 300) return requestUser;
+      return rejectWithValue(i18n.t('app.errors.shareTask'));
     } catch (e: any) {
-      return rejectWithValue(e?.message ?? 'Failed to share task');
+      // Backward-compatible fallback to version-scoped endpoint.
+      try {
+        const legacy = await shareTaskWithUser(documentId, versionId, taskId, requestUser);
+        return legacy.data;
+      } catch (legacyError: any) {
+        return rejectWithValue(
+          legacyError?.response?.data?.message ??
+            legacyError?.message ??
+            e?.response?.data?.message ??
+            e?.message ??
+            i18n.t('app.errors.shareTask')
+        );
+      }
     }
   }
 );
@@ -169,11 +239,25 @@ export const unshareCurrentTaskWithUser = createAsyncThunk<
 >(
   'tasks/unshareWithUser',
   async ({ documentId, versionId, taskId, user }, { rejectWithValue }) => {
+    const requestUser = normalizeTaskShareUser(user);
     try {
-      await unshareTaskWithUser(documentId, versionId, taskId, user);
-      return user;
+      // Match web app context: unshare by task id via /api/tasks/{taskId}/unshare-users
+      await apiUnshareUsers(taskId, [requestUser]);
+      return requestUser;
     } catch (e: any) {
-      return rejectWithValue(e?.message ?? 'Failed to unshare task');
+      // Backward-compatible fallback to version-scoped endpoint.
+      try {
+        await unshareTaskWithUser(documentId, versionId, taskId, requestUser);
+        return requestUser;
+      } catch (legacyError: any) {
+        return rejectWithValue(
+          legacyError?.response?.data?.message ??
+            legacyError?.message ??
+            e?.response?.data?.message ??
+            e?.message ??
+            i18n.t('app.errors.unshareTask')
+        );
+      }
     }
   }
 );
@@ -187,7 +271,7 @@ export const createTaskEntry = createAsyncThunk<
     const res = await apiCreateTask(documentId, versionId, model);
     return res.data;
   } catch (e: any) {
-    return rejectWithValue(e?.message ?? 'Failed to create task');
+    return rejectWithValue(e?.message ?? i18n.t('app.errors.createTask'));
   }
 });
 
@@ -204,9 +288,9 @@ export const editTaskEntry = createAsyncThunk<
     } catch (e: any) {
       const statusCode = e?.response?.status;
       if (statusCode != null && statusCode >= 500) {
-        return rejectWithValue('Unable to save task at this moment. Please try again later.');
+        return rejectWithValue(i18n.t('app.errors.unableSaveTask'));
       }
-      return rejectWithValue(e?.message ?? 'Failed to edit task');
+      return rejectWithValue(e?.message ?? i18n.t('app.errors.editTask'));
     }
   }
 );
@@ -220,7 +304,7 @@ export const deleteTaskEntry = createAsyncThunk<
     await apiDeleteTask(taskId, documentId, versionId);
     return taskId;
   } catch (e: any) {
-    return rejectWithValue(e?.message ?? 'Failed to delete task');
+    return rejectWithValue(e?.message ?? i18n.t('app.errors.deleteTask'));
   }
 });
 
@@ -299,7 +383,7 @@ const tasksSlice = createSlice({
       })
       .addCase(fetchTasks.rejected, (state, { payload }) => {
         state.isLoading = false;
-        state.error = payload ?? 'Failed to load tasks';
+        state.error = payload ?? i18n.t('app.errors.loadTasks');
       });
 
     builder

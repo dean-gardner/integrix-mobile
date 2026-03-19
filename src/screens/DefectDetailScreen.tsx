@@ -23,11 +23,13 @@ import {
 } from '../api/defects';
 import { UserPickerModal } from '../components/UserPickerModal';
 import { screenStyles } from '../styles/screenStyles';
+import { useTranslation } from 'react-i18next';
 import { theme } from '../theme';
 
 type DefectDetailParams = { defect: DefectReadDTO };
 
 export default function DefectDetailScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation();
   const route = useRoute<RouteProp<{ params: DefectDetailParams }, 'params'>>();
   const dispatch = useDispatch<AppDispatch>();
@@ -78,7 +80,7 @@ export default function DefectDetailScreen() {
   if (!defect) {
     return (
       <View style={screenStyles.container}>
-        <Text style={screenStyles.muted}>Defect not found.</Text>
+        <Text style={screenStyles.muted}>{t('app.defect.notFound')}</Text>
       </View>
     );
   }
@@ -92,7 +94,7 @@ export default function DefectDetailScreen() {
   const submitEdit = async () => {
     const description = (editDescription ?? '').trim();
     if (!description) {
-      setEditError('Enter a description.');
+      setEditError(t('app.defect.enterDescription'));
       return;
     }
     setEditError(null);
@@ -103,7 +105,7 @@ export default function DefectDetailScreen() {
       await dispatch(editDefect({ defectId: defect.id, model: formData })).unwrap();
       setEditVisible(false);
     } catch (e) {
-      setEditError((e as string) || 'Failed to edit defect');
+      setEditError((e as string) || t('app.defect.editFail'));
     } finally {
       setEditing(false);
     }
@@ -111,19 +113,19 @@ export default function DefectDetailScreen() {
 
   const handleDelete = () => {
     Alert.alert(
-      'Delete defect',
-      `Delete defect ${defect.defectNumber}?`,
+      t('app.defect.deleteTitle'),
+      t('app.defect.deleteConfirmNumber', { number: defect.defectNumber }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('app.modal.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('app.modal.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
               await dispatch(deleteDefect(defect.id)).unwrap();
               navigation.goBack();
             } catch {
-              Alert.alert('Error', 'Failed to delete defect.');
+              Alert.alert(t('app.alerts.error'), t('app.defect.deleteFail'));
             }
           },
         },
@@ -140,9 +142,9 @@ export default function DefectDetailScreen() {
       });
       const res = await getDefectUsersSharedWith(defect.id);
       setSharedUsers(res.data ?? []);
-      Alert.alert('Defect', `Shared with ${user.fullName || user.email}.`);
+      Alert.alert(t('app.defect.shareTitle'), t('app.defect.shareOk', { name: user.fullName || user.email }));
     } catch (e) {
-      Alert.alert('Defect', (e as string) || 'Failed to share defect.');
+      Alert.alert(t('app.defect.shareTitle'), (e as string) || t('app.defect.shareFail'));
     } finally {
       setShareActionLoading(false);
     }
@@ -159,9 +161,9 @@ export default function DefectDetailScreen() {
           return !(byUserId || byEmail);
         })
       );
-      Alert.alert('Defect', `Unshared ${user.fullName || user.email}.`);
+      Alert.alert(t('app.defect.shareTitle'), t('app.defect.unshareOk', { name: user.fullName || user.email }));
     } catch (e) {
-      Alert.alert('Defect', (e as string) || 'Failed to unshare defect.');
+      Alert.alert(t('app.defect.shareTitle'), (e as string) || t('app.defect.unshareFail'));
     } finally {
       setShareActionLoading(false);
     }
@@ -171,11 +173,11 @@ export default function DefectDetailScreen() {
     <ScrollView style={screenStyles.container} contentContainerStyle={styles.content}>
       <View style={screenStyles.card}>
         <Text style={styles.number}>{defect.defectNumber}</Text>
-        <Text style={screenStyles.formLabel}>Status</Text>
+        <Text style={screenStyles.formLabel}>{t('app.tasks.status')}</Text>
         <Text style={styles.value}>{defect.statusCode}</Text>
-        <Text style={screenStyles.formLabel}>Description</Text>
+        <Text style={screenStyles.formLabel}>{t('app.tasksScreen.description')}</Text>
         <Text style={styles.value}>{defect.description ?? '—'}</Text>
-        <Text style={screenStyles.formLabel}>Created</Text>
+        <Text style={screenStyles.formLabel}>{t('app.defect.created')}</Text>
         <Text style={styles.value}>
           {defect.createdByName}
           {defect.createdOnUtc
@@ -190,33 +192,33 @@ export default function DefectDetailScreen() {
         </Text>
         {defect.assetName ? (
           <>
-            <Text style={screenStyles.formLabel}>Asset</Text>
+            <Text style={screenStyles.formLabel}>{t('app.task.asset')}</Text>
             <Text style={styles.value}>{defect.assetName}</Text>
           </>
         ) : null}
       </View>
       <View style={styles.actions}>
         <TouchableOpacity style={styles.editButton} onPress={openEdit}>
-          <Text style={styles.editButtonText}>Edit</Text>
+          <Text style={styles.editButtonText}>{t('app.common.edit')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.shareButton, shareActionLoading && styles.buttonDisabled]}
           onPress={() => setSharePickerVisible(true)}
           disabled={shareActionLoading}
         >
-          <Text style={styles.shareButtonText}>Share user</Text>
+          <Text style={styles.shareButtonText}>{t('app.defect.shareUserBtn')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-          <Text style={styles.deleteButtonText}>Delete</Text>
+          <Text style={styles.deleteButtonText}>{t('app.common.delete')}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={screenStyles.card}>
-        <Text style={styles.sectionTitle}>Users shared with</Text>
+        <Text style={styles.sectionTitle}>{t('app.task.sharedWith')}</Text>
         {sharedLoading ? (
           <ActivityIndicator size="small" color={theme.colors.primary} />
         ) : sharedUsers.length === 0 ? (
-          <Text style={screenStyles.muted}>No users yet.</Text>
+          <Text style={screenStyles.muted}>{t('app.task.noUsersYet')}</Text>
         ) : (
           sharedUsers.map((u, i) => (
             <View key={`${u.userId ?? u.email}-${i}`} style={styles.userRow}>
@@ -229,7 +231,7 @@ export default function DefectDetailScreen() {
                 onPress={() => handleUnshareUser(u)}
                 disabled={shareActionLoading}
               >
-                <Text style={styles.unshareBtnText}>Unshare</Text>
+                <Text style={styles.unshareBtnText}>{t('app.defect.unshareBtn')}</Text>
               </TouchableOpacity>
             </View>
           ))
@@ -239,18 +241,18 @@ export default function DefectDetailScreen() {
       <Modal visible={editVisible} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Edit defect</Text>
+            <Text style={styles.modalTitle}>{t('app.defect.editDefect')}</Text>
             {editError ? (
               <View style={screenStyles.errorBox}>
                 <Text style={screenStyles.errorText}>{editError}</Text>
               </View>
             ) : null}
-            <Text style={screenStyles.formLabel}>Description</Text>
+            <Text style={screenStyles.formLabel}>{t('app.tasksScreen.description')}</Text>
             <TextInput
               style={[screenStyles.formInput, styles.textArea]}
               value={editDescription}
               onChangeText={setEditDescription}
-              placeholder="Description"
+              placeholder={t('app.tasksScreen.description')}
               placeholderTextColor="#6c757d"
               multiline
               numberOfLines={4}
@@ -262,7 +264,7 @@ export default function DefectDetailScreen() {
                 onPress={() => setEditVisible(false)}
                 disabled={editing}
               >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text style={styles.cancelBtnText}>{t('app.modal.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[screenStyles.formButton, editing && styles.buttonDisabled]}
@@ -272,7 +274,7 @@ export default function DefectDetailScreen() {
                 {editing ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={screenStyles.formButtonText}>Save</Text>
+                  <Text style={screenStyles.formButtonText}>{t('app.common.save')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -283,7 +285,7 @@ export default function DefectDetailScreen() {
         visible={sharePickerVisible}
         onClose={() => setSharePickerVisible(false)}
         onSelect={handleShareUser}
-        title="Share defect with user"
+        title={t('app.defect.shareWithUserTitle')}
       />
     </ScrollView>
   );

@@ -17,11 +17,13 @@ import { getDefaultDefectFieldsTemplate, getDefectFieldsTemplatesBySearch } from
 import { usePaginatedList } from '../hooks/usePaginatedList';
 import { ListScreenLayout, LoadMoreButton } from '../components/ListScreenLayout';
 import { screenStyles } from '../styles/screenStyles';
+import { useTranslation } from 'react-i18next';
 import { theme } from '../theme';
 import type { DefectReadDTO } from '../types/defect';
 import type { DefectFieldReadDTO, DefectFieldsTemplateDTO } from '../types/defectTemplate';
 
 export default function DefectsScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation();
   const dispatch = useDispatch<AppDispatch>();
   const fetch = useCallback(() => dispatch(fetchDefects()), [dispatch]);
@@ -99,7 +101,7 @@ export default function DefectsScreen() {
   const submitCreate = async () => {
     const description = (createDescription ?? '').trim();
     if (!description) {
-      setCreateError('Enter a description.');
+      setCreateError(t('app.defects.enterDesc'));
       return;
     }
 
@@ -110,7 +112,7 @@ export default function DefectsScreen() {
         .map((field) => field.name);
 
       if (missingRequiredFields.length) {
-        setCreateError(`Fill required fields: ${missingRequiredFields.join(', ')}.`);
+        setCreateError(t('app.defects.fillRequired', { fields: missingRequiredFields.join(', ') }));
         return;
       }
     }
@@ -138,7 +140,7 @@ export default function DefectsScreen() {
       await dispatch(createDefect(formData)).unwrap();
       setCreateVisible(false);
     } catch (e) {
-      setCreateError((e as string) || 'Failed to create defect');
+      setCreateError((e as string) || t('app.defects.createFail'));
     } finally {
       setCreating(false);
     }
@@ -152,17 +154,17 @@ export default function DefectsScreen() {
 
   return (
     <ListScreenLayout
-      title="Defects"
+      title={t('app.defects.title')}
       error={error}
       isLoading={isLoading}
       isEmpty={items.length === 0}
-      emptyMessage="No defects yet."
+      emptyMessage={t('app.defects.emptyYet')}
       refreshing={refreshing}
       onRefresh={onRefresh}
     >
       <>
         <TouchableOpacity style={styles.createBtn} onPress={openCreate}>
-          <Text style={styles.createBtnText}>Create defect</Text>
+          <Text style={styles.createBtnText}>{t('app.defects.createBtn')}</Text>
         </TouchableOpacity>
         <View style={screenStyles.list}>
           {items.map((d) => (
@@ -195,7 +197,7 @@ export default function DefectsScreen() {
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={styles.modalTitle}>Create defect</Text>
+              <Text style={styles.modalTitle}>{t('app.defects.createTitle')}</Text>
               {createError ? (
                 <View style={screenStyles.errorBox}>
                   <Text style={screenStyles.errorText}>{createError}</Text>
@@ -206,35 +208,35 @@ export default function DefectsScreen() {
                 onPress={() => setTemplatePickerVisible(true)}
                 disabled={creating}
               >
-                <Text style={styles.templateBtnText}>Choose template</Text>
+                <Text style={styles.templateBtnText}>{t('app.defects.chooseTemplate')}</Text>
               </TouchableOpacity>
               {selectedTemplate ? (
                 <Text style={styles.templateInfo}>
-                  Template: {selectedTemplate.name}
+                  {t('app.defects.templatePrefix')} {selectedTemplate.name}
                   {selectedTemplate.details ? ` - ${selectedTemplate.details}` : ''}
                 </Text>
               ) : (
-                <Text style={styles.templateInfo}>No template selected.</Text>
+                <Text style={styles.templateInfo}>{t('app.defects.noTemplate')}</Text>
               )}
 
-              <Text style={screenStyles.formLabel}>Description</Text>
+              <Text style={screenStyles.formLabel}>{t('app.tasksScreen.description')}</Text>
               <TextInput
                 style={[screenStyles.formInput, styles.textArea]}
                 value={createDescription}
                 onChangeText={setCreateDescription}
-                placeholder="Describe the defect..."
+                placeholder={t('app.defects.describeDefect')}
                 placeholderTextColor="#6c757d"
                 multiline
                 numberOfLines={4}
                 editable={!creating}
               />
 
-              <Text style={screenStyles.formLabel}>Remediation details (optional)</Text>
+              <Text style={screenStyles.formLabel}>{t('app.defects.remediation')}</Text>
               <TextInput
                 style={[screenStyles.formInput, styles.textArea]}
                 value={remediationDetails}
                 onChangeText={setRemediationDetails}
-                placeholder="Remediation details"
+                placeholder={t('app.defects.remediationPh')}
                 placeholderTextColor="#6c757d"
                 multiline
                 numberOfLines={3}
@@ -243,7 +245,7 @@ export default function DefectsScreen() {
 
               {selectedTemplate?.fields?.length ? (
                 <>
-                  <Text style={styles.customFieldsTitle}>Custom fields</Text>
+                  <Text style={styles.customFieldsTitle}>{t('app.defects.customFields')}</Text>
                   {selectedTemplate.fields.map((field) => (
                     <View key={field.id}>
                       <Text style={screenStyles.formLabel}>
@@ -256,7 +258,7 @@ export default function DefectsScreen() {
                         onChangeText={(value) =>
                           setFieldValues((prev) => ({ ...prev, [field.id]: value }))
                         }
-                        placeholder={`Enter ${field.name}`}
+                        placeholder={t('app.defects.enterField', { name: field.name })}
                         placeholderTextColor="#6c757d"
                         editable={!creating}
                       />
@@ -271,7 +273,7 @@ export default function DefectsScreen() {
                   onPress={() => setCreateVisible(false)}
                   disabled={creating}
                 >
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                  <Text style={styles.cancelBtnText}>{t('app.modal.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[screenStyles.formButton, creating && styles.buttonDisabled]}
@@ -281,7 +283,7 @@ export default function DefectsScreen() {
                   {creating ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
-                    <Text style={screenStyles.formButtonText}>Create</Text>
+                    <Text style={screenStyles.formButtonText}>{t('app.defects.createAction')}</Text>
                   )}
                 </TouchableOpacity>
               </View>
@@ -293,13 +295,13 @@ export default function DefectsScreen() {
       <Modal visible={templatePickerVisible} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Choose defect template</Text>
+            <Text style={styles.modalTitle}>{t('app.defects.chooseTemplateTitle')}</Text>
             <View style={styles.searchRow}>
               <TextInput
                 style={[screenStyles.formInput, styles.searchInput]}
                 value={templateSearch}
                 onChangeText={setTemplateSearch}
-                placeholder="Search templates..."
+                placeholder={t('app.defects.searchTemplatesPh')}
                 placeholderTextColor="#6c757d"
                 editable={!templatesLoading}
               />
@@ -310,7 +312,7 @@ export default function DefectsScreen() {
                 }}
                 disabled={templatesLoading}
               >
-                <Text style={styles.searchBtnText}>Search</Text>
+                <Text style={styles.searchBtnText}>{t('app.userSearch.search')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -321,7 +323,7 @@ export default function DefectsScreen() {
             ) : (
               <ScrollView style={styles.templateList}>
                 {templates.length === 0 ? (
-                  <Text style={screenStyles.muted}>No templates found.</Text>
+                  <Text style={screenStyles.muted}>{t('app.defects.noTemplatesFound')}</Text>
                 ) : (
                   templates.map((template) => (
                     <TouchableOpacity
@@ -335,10 +337,10 @@ export default function DefectsScreen() {
                     >
                       <Text style={styles.templateName}>{template.name}</Text>
                       <Text style={screenStyles.muted} numberOfLines={2}>
-                        {template.details || 'No details'}
+                        {template.details || t('app.defects.noDetails')}
                       </Text>
                       <Text style={styles.templateFieldCount}>
-                        {template.fields?.length ?? 0} fields
+                        {t('app.defects.fieldsCount', { count: template.fields?.length ?? 0 })}
                       </Text>
                     </TouchableOpacity>
                   ))
@@ -350,7 +352,7 @@ export default function DefectsScreen() {
               style={[styles.cancelBtn, styles.templateCloseBtn]}
               onPress={() => setTemplatePickerVisible(false)}
             >
-              <Text style={styles.cancelBtnText}>Close</Text>
+              <Text style={styles.cancelBtnText}>{t('app.modal.close')}</Text>
             </TouchableOpacity>
           </View>
         </View>

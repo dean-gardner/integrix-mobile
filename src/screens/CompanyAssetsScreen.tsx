@@ -21,11 +21,13 @@ import {
 } from '../store/companyAssetsSlice';
 import { getExternalIds, getAssetsBySearch } from '../api/companyAssets';
 import { CompanyAssetStatus, type CompanyAssetNodeDTO, type CompanyAssetReadDTO } from '../types/companyAsset';
+import { useTranslation } from 'react-i18next';
 import { ListScreenLayout } from '../components/ListScreenLayout';
 import { screenStyles } from '../styles/screenStyles';
 import { theme } from '../theme';
 
 export default function CompanyAssetsScreen() {
+  const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const user = useSelector((s: RootState) => s.auth.user);
   const { items, isLoading, error } = useSelector((s: RootState) => s.companyAssets);
@@ -101,11 +103,11 @@ export default function CompanyAssetsScreen() {
     const name = (createName ?? '').trim();
     const externalId = (createExternalId ?? '').trim();
     if (!name) {
-      setCreateError('Enter asset name.');
+      setCreateError(t('app.companyAssets.enterName'));
       return;
     }
     if (!externalId) {
-      setCreateError('Enter external ID.');
+      setCreateError(t('app.companyAssets.enterExternalId'));
       return;
     }
     setCreateError(null);
@@ -119,7 +121,7 @@ export default function CompanyAssetsScreen() {
       ).unwrap();
       setCreateVisible(false);
     } catch (e) {
-      setCreateError((e as string) || 'Failed to create asset');
+      setCreateError((e as string) || t('app.companyAssets.createFail'));
     } finally {
       setCreating(false);
     }
@@ -153,11 +155,11 @@ export default function CompanyAssetsScreen() {
       setExternalIdsList(res.data ?? []);
     } catch (e: unknown) {
       setExternalIdsList([]);
-      setExternalIdsError((e as { message?: string })?.message ?? 'Failed to load external IDs');
+      setExternalIdsError((e as { message?: string })?.message ?? t('app.companyAssets.loadExternalIdsFail'));
     } finally {
       setExternalIdsLoading(false);
     }
-  }, [user?.companyId]);
+  }, [user?.companyId, t]);
 
   const closeExternalIds = () => setExternalIdsVisible(false);
 
@@ -175,7 +177,7 @@ export default function CompanyAssetsScreen() {
     if (!user?.companyId) return;
     const q = (searchQuery ?? '').trim();
     if (q.length < 2) {
-      setSearchError('Enter at least 2 characters.');
+      setSearchError(t('app.companyAssets.minSearch'));
       return;
     }
     setSearchError(null);
@@ -186,22 +188,22 @@ export default function CompanyAssetsScreen() {
       setSearchResults(res.data ?? []);
     } catch (e: unknown) {
       setSearchResults([]);
-      setSearchError((e as { message?: string })?.message ?? 'Search failed.');
+      setSearchError((e as { message?: string })?.message ?? t('app.companyAssets.searchFail'));
     } finally {
       setSearchLoading(false);
     }
-  }, [user?.companyId, searchQuery]);
+  }, [user?.companyId, searchQuery, t]);
 
   const submitEdit = async () => {
     if (!user?.companyId || !editingAsset) return;
     const name = (editName ?? '').trim();
     const externalId = (editExternalId ?? '').trim();
     if (!name) {
-      setEditError('Enter asset name.');
+      setEditError(t('app.companyAssets.enterName'));
       return;
     }
     if (!externalId) {
-      setEditError('Enter external ID.');
+      setEditError(t('app.companyAssets.enterExternalId'));
       return;
     }
     setEditError(null);
@@ -216,7 +218,7 @@ export default function CompanyAssetsScreen() {
       ).unwrap();
       closeEdit();
     } catch (e) {
-      setEditError((e as string) || 'Failed to edit asset');
+      setEditError((e as string) || t('app.companyAssets.editFail'));
     } finally {
       setEditing(false);
     }
@@ -238,18 +240,20 @@ export default function CompanyAssetsScreen() {
       ).unwrap();
       closeReassign();
     } catch (e) {
-      setReassignError((e as string) || 'Failed to reassign parent');
+      setReassignError((e as string) || t('app.companyAssets.reassignFail'));
     } finally {
       setReassigning(false);
     }
   };
 
   const isEmpty = !user?.companyId || items.length === 0;
-  const emptyMessage = !user?.companyId ? 'Sign in to view assets.' : 'No assets yet.';
+  const emptyMessage = !user?.companyId
+    ? t('app.companyAssets.signInToView')
+    : t('app.companyAssets.emptyYet');
 
   return (
     <ListScreenLayout
-      title="Assets"
+      title={t('app.companyAssets.title')}
       error={user?.companyId ? error : null}
       isLoading={user?.companyId ? isLoading : false}
       isEmpty={isEmpty}
@@ -261,13 +265,13 @@ export default function CompanyAssetsScreen() {
         {user?.companyId ? (
           <View style={styles.topActions}>
             <TouchableOpacity style={styles.createBtn} onPress={openCreate}>
-              <Text style={styles.createBtnText}>Create asset</Text>
+              <Text style={styles.createBtnText}>{t('app.companyAssets.createBtn')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.secondaryBtn} onPress={openExternalIds}>
-              <Text style={styles.secondaryBtnText}>View external IDs</Text>
+              <Text style={styles.secondaryBtnText}>{t('app.companyAssets.viewExternalIds')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.secondaryBtn} onPress={openSearch}>
-              <Text style={styles.secondaryBtnText}>Search assets</Text>
+              <Text style={styles.secondaryBtnText}>{t('app.companyAssets.searchAssetsBtn')}</Text>
             </TouchableOpacity>
           </View>
         ) : null}
@@ -280,28 +284,30 @@ export default function CompanyAssetsScreen() {
                     {a.namePrefix ? `${a.namePrefix} ` : ''}
                     {a.name}
                   </Text>
-                  <Text style={styles.caption}>ID: {a.externalId}</Text>
+                  <Text style={styles.caption}>
+                    {t('app.companyAssets.idCaption', { id: a.externalId })}
+                  </Text>
                   {a.hasChildren ? (
-                    <Text style={styles.caption}>Has children</Text>
+                    <Text style={styles.caption}>{t('app.companyAssets.hasChildren')}</Text>
                   ) : null}
                 </View>
                 <View style={styles.rowActions}>
                   <TouchableOpacity style={styles.editBtn} onPress={() => openEdit(a)}>
-                    <Text style={styles.editBtnText}>Edit</Text>
+                    <Text style={styles.editBtnText}>{t('app.companyAssets.edit')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.reassignBtn} onPress={() => openReassign(a)}>
-                    <Text style={styles.reassignBtnText}>Reassign</Text>
+                    <Text style={styles.reassignBtnText}>{t('app.companyAssets.reassign')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.archiveBtn}
                     onPress={() =>
                       Alert.alert(
-                        'Archive asset',
-                        `Archive "${a.name}"? It will be removed from the active list.`,
+                        t('app.companyAssets.archiveTitle'),
+                        t('app.companyAssets.archiveMessage', { name: a.name }),
                         [
-                          { text: 'Cancel', style: 'cancel' },
+                          { text: t('app.modal.cancel'), style: 'cancel' },
                           {
-                            text: 'Archive',
+                            text: t('app.companyAssets.archiveAction'),
                             style: 'destructive',
                             onPress: () =>
                               user?.companyId &&
@@ -317,7 +323,7 @@ export default function CompanyAssetsScreen() {
                       )
                     }
                   >
-                    <Text style={styles.archiveBtnText}>Archive</Text>
+                    <Text style={styles.archiveBtnText}>{t('app.companyAssets.archiveBtn')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -328,33 +334,33 @@ export default function CompanyAssetsScreen() {
       <Modal visible={createVisible} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Create asset</Text>
+            <Text style={styles.modalTitle}>{t('app.companyAssets.createTitle')}</Text>
             {createError ? (
               <View style={screenStyles.errorBox}>
                 <Text style={screenStyles.errorText}>{createError}</Text>
               </View>
             ) : null}
-            <Text style={screenStyles.formLabel}>Asset name</Text>
+            <Text style={screenStyles.formLabel}>{t('app.companyAssets.assetName')}</Text>
             <TextInput
               style={screenStyles.formInput}
               value={createName}
               onChangeText={setCreateName}
-              placeholder="Name"
+              placeholder={t('app.companyAssets.namePh')}
               placeholderTextColor="#6c757d"
               editable={!creating}
             />
-            <Text style={screenStyles.formLabel}>External ID</Text>
+            <Text style={screenStyles.formLabel}>{t('app.companyAssets.externalId')}</Text>
             <TextInput
               style={screenStyles.formInput}
               value={createExternalId}
               onChangeText={setCreateExternalId}
-              placeholder="External ID"
+              placeholder={t('app.companyAssets.externalIdPh')}
               placeholderTextColor="#6c757d"
               editable={!creating}
             />
-            <Text style={screenStyles.formLabel}>Parent asset (optional)</Text>
+            <Text style={screenStyles.formLabel}>{t('app.companyAssets.parentOptional')}</Text>
             <View style={styles.parentRow}>
-              {[{ id: null, name: 'None' }, ...items].map((a) => (
+              {[{ id: null as number | null }, ...items].map((a) => (
                 <TouchableOpacity
                   key={a.id != null ? a.id : 'none'}
                   style={[
@@ -370,7 +376,7 @@ export default function CompanyAssetsScreen() {
                     ]}
                     numberOfLines={1}
                   >
-                    {a.name}
+                    {a.id == null ? t('app.companyAssets.none') : a.name}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -381,7 +387,7 @@ export default function CompanyAssetsScreen() {
                 onPress={() => setCreateVisible(false)}
                 disabled={creating}
               >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text style={styles.cancelBtnText}>{t('app.modal.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[screenStyles.formButton, creating && styles.buttonDisabled]}
@@ -391,7 +397,7 @@ export default function CompanyAssetsScreen() {
                 {creating ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={screenStyles.formButtonText}>Create</Text>
+                  <Text style={screenStyles.formButtonText}>{t('app.defects.createAction')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -401,34 +407,34 @@ export default function CompanyAssetsScreen() {
       <Modal visible={editingAsset != null} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Edit asset</Text>
+            <Text style={styles.modalTitle}>{t('app.companyAssets.editTitle')}</Text>
             {editError ? (
               <View style={screenStyles.errorBox}>
                 <Text style={screenStyles.errorText}>{editError}</Text>
               </View>
             ) : null}
-            <Text style={screenStyles.formLabel}>Asset name</Text>
+            <Text style={screenStyles.formLabel}>{t('app.companyAssets.assetName')}</Text>
             <TextInput
               style={screenStyles.formInput}
               value={editName}
               onChangeText={setEditName}
-              placeholder="Name"
+              placeholder={t('app.companyAssets.namePh')}
               placeholderTextColor="#6c757d"
               editable={!editing}
             />
-            <Text style={screenStyles.formLabel}>External ID</Text>
+            <Text style={screenStyles.formLabel}>{t('app.companyAssets.externalId')}</Text>
             <TextInput
               style={screenStyles.formInput}
               value={editExternalId}
               onChangeText={setEditExternalId}
-              placeholder="External ID"
+              placeholder={t('app.companyAssets.externalIdPh')}
               placeholderTextColor="#6c757d"
               editable={!editing}
             />
-            <Text style={screenStyles.formLabel}>Parent asset (optional)</Text>
+            <Text style={screenStyles.formLabel}>{t('app.companyAssets.parentOptional')}</Text>
             <View style={styles.parentRow}>
               {[
-                { id: null, name: 'None' },
+                { id: null as number | null },
                 ...items.filter((x) => x.id !== editingAsset?.id),
               ].map((x) => (
                 <TouchableOpacity
@@ -446,7 +452,7 @@ export default function CompanyAssetsScreen() {
                     ]}
                     numberOfLines={1}
                   >
-                    {x.name}
+                    {x.id == null ? t('app.companyAssets.none') : x.name}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -457,7 +463,7 @@ export default function CompanyAssetsScreen() {
                 onPress={closeEdit}
                 disabled={editing}
               >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text style={styles.cancelBtnText}>{t('app.modal.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[screenStyles.formButton, editing && styles.buttonDisabled]}
@@ -467,7 +473,7 @@ export default function CompanyAssetsScreen() {
                 {editing ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={screenStyles.formButtonText}>Save</Text>
+                  <Text style={screenStyles.formButtonText}>{t('app.companyAssets.save')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -477,10 +483,8 @@ export default function CompanyAssetsScreen() {
       <Modal visible={externalIdsVisible} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={[styles.modalCard, styles.externalIdsCard]}>
-            <Text style={styles.modalTitle}>External IDs</Text>
-            <Text style={styles.externalIdsHint}>
-              All external IDs in use (for reference when creating assets).
-            </Text>
+            <Text style={styles.modalTitle}>{t('app.companyAssets.externalIdsTitle')}</Text>
+            <Text style={styles.externalIdsHint}>{t('app.companyAssets.externalIdsHint')}</Text>
             {externalIdsError ? (
               <View style={screenStyles.errorBox}>
                 <Text style={screenStyles.errorText}>{externalIdsError}</Text>
@@ -491,7 +495,7 @@ export default function CompanyAssetsScreen() {
                 <ActivityIndicator size="small" color={theme.colors.primary} />
               </View>
             ) : externalIdsList.length === 0 ? (
-              <Text style={screenStyles.muted}>No external IDs.</Text>
+              <Text style={screenStyles.muted}>{t('app.companyAssets.noExternalIds')}</Text>
             ) : (
               <ScrollView style={styles.externalIdsScroll} nestedScrollEnabled>
                 {externalIdsList.map((id, idx) => (
@@ -502,7 +506,7 @@ export default function CompanyAssetsScreen() {
               </ScrollView>
             )}
             <TouchableOpacity style={styles.cancelBtn} onPress={closeExternalIds}>
-              <Text style={styles.cancelBtnText}>Close</Text>
+              <Text style={styles.cancelBtnText}>{t('app.modal.close')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -510,16 +514,16 @@ export default function CompanyAssetsScreen() {
       <Modal visible={searchVisible} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={[styles.modalCard, styles.externalIdsCard]}>
-            <Text style={styles.modalTitle}>Search assets</Text>
+            <Text style={styles.modalTitle}>{t('app.companyAssets.searchTitle')}</Text>
             <View style={styles.searchRow}>
               <TextInput
                 style={styles.searchInput}
                 value={searchQuery}
-                onChangeText={(t) => {
-                  setSearchQuery(t);
+                onChangeText={(text) => {
+                  setSearchQuery(text);
                   setSearchError(null);
                 }}
-                placeholder="Name or external ID..."
+                placeholder={t('app.companyAssets.nameOrExtPh')}
                 placeholderTextColor="#6c757d"
                 returnKeyType="search"
                 onSubmitEditing={runSearch}
@@ -533,7 +537,7 @@ export default function CompanyAssetsScreen() {
                 {searchLoading ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.searchSubmitText}>Search</Text>
+                  <Text style={styles.searchSubmitText}>{t('app.userSearch.search')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -544,15 +548,19 @@ export default function CompanyAssetsScreen() {
             ) : null}
             {searchSearched && !searchLoading ? (
               searchResults.length === 0 ? (
-                <Text style={screenStyles.muted}>No assets found.</Text>
+                <Text style={screenStyles.muted}>{t('app.companyAssets.noAssetsFound')}</Text>
               ) : (
                 <ScrollView style={styles.externalIdsScroll} nestedScrollEnabled>
                   {searchResults.map((a) => (
                     <View key={a.id} style={styles.searchResultRow}>
                       <Text style={styles.assetName} numberOfLines={1}>{a.name}</Text>
-                      <Text style={styles.caption}>ID: {a.externalId}</Text>
+                      <Text style={styles.caption}>
+                        {t('app.companyAssets.idCaption', { id: a.externalId })}
+                      </Text>
                       {a.parentName ? (
-                        <Text style={styles.caption}>Parent: {a.parentName}</Text>
+                        <Text style={styles.caption}>
+                          {t('app.companyAssets.parentCaption', { name: a.parentName })}
+                        </Text>
                       ) : null}
                     </View>
                   ))}
@@ -560,7 +568,7 @@ export default function CompanyAssetsScreen() {
               )
             ) : null}
             <TouchableOpacity style={styles.cancelBtn} onPress={closeSearch}>
-              <Text style={styles.cancelBtnText}>Close</Text>
+              <Text style={styles.cancelBtnText}>{t('app.modal.close')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -568,9 +576,11 @@ export default function CompanyAssetsScreen() {
       <Modal visible={reassignAsset != null} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Reassign parent</Text>
+            <Text style={styles.modalTitle}>{t('app.companyAssets.reassignTitle')}</Text>
             {reassignAsset ? (
-              <Text style={styles.reassignHint}>Move "{reassignAsset.name}" under:</Text>
+              <Text style={styles.reassignHint}>
+                {t('app.companyAssets.reassignMove', { name: reassignAsset.name })}
+              </Text>
             ) : null}
             {reassignError ? (
               <View style={screenStyles.errorBox}>
@@ -578,7 +588,7 @@ export default function CompanyAssetsScreen() {
               </View>
             ) : null}
             <View style={styles.parentRow}>
-              {[{ id: null, name: 'None' }, ...items.filter((x) => x.id !== reassignAsset?.id)].map((x) => (
+              {[{ id: null as number | null }, ...items.filter((x) => x.id !== reassignAsset?.id)].map((x) => (
                 <TouchableOpacity
                   key={x.id != null ? x.id : 'none'}
                   style={[styles.parentChip, reassignParentId === x.id && styles.parentChipActive]}
@@ -591,7 +601,7 @@ export default function CompanyAssetsScreen() {
                     ]}
                     numberOfLines={1}
                   >
-                    {x.name}
+                    {x.id == null ? t('app.companyAssets.none') : x.name}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -602,7 +612,7 @@ export default function CompanyAssetsScreen() {
                 onPress={closeReassign}
                 disabled={reassigning}
               >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text style={styles.cancelBtnText}>{t('app.modal.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[screenStyles.formButton, reassigning && styles.buttonDisabled]}
@@ -612,7 +622,7 @@ export default function CompanyAssetsScreen() {
                 {reassigning ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={screenStyles.formButtonText}>Reassign</Text>
+                  <Text style={screenStyles.formButtonText}>{t('app.companyAssets.reassign')}</Text>
                 )}
               </TouchableOpacity>
             </View>

@@ -4,7 +4,7 @@ const ADMIN_ROLE = 'Admin';
 
 export type DrawerMenuItem = {
   key: string;
-  title: string;
+  titleKey: string;
   route: string;
   icon: MaterialIconsIconName;
   requiredRoles?: string[];
@@ -12,39 +12,75 @@ export type DrawerMenuItem = {
 };
 
 export type DrawerMenuGroup = {
-  title: string;
+  titleKey: string;
   items: DrawerMenuItem[];
 };
 
 export const drawerMenuGroups: DrawerMenuGroup[] = [
   {
-    title: 'Assets and Activities',
+    titleKey: 'drawer.groupAssets',
     items: [
-      { key: 'Dashboard', title: 'Dashboard', route: 'Dashboard', icon: 'dashboard', isVisibleForMobile: false },
-      { key: 'Feed', title: 'Activity Feed', route: 'Feed', icon: 'ballot' },
-      { key: 'CompanyAssets', title: 'Assets', route: 'CompanyAssets', icon: 'list-alt', requiredRoles: [ADMIN_ROLE], isVisibleForMobile: false },
+      {
+        key: 'Dashboard',
+        titleKey: 'drawer.dashboard',
+        route: 'Dashboard',
+        icon: 'dashboard',
+        isVisibleForMobile: false,
+      },
+      { key: 'Feed', titleKey: 'drawer.feed', route: 'Feed', icon: 'ballot' },
+      {
+        key: 'CompanyAssets',
+        titleKey: 'drawer.assets',
+        route: 'CompanyAssets',
+        icon: 'list-alt',
+        requiredRoles: [ADMIN_ROLE],
+        isVisibleForMobile: false,
+      },
     ],
   },
   {
-    title: 'Inspections and Defects',
+    titleKey: 'drawer.groupInspections',
     items: [
-      { key: 'Documents', title: 'Documents', route: 'Documents', icon: 'auto-stories' },
-      { key: 'Tasks', title: 'Tasks', route: 'Tasks', icon: 'task' },
-      { key: 'Defects', title: 'Defects', route: 'Defects', icon: 'gpp-bad', isVisibleForMobile: false },
+      { key: 'Documents', titleKey: 'drawer.documents', route: 'Documents', icon: 'auto-stories' },
+      { key: 'Tasks', titleKey: 'drawer.tasks', route: 'Tasks', icon: 'task' },
+      {
+        key: 'Defects',
+        titleKey: 'drawer.defects',
+        route: 'Defects',
+        icon: 'gpp-bad',
+        isVisibleForMobile: false,
+      },
     ],
   },
   {
-    title: 'User management',
+    titleKey: 'drawer.groupUserMgmt',
     items: [
-      { key: 'Users', title: 'Users', route: 'Users', icon: 'people-outline' },
-      { key: 'Teams', title: 'Teams', route: 'Teams', icon: 'diversity-3', requiredRoles: [ADMIN_ROLE], isVisibleForMobile: false },
+      { key: 'Users', titleKey: 'drawer.users', route: 'Users', icon: 'people-outline' },
+      {
+        key: 'Teams',
+        titleKey: 'drawer.teams',
+        route: 'Teams',
+        icon: 'diversity-3',
+        requiredRoles: [ADMIN_ROLE],
+        isVisibleForMobile: false,
+      },
     ],
   },
   {
-    title: 'User profile',
+    titleKey: 'drawer.groupProfile',
     items: [
-      { key: 'EditProfile', title: 'Edit My Profile', route: 'EditProfile', icon: 'manage-accounts' },
-      { key: 'Subscription', title: 'Subscription', route: 'Subscription', icon: 'card-membership' },
+      {
+        key: 'EditProfile',
+        titleKey: 'drawer.editProfile',
+        route: 'EditProfile',
+        icon: 'manage-accounts',
+      },
+      {
+        key: 'Subscription',
+        titleKey: 'drawer.subscription',
+        route: 'Subscription',
+        icon: 'card-membership',
+      },
     ],
   },
 ];

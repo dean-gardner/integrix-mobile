@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import i18n from '../i18n';
 import type {
   CompanyAssetNodeDTO,
   CompanyAssetStatus,
@@ -22,7 +23,7 @@ export const fetchCompanyAssets = createAsyncThunk<
     const res = await getCompanyAssets(companyId, parentAssetId, status);
     return res.data;
   } catch (e: unknown) {
-    return rejectWithValue((e as { message?: string })?.message ?? 'Failed to load assets');
+    return rejectWithValue((e as { message?: string })?.message ?? i18n.t('app.errors.loadAssets'));
   }
 });
 
@@ -35,7 +36,7 @@ export const createAsset = createAsyncThunk<
     const res = await apiCreateAsset(companyId, model);
     return res.data;
   } catch (e: unknown) {
-    return rejectWithValue((e as { message?: string })?.message ?? 'Failed to create asset');
+    return rejectWithValue((e as { message?: string })?.message ?? i18n.t('app.errors.createAsset'));
   }
 });
 
@@ -48,7 +49,7 @@ export const editAsset = createAsyncThunk<
     const res = await apiEditAsset(id, companyId, model);
     return res.data;
   } catch (e: unknown) {
-    return rejectWithValue((e as { message?: string })?.message ?? 'Failed to edit asset');
+    return rejectWithValue((e as { message?: string })?.message ?? i18n.t('app.errors.editAsset'));
   }
 });
 
@@ -61,7 +62,7 @@ export const setAssetStatus = createAsyncThunk<
     const res = await apiSetAssetStatus(id, companyId, status);
     return res.data;
   } catch (e: unknown) {
-    return rejectWithValue((e as { message?: string })?.message ?? 'Failed to update asset status');
+    return rejectWithValue((e as { message?: string })?.message ?? i18n.t('app.errors.updateAssetStatus'));
   }
 });
 
@@ -74,7 +75,7 @@ export const reassignAssetParent = createAsyncThunk<
     const res = await apiReassignParentNode(companyId, model);
     return res.data;
   } catch (e: unknown) {
-    return rejectWithValue((e as { message?: string })?.message ?? 'Failed to reassign parent');
+    return rejectWithValue((e as { message?: string })?.message ?? i18n.t('app.errors.reassignParent'));
   }
 });
 
@@ -107,7 +108,7 @@ const companyAssetsSlice = createSlice({
       })
       .addCase(fetchCompanyAssets.rejected, (state, { payload }) => {
         state.isLoading = false;
-        state.error = payload ?? 'Failed to load assets';
+        state.error = payload ?? i18n.t('app.errors.loadAssets');
       });
     builder
       .addCase(createAsset.fulfilled, (state, { payload }) => {

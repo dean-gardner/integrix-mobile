@@ -17,8 +17,10 @@ import {
   fetchDashboardObservations,
 } from '../store/dashboardSlice';
 import { theme } from '../theme';
+import { useTranslation } from 'react-i18next';
 
 export default function DashboardScreen() {
+  const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const { stats, isLoading, error } = useSelector((s: RootState) => s.dashboard);
 
@@ -62,7 +64,7 @@ export default function DashboardScreen() {
         <RefreshControl refreshing={isLoading} onRefresh={loadDashboard} />
       }
     >
-      <Text style={styles.title}>Dashboard</Text>
+      <Text style={styles.title}>{t('app.dashboard.title')}</Text>
       {error ? (
         <View style={styles.errorBox}>
           <Text style={styles.errorText}>{error}</Text>
@@ -77,23 +79,23 @@ export default function DashboardScreen() {
         <>
           {stats?.asset ? (
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>Asset</Text>
+              <Text style={styles.cardTitle}>{t('app.dashboard.asset')}</Text>
               <Text style={styles.assetName}>{stats.asset.name}</Text>
             </View>
           ) : null}
 
           <View style={styles.card}>
             <Text style={styles.cardTitle}>
-              Tasks {stats?.tasks ? `(${stats.tasks.totalCount})` : ''}
+              {t('app.dashboard.tasksSection')} {stats?.tasks ? `(${stats.tasks.totalCount})` : ''}
             </Text>
             {tasks.length === 0 ? (
-              <Text style={styles.muted}>No tasks</Text>
+              <Text style={styles.muted}>{t('app.dashboard.noTasks')}</Text>
             ) : (
-              tasks.slice(0, 5).map((t) => (
-                <View key={t.id} style={styles.listRow}>
-                  <Text style={styles.listText}>{t.taskNumber}</Text>
+              tasks.slice(0, 5).map((task) => (
+                <View key={task.id} style={styles.listRow}>
+                  <Text style={styles.listText}>{task.taskNumber}</Text>
                   <Text style={styles.muted} numberOfLines={1}>
-                    {t.description ?? '—'}
+                    {task.description ?? '—'}
                   </Text>
                 </View>
               ))
@@ -102,10 +104,10 @@ export default function DashboardScreen() {
 
           <View style={styles.card}>
             <Text style={styles.cardTitle}>
-              Open defects {stats?.defects ? `(${stats.defects.totalCount})` : ''}
+              {t('app.dashboard.openDefects')} {stats?.defects ? `(${stats.defects.totalCount})` : ''}
             </Text>
             {defects.length === 0 ? (
-              <Text style={styles.muted}>No open defects</Text>
+              <Text style={styles.muted}>{t('app.dashboard.noOpenDefects')}</Text>
             ) : (
               defects.slice(0, 5).map((d) => (
                 <View key={d.id} style={styles.listRow}>
@@ -120,10 +122,11 @@ export default function DashboardScreen() {
 
           <View style={styles.card}>
             <Text style={styles.cardTitle}>
-              Observations {stats?.observations ? `(${stats.observations.totalCount})` : ''}
+              {t('app.dashboard.observationsSection')}{' '}
+              {stats?.observations ? `(${stats.observations.totalCount})` : ''}
             </Text>
             {observations.length === 0 ? (
-              <Text style={styles.muted}>No observations</Text>
+              <Text style={styles.muted}>{t('app.dashboard.noObservations')}</Text>
             ) : (
               observations.slice(0, 5).map((o) => (
                 <View key={o.id} style={styles.listRow}>
@@ -138,10 +141,11 @@ export default function DashboardScreen() {
 
           <View style={styles.card}>
             <Text style={styles.cardTitle}>
-              Closed defects {stats?.closedDefects ? `(${stats.closedDefects.totalCount})` : ''}
+              {t('app.dashboard.closedDefects')}{' '}
+              {stats?.closedDefects ? `(${stats.closedDefects.totalCount})` : ''}
             </Text>
             {closedDefects.length === 0 ? (
-              <Text style={styles.muted}>No closed defects</Text>
+              <Text style={styles.muted}>{t('app.dashboard.noClosed')}</Text>
             ) : (
               closedDefects.slice(0, 5).map((d) => (
                 <View key={d.id} style={styles.listRow}>

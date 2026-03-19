@@ -1,4 +1,5 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
+import i18n from '../i18n';
 import {
   createUserInvitation as apiCreateUserInvitation,
   deleteUserInvitation as apiDeleteUserInvitation,
@@ -24,7 +25,7 @@ export const fetchUserInvitations = createAsyncThunk<
     const res = await getUserInvitations(getState().userInvitations.filteringModel);
     return { items: res.data.items, totalCount: res.data.totalCount };
   } catch (e: unknown) {
-    return rejectWithValue(getHttpErrorMessage(e, 'Failed to load invitations'));
+    return rejectWithValue(getHttpErrorMessage(e, i18n.t('app.errors.loadInvitations')));
   }
 });
 
@@ -37,7 +38,7 @@ export const createInvitation = createAsyncThunk<
     const res = await apiCreateUserInvitation(model);
     return res.data;
   } catch (e: unknown) {
-    return rejectWithValue(getHttpErrorMessage(e, 'Failed to send invitation'));
+    return rejectWithValue(getHttpErrorMessage(e, i18n.t('app.errors.sendInvitation')));
   }
 });
 
@@ -50,7 +51,7 @@ export const deleteInvitation = createAsyncThunk<
     await apiDeleteUserInvitation(id);
     return id;
   } catch (e: unknown) {
-    return rejectWithValue(getHttpErrorMessage(e, 'Failed to delete invitation'));
+    return rejectWithValue(getHttpErrorMessage(e, i18n.t('app.errors.deleteInvitation')));
   }
 });
 
@@ -63,7 +64,7 @@ export const resendInvitation = createAsyncThunk<
     await apiResendUserInvitation(id);
     return id;
   } catch (e: unknown) {
-    return rejectWithValue(getHttpErrorMessage(e, 'Failed to resend invitation'));
+    return rejectWithValue(getHttpErrorMessage(e, i18n.t('app.errors.resendInvitation')));
   }
 });
 
@@ -113,7 +114,7 @@ const userInvitationsSlice = createSlice({
       })
       .addCase(fetchUserInvitations.rejected, (state, { payload }) => {
         state.isLoading = false;
-        state.error = payload ?? 'Failed to load invitations';
+        state.error = payload ?? i18n.t('app.errors.loadInvitations');
       });
   },
 });

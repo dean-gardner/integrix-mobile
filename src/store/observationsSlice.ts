@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import i18n from '../i18n';
 import type {
   ObservationFeedReadDTO,
   ObservationFilteringModel,
@@ -25,7 +26,7 @@ export const fetchObservations = createAsyncThunk<
       return { items: res.data.items, totalCount: res.data.totalCount };
     } catch (e: unknown) {
       return rejectWithValue(
-        (e as { message?: string })?.message ?? 'Failed to load observations'
+        (e as { message?: string })?.message ?? i18n.t('app.errors.loadObservations')
       );
     }
   }
@@ -59,7 +60,7 @@ export const fetchMoreObservations = createAsyncThunk<
       };
     } catch (e: unknown) {
       return rejectWithValue(
-        (e as { message?: string })?.message ?? 'Failed to load more'
+        (e as { message?: string })?.message ?? i18n.t('app.errors.loadMore')
       );
     }
   }
@@ -79,7 +80,7 @@ export const createObservation = createAsyncThunk<
       await dispatch(fetchObservations()).unwrap();
     } catch (e: unknown) {
       return rejectWithValue(
-        (e as { message?: string })?.message ?? 'Failed to create observation'
+        (e as { message?: string })?.message ?? i18n.t('app.errors.createObservation')
       );
     }
   }
@@ -99,7 +100,7 @@ export const editObservation = createAsyncThunk<
       await dispatch(fetchObservations()).unwrap();
     } catch (e: unknown) {
       return rejectWithValue(
-        (e as { message?: string })?.message ?? 'Failed to edit observation'
+        (e as { message?: string })?.message ?? i18n.t('app.errors.editObservation')
       );
     }
   }
@@ -117,7 +118,7 @@ export const deleteObservation = createAsyncThunk<
       return observationId;
     } catch (e: unknown) {
       return rejectWithValue(
-        (e as { message?: string })?.message ?? 'Failed to delete observation'
+        (e as { message?: string })?.message ?? i18n.t('app.errors.deleteObservation')
       );
     }
   }
@@ -169,7 +170,7 @@ const observationsSlice = createSlice({
       })
       .addCase(fetchObservations.rejected, (state, { payload }) => {
         state.isLoading = false;
-        state.error = payload ?? 'Failed to load observations';
+        state.error = payload ?? i18n.t('app.errors.loadObservations');
       });
     builder
       .addCase(fetchMoreObservations.fulfilled, (state, { payload }) => {

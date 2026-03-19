@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
+import { useTranslation } from 'react-i18next';
 import { DocumentsSelect } from '../documents/DocumentsSelect';
 import type { TasksFilterForm } from '../../config/tasksScreen';
 import { defaultTaskReferenceField, taskReferenceFieldOptions } from '../../config/tasksScreen';
@@ -20,7 +21,22 @@ export function TasksFilterModal({
   onApply,
   onResetFlag,
 }: TasksFilterModalProps) {
+  const { t } = useTranslation();
   const [form, setForm] = useState<TasksFilterForm>(initialValues);
+
+  const taskRefOptions = useMemo(
+    () =>
+      taskReferenceFieldOptions.map((o) => ({
+        value: o.value,
+        label:
+          o.value === 'workOrderNumber'
+            ? t('app.tasksScreen.workOrder')
+            : o.value === 'notificationNumber'
+              ? t('app.tasksScreen.notificationNo')
+              : t('app.tasksScreen.projectNo'),
+      })),
+    [t]
+  );
 
   useEffect(() => {
     if (!visible) return;
@@ -47,14 +63,14 @@ export function TasksFilterModal({
       <View style={styles.backdrop}>
         <View style={styles.card}>
           <View style={styles.headerRow}>
-            <Text style={styles.title}>Filter</Text>
+            <Text style={styles.title}>{t('app.tasks.filter')}</Text>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <MaterialIcons name="close" size={28} color="#2a2c32" />
             </TouchableOpacity>
           </View>
 
           <View style={styles.fieldRow}>
-            <Text style={styles.label}>Task No</Text>
+            <Text style={styles.label}>{t('app.tasksScreen.taskNo')}</Text>
             <TextInput
               style={styles.input}
               value={form.taskNumber}
@@ -63,7 +79,7 @@ export function TasksFilterModal({
           </View>
 
           <View style={styles.fieldRow}>
-            <Text style={styles.label}>Description</Text>
+            <Text style={styles.label}>{t('app.tasksScreen.description')}</Text>
             <TextInput
               style={styles.input}
               value={form.description}
@@ -71,17 +87,17 @@ export function TasksFilterModal({
             />
           </View>
 
-          <View style={styles.referenceRow}>
-            <Text style={styles.referenceLabel}>Task Reference</Text>
+          <View style={styles.fieldRow}>
+            <Text style={styles.label}>{t('app.tasksScreen.taskReference')}</Text>
             <DocumentsSelect
               value={form.taskReferenceField}
-              options={taskReferenceFieldOptions}
+              options={taskRefOptions}
               onChange={(value) => setField('taskReferenceField', value)}
             />
           </View>
 
           <View style={styles.fieldRow}>
-            <Text style={styles.label}>Contains</Text>
+            <Text style={styles.label}>{t('app.tasksScreen.contains')}</Text>
             <TextInput
               style={styles.input}
               value={form.taskReference}
@@ -90,7 +106,7 @@ export function TasksFilterModal({
           </View>
 
           <View style={styles.fieldRow}>
-            <Text style={styles.label}>Created By</Text>
+            <Text style={styles.label}>{t('app.tasksScreen.createdBy')}</Text>
             <TextInput
               style={styles.input}
               value={form.createdBy}
@@ -99,16 +115,16 @@ export function TasksFilterModal({
           </View>
 
           <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
-            <Text style={styles.resetText}>Reset filter</Text>
+            <Text style={styles.resetText}>{t('app.tasksScreen.resetFilter')}</Text>
             <MaterialIcons name="refresh" size={18} color="#27324e" />
           </TouchableOpacity>
 
           <View style={styles.actionsRow}>
             <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-              <Text style={styles.cancelText}>Cancel</Text>
+              <Text style={styles.cancelText}>{t('app.modal.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.applyButton} onPress={() => onApply(form)}>
-              <Text style={styles.applyText}>Apply</Text>
+              <Text style={styles.applyText}>{t('app.tasksScreen.apply')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -149,15 +165,6 @@ const styles = StyleSheet.create({
   },
   label: {
     width: 78,
-    color: '#4a5a81',
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  referenceRow: {
-    marginTop: 10,
-    gap: 8,
-  },
-  referenceLabel: {
     color: '#4a5a81',
     fontSize: 15,
     fontWeight: '500',

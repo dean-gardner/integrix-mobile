@@ -17,6 +17,7 @@ import { setupRefreshWhenOnline } from './src/store/refreshWhenOnline';
 import { OfflineBanner } from './src/components/OfflineBanner';
 import RootNavigator from './src/navigation/RootNavigator';
 import { navigationRef, navigate } from './src/navigation/navigationRef';
+import { initI18n } from './src/i18n';
 
 function LoadingRehydrate() {
   return (
@@ -124,7 +125,9 @@ function AppContent() {
 function RehydrateGate({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = React.useState(false);
   React.useEffect(() => {
-    rehydrate().then(() => setReady(true));
+    Promise.all([rehydrate(), initI18n()])
+      .then(() => setReady(true))
+      .catch(() => setReady(true));
   }, []);
   if (!ready) return <LoadingRehydrate />;
   return <>{children}</>;

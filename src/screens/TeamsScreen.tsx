@@ -15,11 +15,13 @@ import type { AppDispatch, RootState } from '../store';
 import { fetchTeams, createTeam, editTeam, deleteTeam, reassignParentNode } from '../store/teamsSlice';
 import { getTeamsToJoin, joinTeam as apiJoinTeam, requestNewTeam } from '../api/teams';
 import type { CompanyTeamNodeDTO, CompanyTeamReadDTO } from '../types/team';
+import { useTranslation } from 'react-i18next';
 import { ListScreenLayout } from '../components/ListScreenLayout';
 import { screenStyles } from '../styles/screenStyles';
 import { theme } from '../theme';
 
 export default function TeamsScreen() {
+  const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const user = useSelector((s: RootState) => s.auth.user);
   const { items, isLoading, error } = useSelector((s: RootState) => s.teams);
@@ -74,7 +76,7 @@ export default function TeamsScreen() {
     if (!user?.companyId) return;
     const name = (createName ?? '').trim();
     if (!name) {
-      setCreateError('Enter team name.');
+      setCreateError(t('app.teams.enterTeamName'));
       return;
     }
     setCreateError(null);
@@ -88,16 +90,16 @@ export default function TeamsScreen() {
       ).unwrap();
       setCreateVisible(false);
     } catch (e) {
-      setCreateError((e as string) || 'Failed to create team');
+      setCreateError((e as string) || t('app.teams.createFail'));
     } finally {
       setCreating(false);
     }
   };
 
-  const openEdit = (t: CompanyTeamNodeDTO) => {
-    setEditingTeam(t);
-    setEditName(t.name);
-    setEditParentId(t.parentId);
+  const openEdit = (teamNode: CompanyTeamNodeDTO) => {
+    setEditingTeam(teamNode);
+    setEditName(teamNode.name);
+    setEditParentId(teamNode.parentId);
     setEditError(null);
   };
 
@@ -113,23 +115,23 @@ export default function TeamsScreen() {
       setTeamsToJoin(res.data ?? []);
     } catch (e: unknown) {
       setTeamsToJoin([]);
-      setJoinError((e as { message?: string })?.message ?? 'Failed to load teams');
+      setJoinError((e as { message?: string })?.message ?? t('app.teams.loadTeamsFail'));
     } finally {
       setJoinListLoading(false);
     }
-  }, [user?.companyId]);
+  }, [user?.companyId, t]);
 
   const closeJoin = () => setJoinVisible(false);
 
-  const onJoinTeam = async (t: CompanyTeamReadDTO) => {
+  const onJoinTeam = async (teamDto: CompanyTeamReadDTO) => {
     if (!user?.companyId) return;
-    setJoiningId(t.id);
+    setJoiningId(teamDto.id);
     setJoinError(null);
     try {
-      await apiJoinTeam(user.companyId, t.id, { token: null });
-      setTeamsToJoin((prev) => prev.filter((x) => x.id !== t.id));
+      await apiJoinTeam(user.companyId, teamDto.id, { token: null });
+      setTeamsToJoin((prev) => prev.filter((x) => x.id !== teamDto.id));
     } catch (e: unknown) {
-      setJoinError((e as { message?: string })?.message ?? 'Failed to join team');
+      setJoinError((e as { message?: string })?.message ?? t('app.teams.joinFail'));
     } finally {
       setJoiningId(null);
     }
@@ -147,7 +149,7 @@ export default function TeamsScreen() {
     if (!user?.companyId) return;
     const teamName = (requestName ?? '').trim();
     if (!teamName) {
-      setRequestError('Enter the requested team name.');
+      setRequestError(t('app.teams.enterRequestName'));
       return;
     }
     setRequestError(null);
@@ -160,15 +162,15 @@ export default function TeamsScreen() {
       });
       setRequestVisible(false);
     } catch (e: unknown) {
-      setRequestError((e as { message?: string })?.message ?? 'Failed to submit request');
+      setRequestError((e as { message?: string })?.message ?? t('app.teams.requestFail'));
     } finally {
       setRequesting(false);
     }
   };
 
-  const openReassign = (t: CompanyTeamNodeDTO) => {
-    setReassignTeam(t);
-    setReassignParentId(t.parentId ?? 0);
+  const openReassign = (teamNode: CompanyTeamNodeDTO) => {
+    setReassignTeam(teamNode);
+    setReassignParentId(teamNode.parentId ?? 0);
     setReassignError(null);
   };
 
@@ -190,7 +192,7 @@ export default function TeamsScreen() {
       ).unwrap();
       closeReassign();
     } catch (e) {
-      setReassignError((e as string) || 'Failed to reassign parent');
+      setReassignError((e as string) || t('app.teams.reassignFail'));
     } finally {
       setReassigning(false);
     }
@@ -200,7 +202,7 @@ export default function TeamsScreen() {
     if (!user?.companyId || !editingTeam) return;
     const name = (editName ?? '').trim();
     if (!name) {
-      setEditError('Enter team name.');
+      setEditError(t('app.teams.enterTeamName'));
       return;
     }
     setEditError(null);
@@ -214,18 +216,20 @@ export default function TeamsScreen() {
       ).unwrap();
       closeEdit();
     } catch (e) {
-      setEditError((e as string) || 'Failed to edit team');
+      setEditError((e as string) || t('app.teams.editFail'));
     } finally {
       setEditing(false);
     }
   };
 
   const isEmpty = !user?.companyId || items.length === 0;
-  const emptyMessage = !user?.companyId ? 'Sign in to view teams.' : 'No teams yet.';
+  const emptyMessage = !user?.companyId
+    ? t('app.teams.signInToView')
+    : t('app.teams.emptyYet');
 
   return (
     <ListScreenLayout
-      title="Teams"
+      title={t('app.teams.title')}
       error={user?.companyId ? error : null}
       isLoading={user?.companyId ? isLoading : false}
       isEmpty={isEmpty}
@@ -237,47 +241,53 @@ export default function TeamsScreen() {
         {user?.companyId ? (
           <View style={styles.topActions}>
             <TouchableOpacity style={styles.createBtn} onPress={openCreate}>
-              <Text style={styles.createBtnText}>Create team</Text>
+              <Text style={styles.createBtnText}>{t('app.teams.createTeam')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.joinBtn} onPress={openJoin}>
-              <Text style={styles.joinBtnText}>Join team</Text>
+              <Text style={styles.joinBtnText}>{t('app.teams.joinTeam')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.joinBtn} onPress={openRequest}>
-              <Text style={styles.joinBtnText}>Request new team</Text>
+              <Text style={styles.joinBtnText}>{t('app.teams.requestNewTeam')}</Text>
             </TouchableOpacity>
           </View>
         ) : null}
         <View style={screenStyles.list}>
-          {items.map((t) => (
-            <View key={t.id} style={screenStyles.card}>
+          {items.map((teamItem) => (
+            <View key={teamItem.id} style={screenStyles.card}>
               <View style={styles.teamRow}>
                 <View style={styles.teamInfo}>
-                  <Text style={styles.teamName}>{t.name}</Text>
-                  {t.parentId != null ? (
-                    <Text style={styles.caption}>Parent ID: {t.parentId}</Text>
+                  <Text style={styles.teamName}>{teamItem.name}</Text>
+                  {teamItem.parentId != null ? (
+                    <Text style={styles.caption}>
+                      {t('app.teams.parentIdCaption', { id: teamItem.parentId })}
+                    </Text>
                   ) : null}
                 </View>
                 <View style={styles.rowActions}>
-                  <TouchableOpacity style={styles.editBtn} onPress={() => openEdit(t)}>
-                    <Text style={styles.editBtnText}>Edit</Text>
+                  <TouchableOpacity style={styles.editBtn} onPress={() => openEdit(teamItem)}>
+                    <Text style={styles.editBtnText}>{t('app.companyAssets.edit')}</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.reassignBtn} onPress={() => openReassign(t)}>
-                    <Text style={styles.reassignBtnText}>Reassign</Text>
+                  <TouchableOpacity style={styles.reassignBtn} onPress={() => openReassign(teamItem)}>
+                    <Text style={styles.reassignBtnText}>{t('app.companyAssets.reassign')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.deleteBtn}
                     onPress={() =>
                       Alert.alert(
-                        'Delete team',
-                        `Delete "${t.name}"?`,
+                        t('app.teams.deleteTitle'),
+                        t('app.teams.deleteMessage', { name: teamItem.name }),
                         [
-                          { text: 'Cancel', style: 'cancel' },
-                          { text: 'Delete', style: 'destructive', onPress: () => dispatch(deleteTeam(t.id)) },
+                          { text: t('app.modal.cancel'), style: 'cancel' },
+                          {
+                            text: t('app.teams.deleteAction'),
+                            style: 'destructive',
+                            onPress: () => dispatch(deleteTeam(teamItem.id)),
+                          },
                         ]
                       )
                     }
                   >
-                    <Text style={styles.deleteBtnText}>Delete</Text>
+                    <Text style={styles.deleteBtnText}>{t('app.teams.deleteAction')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -288,40 +298,40 @@ export default function TeamsScreen() {
       <Modal visible={createVisible} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Create team</Text>
+            <Text style={styles.modalTitle}>{t('app.teams.createTitle')}</Text>
             {createError ? (
               <View style={screenStyles.errorBox}>
                 <Text style={screenStyles.errorText}>{createError}</Text>
               </View>
             ) : null}
-            <Text style={screenStyles.formLabel}>Team name</Text>
+            <Text style={screenStyles.formLabel}>{t('app.teams.teamName')}</Text>
             <TextInput
               style={screenStyles.formInput}
               value={createName}
               onChangeText={setCreateName}
-              placeholder="Team name"
+              placeholder={t('app.teams.namePh')}
               placeholderTextColor="#6c757d"
               editable={!creating}
             />
-            <Text style={screenStyles.formLabel}>Parent team (optional)</Text>
+            <Text style={screenStyles.formLabel}>{t('app.teams.parentTeamOptional')}</Text>
             <View style={styles.parentRow}>
-              {[{ id: null, name: 'None' }, ...items].map((t) => (
+              {[{ id: null as number | null }, ...items].map((chip) => (
                 <TouchableOpacity
-                  key={t.id != null ? t.id : 'none'}
+                  key={chip.id != null ? chip.id : 'none'}
                   style={[
                     styles.parentChip,
-                    createParentId === t.id && styles.parentChipActive,
+                    createParentId === chip.id && styles.parentChipActive,
                   ]}
-                  onPress={() => setCreateParentId(t.id)}
+                  onPress={() => setCreateParentId(chip.id)}
                 >
                   <Text
                     style={[
                       styles.parentChipText,
-                      createParentId === t.id && styles.parentChipTextActive,
+                      createParentId === chip.id && styles.parentChipTextActive,
                     ]}
                     numberOfLines={1}
                   >
-                    {t.name}
+                    {chip.id == null ? t('app.teams.none') : chip.name}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -332,7 +342,7 @@ export default function TeamsScreen() {
                 onPress={() => setCreateVisible(false)}
                 disabled={creating}
               >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text style={styles.cancelBtnText}>{t('app.modal.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[screenStyles.formButton, creating && styles.buttonDisabled]}
@@ -342,7 +352,7 @@ export default function TeamsScreen() {
                 {creating ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={screenStyles.formButtonText}>Create</Text>
+                  <Text style={screenStyles.formButtonText}>{t('app.defects.createAction')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -352,25 +362,25 @@ export default function TeamsScreen() {
       <Modal visible={editingTeam != null} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Edit team</Text>
+            <Text style={styles.modalTitle}>{t('app.teams.editTitle')}</Text>
             {editError ? (
               <View style={screenStyles.errorBox}>
                 <Text style={screenStyles.errorText}>{editError}</Text>
               </View>
             ) : null}
-            <Text style={screenStyles.formLabel}>Team name</Text>
+            <Text style={screenStyles.formLabel}>{t('app.teams.teamName')}</Text>
             <TextInput
               style={screenStyles.formInput}
               value={editName}
               onChangeText={setEditName}
-              placeholder="Team name"
+              placeholder={t('app.teams.namePh')}
               placeholderTextColor="#6c757d"
               editable={!editing}
             />
-            <Text style={screenStyles.formLabel}>Parent team (optional)</Text>
+            <Text style={screenStyles.formLabel}>{t('app.teams.parentTeamOptional')}</Text>
             <View style={styles.parentRow}>
               {[
-                { id: null, name: 'None' },
+                { id: null as number | null },
                 ...items.filter((x) => x.id !== editingTeam?.id),
               ].map((x) => (
                 <TouchableOpacity
@@ -388,7 +398,7 @@ export default function TeamsScreen() {
                     ]}
                     numberOfLines={1}
                   >
-                    {x.name}
+                    {x.id == null ? t('app.teams.none') : x.name}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -399,7 +409,7 @@ export default function TeamsScreen() {
                 onPress={closeEdit}
                 disabled={editing}
               >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text style={styles.cancelBtnText}>{t('app.modal.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[screenStyles.formButton, editing && styles.buttonDisabled]}
@@ -409,7 +419,7 @@ export default function TeamsScreen() {
                 {editing ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={screenStyles.formButtonText}>Save</Text>
+                  <Text style={screenStyles.formButtonText}>{t('app.companyAssets.save')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -419,7 +429,7 @@ export default function TeamsScreen() {
       <Modal visible={joinVisible} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Join a team</Text>
+            <Text style={styles.modalTitle}>{t('app.teams.joinTitle')}</Text>
             {joinError ? (
               <View style={screenStyles.errorBox}>
                 <Text style={screenStyles.errorText}>{joinError}</Text>
@@ -430,25 +440,23 @@ export default function TeamsScreen() {
                 <ActivityIndicator size="small" color={theme.colors.primary} />
               </View>
             ) : teamsToJoin.length === 0 ? (
-              <Text style={screenStyles.muted}>
-                No teams available to join, or you’re already in all teams.
-              </Text>
+              <Text style={screenStyles.muted}>{t('app.teams.joinEmpty')}</Text>
             ) : (
               <ScrollView style={styles.joinList} nestedScrollEnabled>
-                {teamsToJoin.map((t) => (
-                  <View key={t.id} style={styles.joinRow}>
+                {teamsToJoin.map((row) => (
+                  <View key={row.id} style={styles.joinRow}>
                     <Text style={styles.teamName} numberOfLines={1}>
-                      {t.name}
+                      {row.name}
                     </Text>
                     <TouchableOpacity
-                      style={[styles.joinTeamBtn, joiningId === t.id && styles.joinTeamBtnDisabled]}
-                      onPress={() => onJoinTeam(t)}
+                      style={[styles.joinTeamBtn, joiningId === row.id && styles.joinTeamBtnDisabled]}
+                      onPress={() => onJoinTeam(row)}
                       disabled={joiningId != null}
                     >
-                      {joiningId === t.id ? (
+                      {joiningId === row.id ? (
                         <ActivityIndicator size="small" color="#fff" />
                       ) : (
-                        <Text style={styles.joinTeamBtnText}>Join</Text>
+                        <Text style={styles.joinTeamBtnText}>{t('app.teams.joinBtn')}</Text>
                       )}
                     </TouchableOpacity>
                   </View>
@@ -456,7 +464,7 @@ export default function TeamsScreen() {
               </ScrollView>
             )}
             <TouchableOpacity style={styles.cancelBtn} onPress={closeJoin}>
-              <Text style={styles.cancelBtnText}>Close</Text>
+              <Text style={styles.cancelBtnText}>{t('app.modal.close')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -464,10 +472,10 @@ export default function TeamsScreen() {
       <Modal visible={reassignTeam != null} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Reassign parent</Text>
+            <Text style={styles.modalTitle}>{t('app.teams.reassign')}</Text>
             {reassignTeam ? (
               <Text style={styles.reassignHint}>
-                Move "{reassignTeam.name}" under:
+                {t('app.companyAssets.reassignMove', { name: reassignTeam.name })}
               </Text>
             ) : null}
             {reassignError ? (
@@ -475,10 +483,10 @@ export default function TeamsScreen() {
                 <Text style={screenStyles.errorText}>{reassignError}</Text>
               </View>
             ) : null}
-            <Text style={screenStyles.formLabel}>New parent team</Text>
+            <Text style={screenStyles.formLabel}>{t('app.teams.newParentTeam')}</Text>
             <View style={styles.parentRow}>
               {[
-                { id: 0, name: 'None (root)' },
+                { id: 0, name: '__root__' as const },
                 ...items.filter((x) => x.id !== reassignTeam?.id),
               ].map((x) => (
                 <TouchableOpacity
@@ -496,7 +504,7 @@ export default function TeamsScreen() {
                     ]}
                     numberOfLines={1}
                   >
-                    {x.name}
+                    {x.name === '__root__' ? t('app.teams.noneRoot') : x.name}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -507,7 +515,7 @@ export default function TeamsScreen() {
                 onPress={closeReassign}
                 disabled={reassigning}
               >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text style={styles.cancelBtnText}>{t('app.modal.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[screenStyles.formButton, reassigning && styles.buttonDisabled]}
@@ -517,7 +525,7 @@ export default function TeamsScreen() {
                 {reassigning ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={screenStyles.formButtonText}>Save</Text>
+                  <Text style={screenStyles.formButtonText}>{t('app.companyAssets.save')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -527,21 +535,19 @@ export default function TeamsScreen() {
       <Modal visible={requestVisible} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Request new team</Text>
-            <Text style={styles.requestHint}>
-              Submit a request for a new team. Support will review and create it.
-            </Text>
+            <Text style={styles.modalTitle}>{t('app.teams.requestTitle')}</Text>
+            <Text style={styles.requestHint}>{t('app.teams.requestHint')}</Text>
             {requestError ? (
               <View style={screenStyles.errorBox}>
                 <Text style={screenStyles.errorText}>{requestError}</Text>
               </View>
             ) : null}
-            <Text style={screenStyles.formLabel}>Requested team name</Text>
+            <Text style={screenStyles.formLabel}>{t('app.teams.requestedTeamName')}</Text>
             <TextInput
               style={screenStyles.formInput}
               value={requestName}
               onChangeText={setRequestName}
-              placeholder="Team name"
+              placeholder={t('app.teams.namePh')}
               placeholderTextColor="#6c757d"
               editable={!requesting}
             />
@@ -551,7 +557,7 @@ export default function TeamsScreen() {
                 onPress={closeRequest}
                 disabled={requesting}
               >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text style={styles.cancelBtnText}>{t('app.modal.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[screenStyles.formButton, requesting && styles.buttonDisabled]}
@@ -561,7 +567,7 @@ export default function TeamsScreen() {
                 {requesting ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={screenStyles.formButtonText}>Submit</Text>
+                  <Text style={screenStyles.formButtonText}>{t('app.teams.submit')}</Text>
                 )}
               </TouchableOpacity>
             </View>

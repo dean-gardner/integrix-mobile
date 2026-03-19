@@ -3,15 +3,18 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-nati
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useDispatch } from 'react-redux';
+import { useTranslation } from 'react-i18next';
 import { theme } from '../theme';
 import { useSelector } from 'react-redux';
 import type { RootState, AppDispatch } from '../store';
 import { signOut } from '../store/authSlice';
 import { drawerMenuGroups, type DrawerMenuItem } from '../config/drawerMenu';
+import { setAppLanguage, SUPPORTED_LANGUAGES } from '../i18n';
 
 type DrawerContentProps = { onClose: () => void };
 
 export function DrawerContent({ onClose }: DrawerContentProps) {
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation();
   const dispatch = useDispatch<AppDispatch>();
   const user = useSelector((s: RootState) => s.auth.user);
@@ -40,7 +43,7 @@ export function DrawerContent({ onClose }: DrawerContentProps) {
         <TouchableOpacity onPress={onClose} style={styles.headerIconButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <MaterialIcons name="close" size={20} color={theme.colors.sidebarText} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Integrix</Text>
+        <Text style={styles.headerTitle}>{t('appName')}</Text>
         <View style={styles.headerIconButton}>
           <MaterialIcons name="more-vert" size={20} color={theme.colors.sidebarText} />
         </View>
@@ -50,8 +53,8 @@ export function DrawerContent({ onClose }: DrawerContentProps) {
           const visibleItems = group.items.filter(canSee);
           if (visibleItems.length === 0) return null;
           return (
-            <View key={group.title} style={styles.group}>
-              <Text style={styles.groupTitle}>{group.title}</Text>
+            <View key={group.titleKey} style={styles.group}>
+              <Text style={styles.groupTitle}>{t(group.titleKey)}</Text>
               {visibleItems.map((item) => {
                 const isActive = currentRouteName === item.route;
                 return (
@@ -67,13 +70,39 @@ export function DrawerContent({ onClose }: DrawerContentProps) {
                       color={isActive ? theme.colors.primary : theme.colors.sidebarText}
                       style={styles.itemIcon}
                     />
-                    <Text style={[styles.itemText, isActive && styles.itemTextActive]}>{item.title}</Text>
+                    <Text style={[styles.itemText, isActive && styles.itemTextActive]}>{t(item.titleKey)}</Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
           );
         })}
+
+        <View style={styles.group}>
+          <Text style={styles.groupTitle}>{t('drawer.language')}</Text>
+          {SUPPORTED_LANGUAGES.map(({ code, nativeLabel }) => {
+            const active = i18n.language === code || i18n.language.startsWith(`${code}-`);
+            return (
+              <TouchableOpacity
+                key={code}
+                style={[styles.item, active && styles.itemActive]}
+                onPress={() => {
+                  void setAppLanguage(code);
+                }}
+                activeOpacity={0.7}
+              >
+                <MaterialIcons
+                  name="language"
+                  size={20}
+                  color={active ? theme.colors.primary : theme.colors.sidebarText}
+                  style={styles.itemIcon}
+                />
+                <Text style={[styles.itemText, active && styles.itemTextActive]}>{nativeLabel}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
         <TouchableOpacity
           style={styles.signOutItem}
           onPress={() => {
@@ -88,7 +117,7 @@ export function DrawerContent({ onClose }: DrawerContentProps) {
             color={theme.colors.sidebarText}
             style={styles.itemIcon}
           />
-          <Text style={styles.signOutText}>Sign Out</Text>
+          <Text style={styles.signOutText}>{t('drawer.signOut')}</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>

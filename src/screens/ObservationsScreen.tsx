@@ -22,9 +22,11 @@ import type { ObservationFeedReadDTO } from '../types/observation';
 import { usePaginatedList } from '../hooks/usePaginatedList';
 import { ListScreenLayout, LoadMoreButton } from '../components/ListScreenLayout';
 import { screenStyles } from '../styles/screenStyles';
+import { useTranslation } from 'react-i18next';
 import { theme } from '../theme';
 
 export default function ObservationsScreen() {
+  const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const fetch = useCallback(() => dispatch(fetchObservations()), [dispatch]);
   const fetchMore = useCallback(() => dispatch(fetchMoreObservations()), [dispatch]);
@@ -61,7 +63,7 @@ export default function ObservationsScreen() {
   const submitCreate = async () => {
     const description = (createDescription ?? '').trim();
     if (!description) {
-      setCreateError('Enter a description.');
+      setCreateError(t('app.observations.enterDesc'));
       return;
     }
     setCreateError(null);
@@ -70,7 +72,7 @@ export default function ObservationsScreen() {
       await dispatch(createObservation({ description })).unwrap();
       setCreateVisible(false);
     } catch (e) {
-      setCreateError((e as string) || 'Failed to create observation');
+      setCreateError((e as string) || t('app.observations.createFail'));
     } finally {
       setCreating(false);
     }
@@ -88,7 +90,7 @@ export default function ObservationsScreen() {
     if (!editingObservation) return;
     const description = (editDescription ?? '').trim();
     if (!description) {
-      setEditError('Enter a description.');
+      setEditError(t('app.observations.enterDesc'));
       return;
     }
     setEditError(null);
@@ -99,7 +101,7 @@ export default function ObservationsScreen() {
       ).unwrap();
       closeEdit();
     } catch (e) {
-      setEditError((e as string) || 'Failed to edit observation');
+      setEditError((e as string) || t('app.observations.editFail'));
     } finally {
       setEditing(false);
     }
@@ -107,17 +109,17 @@ export default function ObservationsScreen() {
 
   return (
     <ListScreenLayout
-      title="Observations"
+      title={t('app.observations.title')}
       error={error}
       isLoading={isLoading}
       isEmpty={items.length === 0}
-      emptyMessage="No observations yet."
+      emptyMessage={t('app.observations.empty')}
       refreshing={refreshing}
       onRefresh={onRefresh}
     >
       <>
         <TouchableOpacity style={styles.createBtn} onPress={openCreate}>
-          <Text style={styles.createBtnText}>Create observation</Text>
+          <Text style={styles.createBtnText}>{t('app.observations.createBtn')}</Text>
         </TouchableOpacity>
       <View style={screenStyles.list}>
         {items.map((o) => (
@@ -144,13 +146,15 @@ export default function ObservationsScreen() {
                     : ''}
                 </Text>
                 {o.assetName ? (
-                  <Text style={styles.caption}>Asset: {o.assetName}</Text>
+                  <Text style={styles.caption}>
+                    {t('app.observations.assetCaption', { name: o.assetName })}
+                  </Text>
                 ) : null}
               </View>
               <View style={styles.rowActions}>
                 {o.canEdit !== false ? (
                   <TouchableOpacity style={styles.editBtn} onPress={() => openEdit(o)}>
-                    <Text style={styles.editBtnText}>Edit</Text>
+                    <Text style={styles.editBtnText}>{t('app.common.edit')}</Text>
                   </TouchableOpacity>
                 ) : null}
                 {o.canDelete !== false ? (
@@ -158,12 +162,12 @@ export default function ObservationsScreen() {
                     style={styles.deleteBtn}
                     onPress={() =>
                       Alert.alert(
-                        'Delete observation',
-                        'Delete this observation?',
+                        t('app.observations.deleteTitle'),
+                        t('app.observations.deleteConfirm'),
                         [
-                          { text: 'Cancel', style: 'cancel' },
+                          { text: t('app.modal.cancel'), style: 'cancel' },
                           {
-                            text: 'Delete',
+                            text: t('app.modal.delete'),
                             style: 'destructive',
                             onPress: () => dispatch(deleteObservation(o.id)),
                           },
@@ -171,7 +175,7 @@ export default function ObservationsScreen() {
                       )
                     }
                   >
-                    <Text style={styles.deleteBtnText}>Delete</Text>
+                    <Text style={styles.deleteBtnText}>{t('app.common.delete')}</Text>
                   </TouchableOpacity>
                 ) : null}
               </View>
@@ -191,18 +195,18 @@ export default function ObservationsScreen() {
       <Modal visible={createVisible} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Create observation</Text>
+            <Text style={styles.modalTitle}>{t('app.observations.createTitle')}</Text>
             {createError ? (
               <View style={screenStyles.errorBox}>
                 <Text style={screenStyles.errorText}>{createError}</Text>
               </View>
             ) : null}
-            <Text style={screenStyles.formLabel}>Description</Text>
+            <Text style={screenStyles.formLabel}>{t('app.tasksScreen.description')}</Text>
             <TextInput
               style={[screenStyles.formInput, styles.textArea]}
               value={createDescription}
               onChangeText={setCreateDescription}
-              placeholder="Describe the observation..."
+              placeholder={t('app.observations.describePh')}
               placeholderTextColor="#6c757d"
               multiline
               numberOfLines={4}
@@ -214,7 +218,7 @@ export default function ObservationsScreen() {
                 onPress={() => setCreateVisible(false)}
                 disabled={creating}
               >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text style={styles.cancelBtnText}>{t('app.modal.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[screenStyles.formButton, creating && styles.buttonDisabled]}
@@ -224,7 +228,7 @@ export default function ObservationsScreen() {
                 {creating ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={screenStyles.formButtonText}>Create</Text>
+                  <Text style={screenStyles.formButtonText}>{t('app.observations.createAction')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -234,18 +238,18 @@ export default function ObservationsScreen() {
       <Modal visible={editingObservation != null} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Edit observation</Text>
+            <Text style={styles.modalTitle}>{t('app.observations.editTitle')}</Text>
             {editError ? (
               <View style={screenStyles.errorBox}>
                 <Text style={screenStyles.errorText}>{editError}</Text>
               </View>
             ) : null}
-            <Text style={screenStyles.formLabel}>Description</Text>
+            <Text style={screenStyles.formLabel}>{t('app.tasksScreen.description')}</Text>
             <TextInput
               style={[screenStyles.formInput, styles.textArea]}
               value={editDescription}
               onChangeText={setEditDescription}
-              placeholder="Describe the observation..."
+              placeholder={t('app.observations.describePh')}
               placeholderTextColor="#6c757d"
               multiline
               numberOfLines={4}
@@ -257,7 +261,7 @@ export default function ObservationsScreen() {
                 onPress={closeEdit}
                 disabled={editing}
               >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text style={styles.cancelBtnText}>{t('app.modal.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[screenStyles.formButton, editing && styles.buttonDisabled]}
@@ -267,7 +271,7 @@ export default function ObservationsScreen() {
                 {editing ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={screenStyles.formButtonText}>Save</Text>
+                  <Text style={screenStyles.formButtonText}>{t('app.common.save')}</Text>
                 )}
               </TouchableOpacity>
             </View>

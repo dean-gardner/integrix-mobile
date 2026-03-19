@@ -18,10 +18,18 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from '../store/notificationsSlice';
+import { useTranslation } from 'react-i18next';
 import { theme } from '../theme';
 import type { NotificationDTO } from '../types/notification';
+import {
+  findFirstUrlRangeInMessage,
+  findLinkRangeInMessage,
+  notificationActionLabel,
+  stripEmbeddedUrlsFromDisplay,
+} from '../utils/notificationDisplay';
 
 export default function NotificationsScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation();
   const dispatch = useDispatch<AppDispatch>();
   const { items, isLoading, error } = useSelector((s: RootState) => s.notifications);
@@ -60,20 +68,47 @@ export default function NotificationsScreen() {
     if (!rawLink) return;
 
     if (/^https?:\/\//i.test(rawLink)) {
-      const canOpen = await Linking.canOpenURL(rawLink);
-      if (canOpen) {
+      try {
         await Linking.openURL(rawLink);
+        return;
+      } catch {
+        // Try HTTPS when backend sends HTTP URL.
+        if (rawLink.startsWith('http://')) {
+          const httpsLink = `https://${rawLink.slice('http://'.length)}`;
+          try {
+            await Linking.openURL(httpsLink);
+            return;
+          } catch {
+            // fall through to route-keyword fallback below
+          }
+        }
       }
-      return;
     }
 
     const lower = rawLink.toLowerCase();
-    if (lower.includes('subscription')) {
+    let pathLower = '';
+    try {
+      if (/^https?:\/\//i.test(rawLink)) {
+        const parsed = new URL(rawLink);
+        pathLower = `${parsed.pathname}${parsed.search}`.toLowerCase();
+      }
+    } catch {
+      // ignore parse error and fallback to raw string matching
+    }
+
+    const target = `${lower} ${pathLower}`;
+    if (target.includes('subscription')) {
       (navigation.navigate as (name: string) => void)('Subscription');
-    } else if (lower.includes('task')) {
+    } else if (target.includes('task')) {
       (navigation.navigate as (name: string) => void)('Tasks');
-    } else if (lower.includes('document')) {
+    } else if (target.includes('document')) {
       (navigation.navigate as (name: string) => void)('Documents');
+    }
+  };
+
+  const onOpenFromNotification = (notification: NotificationDTO) => {
+    if (notification.link?.trim()) {
+      openNotificationLink(notification).catch(() => {});
     }
   };
 
@@ -81,6 +116,14 @@ export default function NotificationsScreen() {
     if (!notification.isRead) {
       dispatch(markNotificationRead(notification.id));
     }
+    onOpenFromNotification(notification);
+  };
+
+  const onPressLinkText = (notification: NotificationDTO) => {
+    if (!notification.isRead) {
+      dispatch(markNotificationRead(notification.id));
+    }
+    onOpenFromNotification(notification);
   };
 
   return (
@@ -89,14 +132,14 @@ export default function NotificationsScreen() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
-      <Text style={styles.pageTitle}>Notifications</Text>
+      <Text style={styles.pageTitle}>{t('app.notifications.title')}</Text>
 
       <View style={styles.panel}>
         <View style={styles.panelHeader}>
           <View style={styles.panelHeaderTexts}>
-            <Text style={styles.panelHeaderTitle}>Notifications</Text>
+            <Text style={styles.panelHeaderTitle}>{t('app.notifications.title')}</Text>
             <Text style={styles.panelHeaderSubtitle}>
-              You have {unreadCount} unread notifications
+              {t('app.notificationsScreen.unreadCount', { count: unreadCount })}
             </Text>
           </View>
           <TouchableOpacity
@@ -104,7 +147,7 @@ export default function NotificationsScreen() {
             onPress={onMarkAllRead}
             disabled={unreadCount === 0}
           >
-            <Text style={styles.markReadButtonText}>Mark All Read</Text>
+            <Text style={styles.markReadButtonText}>{t('app.notificationsScreen.markAllReadBtn')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -120,35 +163,65 @@ export default function NotificationsScreen() {
           </View>
         ) : items.length === 0 ? (
           <View style={styles.emptyWrap}>
-            <Text style={styles.emptyText}>No notifications.</Text>
+            <Text style={styles.emptyText}>{t('app.notificationsScreen.emptyList')}</Text>
           </View>
         ) : (
           <View>
-            {items.map((notification) => (
-              <TouchableOpacity
-                key={notification.id}
-                style={[styles.itemRow, !notification.isRead && styles.itemRowUnread]}
-                onPress={() => onPressNotification(notification)}
-                activeOpacity={0.85}
-              >
-                <View style={styles.itemIconWrap}>
-                  <MaterialIcons name="mail-outline" size={22} color="#2f3b57" />
-                </View>
-                <View style={styles.itemBody}>
-                  <Text style={styles.itemMessage}>{notification.message}</Text>
-                  {notification.link ? (
-                    <TouchableOpacity
-                      onPress={() => {
-                        openNotificationLink(notification).catch(() => {});
-                      }}
-                    >
-                      <Text style={styles.itemLink}>{notification.linkText || 'View'}</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                  <Text style={styles.itemDate}>{formatDate(notification.createdOnUtc)}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+            {items.map((notification) => {
+              const link = notification.link?.trim();
+              const hasLink = Boolean(link);
+              const actionLabel = hasLink ? notificationActionLabel(notification.linkText, t) : '';
+              const inlineRange = hasLink
+                ? findLinkRangeInMessage(notification.message, link) ??
+                  findFirstUrlRangeInMessage(notification.message)
+                : null;
+              const hasInlineLink = Boolean(hasLink && inlineRange);
+              const fallbackMessage = hasLink
+                ? stripEmbeddedUrlsFromDisplay(notification.message)
+                : notification.message;
+
+              return (
+                <TouchableOpacity
+                  key={notification.id}
+                  style={[styles.itemRow, !notification.isRead && styles.itemRowUnread]}
+                  onPress={() => onPressNotification(notification)}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.itemIconWrap}>
+                    <MaterialIcons name="mail-outline" size={22} color="#2f3b57" />
+                  </View>
+                  <View style={styles.itemBody}>
+                    {hasInlineLink && inlineRange ? (
+                      <Text style={styles.itemMessage}>
+                        {notification.message.slice(0, inlineRange.start)}
+                        <Text
+                          style={styles.itemLinkInline}
+                          onPress={() => {
+                            onPressLinkText(notification);
+                          }}
+                        >
+                          {actionLabel}
+                        </Text>
+                        {notification.message.slice(inlineRange.end)}
+                      </Text>
+                    ) : (
+                      <Text style={styles.itemMessage}>{fallbackMessage}</Text>
+                    )}
+                    {hasLink && !hasInlineLink ? (
+                      <Text
+                        style={styles.itemLinkInline}
+                        onPress={() => {
+                          onPressLinkText(notification);
+                        }}
+                      >
+                        {actionLabel}
+                      </Text>
+                    ) : null}
+                    <Text style={styles.itemDate}>{formatDate(notification.createdOnUtc)}</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
       </View>
@@ -267,11 +340,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 22,
   },
-  itemLink: {
-    marginTop: 2,
+  itemLinkInline: {
     color: '#243aa8',
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
   itemDate: {
     marginTop: 4,

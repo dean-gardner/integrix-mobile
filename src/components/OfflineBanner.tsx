@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { theme } from '../theme';
+import { useTranslation } from 'react-i18next';
 
 export function OfflineBanner() {
+  const { t } = useTranslation();
   const [isOffline, setIsOffline] = useState(false);
 
   useEffect(() => {
@@ -17,7 +19,7 @@ export function OfflineBanner() {
 
   return (
     <View style={styles.banner}>
-      <Text style={styles.text}>Offline – showing cached data</Text>
+      <Text style={styles.text}>{t('offline.banner')}</Text>
     </View>
   );
 }

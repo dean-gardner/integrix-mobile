@@ -18,6 +18,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '../store';
 import { signIn, clearError } from '../store/authSlice';
 import { theme } from '../theme';
+import { useTranslation } from 'react-i18next';
 
 const TERMS_URL = 'https://www.integri-x.com/en/terms';
 const FORGOT_PASSWORD_URL = 'https://app.integri-x.com/forgot-password';
@@ -34,6 +35,7 @@ const getTimeZoneId = () => {
 };
 
 export default function SignInScreen() {
+  const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const scrollViewRef = useRef<ScrollView>(null);
   const { height } = useWindowDimensions();
@@ -47,7 +49,7 @@ export default function SignInScreen() {
 
   const handleSubmit = async () => {
     if (!email.trim() || !password) {
-      Alert.alert('Error', 'Please enter email and password');
+      Alert.alert(t('common.error'), t('signIn.enterBoth'));
       return;
     }
     await dispatch(
@@ -76,7 +78,7 @@ export default function SignInScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.card}>
-          <Text style={styles.title}>Sign in</Text>
+          <Text style={styles.title}>{t('signIn.title')}</Text>
 
           {error ? (
             <View style={styles.errorBox}>
@@ -84,7 +86,7 @@ export default function SignInScreen() {
             </View>
           ) : null}
 
-          <Text style={styles.label}>Email</Text>
+          <Text style={styles.label}>{t('signIn.email')}</Text>
           <TextInput
             style={styles.input}
             placeholder=""
@@ -96,7 +98,7 @@ export default function SignInScreen() {
             editable={!isLoading}
           />
 
-          <Text style={styles.label}>Password</Text>
+          <Text style={styles.label}>{t('signIn.password')}</Text>
           <TextInput
             style={styles.input}
             placeholder=""
@@ -123,14 +125,14 @@ export default function SignInScreen() {
             {isLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>Sign In</Text>
+              <Text style={styles.buttonText}>{t('signIn.submit')}</Text>
             )}
           </TouchableOpacity>
 
           <Text style={styles.termsText}>
-            By clicking Sign In, you agree to our{' '}
+            {t('signIn.termsPrefix')}{' '}
             <Text style={styles.termsLink} onPress={() => openURL(TERMS_URL)}>
-              Terms and Conditions
+              {t('signIn.termsLink')}
             </Text>
           </Text>
 
@@ -139,7 +141,7 @@ export default function SignInScreen() {
             onPress={() => openURL(FORGOT_PASSWORD_URL)}
             disabled={isLoading}
           >
-            <Text style={styles.forgotLinkText}>Forgot password?</Text>
+            <Text style={styles.forgotLinkText}>{t('signIn.forgotPassword')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -147,7 +149,7 @@ export default function SignInScreen() {
             onPress={() => openURL(CREATE_ACCOUNT_URL)}
             disabled={isLoading}
           >
-            <Text style={styles.secondaryLinkText}>Create an Account</Text>
+            <Text style={styles.secondaryLinkText}>{t('signIn.createAccount')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

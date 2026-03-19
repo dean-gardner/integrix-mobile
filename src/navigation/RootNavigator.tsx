@@ -30,35 +30,40 @@ import ObservationsScreen from '../screens/ObservationsScreen';
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 
 const Stack = createNativeStackNavigator();
 const DRAWER_WIDTH = 240;
 const DRAWER_ANIMATION_DURATION = 220;
 
-function getHeaderTitle(routeName: string): string {
-  const titles: Record<string, string> = {
-    Feed: 'Integrix',
-    Dashboard: 'Dashboard',
-    Documents: 'Documents',
-    DocumentDetail: 'Integrix',
-    Tasks: 'Tasks',
-    TaskDetail: 'Task',
-    Defects: 'Defects',
-    DefectDetail: 'Defect detail',
-    Observations: 'Observations',
-    Users: 'Users',
-    UserSearch: 'Search users',
-    Teams: 'Teams',
-    CompanyAssets: 'Assets',
-    EditProfile: 'Edit profile',
-    Subscription: 'Subscription',
-    Notifications: 'Notifications',
-    ChangePassword: 'Change password',
+function getHeaderTitle(routeName: string, t: TFunction): string {
+  const keys: Record<string, string> = {
+    Feed: 'nav.feed',
+    Dashboard: 'nav.dashboard',
+    Documents: 'nav.documents',
+    DocumentDetail: 'nav.documentDetail',
+    DocumentCreate: 'nav.documents',
+    Tasks: 'nav.tasks',
+    TaskDetail: 'nav.taskDetail',
+    Defects: 'nav.defects',
+    DefectDetail: 'nav.defectDetail',
+    Observations: 'nav.observations',
+    Users: 'nav.users',
+    UserSearch: 'nav.userSearch',
+    Teams: 'nav.teams',
+    CompanyAssets: 'nav.companyAssets',
+    EditProfile: 'nav.editProfile',
+    Subscription: 'nav.subscription',
+    Notifications: 'nav.notifications',
+    ChangePassword: 'nav.changePassword',
   };
-  return titles[routeName] ?? 'Integrix';
+  const key = keys[routeName];
+  return key ? t(key) : t('appName');
 }
 
 function MainStack() {
+  const { t } = useTranslation();
   const user = useSelector((s: RootState) => s.auth.user);
   const displayName = user?.firstName || user?.fullName || user?.userName || '';
   const { isOpen, closeDrawer } = useDrawer();
@@ -113,7 +118,7 @@ function MainStack() {
         screenOptions={{
           header: ({ route }) => (
             <AppHeader
-              title={getHeaderTitle(route.name)}
+              title={getHeaderTitle(route.name, t)}
               userDisplayName={displayName}
             />
           ),

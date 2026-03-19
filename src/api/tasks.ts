@@ -11,6 +11,11 @@ import type {
 } from '../types/task';
 import type { FoundUserDTO } from '../types/user';
 
+export type ShareTasksWithUsersDTO = {
+  tasksIds: string[];
+  usersToShare: FoundUserDTO[];
+};
+
 export function getTasks(
   model: TaskFilteringModel
 ): Promise<AxiosResponse<EntitiesWithTotalCount<TaskReadDTO>>> {
@@ -69,6 +74,13 @@ export function shareTaskWithUser(
   );
 }
 
+/** Web-compatible endpoint for sharing one/many tasks with users. */
+export function shareTasks(
+  model: ShareTasksWithUsersDTO
+): Promise<AxiosResponse<unknown>> {
+  return axios.post<unknown>('api/tasks/share-tasks', model);
+}
+
 export function unshareTaskWithUser(
   documentId: string,
   versionId: string,
@@ -78,6 +90,17 @@ export function unshareTaskWithUser(
   return axios.post<string>(
     `api/documents/${documentId}/versions/${versionId}/tasks/${taskId}/unshare-with-user`,
     model
+  );
+}
+
+/** Web-compatible endpoint for unsharing users by task id. */
+export function unshareUsers(
+  taskId: string,
+  users: FoundUserDTO[]
+): Promise<AxiosResponse<string>> {
+  return axios.delete<string, AxiosResponse<string>>(
+    `api/tasks/${taskId}/unshare-users`,
+    { data: users }
   );
 }
 

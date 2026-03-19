@@ -24,6 +24,7 @@ import {
   fetchUserInvitations,
   setUserInvitationsFilter,
 } from '../store/userInvitationsSlice';
+import { useTranslation } from 'react-i18next';
 
 type UsersTab = 'members' | 'invitations';
 
@@ -57,6 +58,7 @@ function mapInvitationToTableRow(invitation: UserInvitationReadDTO): UsersTableR
 }
 
 export default function UsersScreen() {
+  const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const currentUser = useSelector((s: RootState) => s.auth.user);
   const teams = useSelector((s: RootState) => s.teams.items);
@@ -87,8 +89,8 @@ export default function UsersScreen() {
   const [roles, setRoles] = useState<RoleDTO[]>([]);
 
   const isAdmin = Boolean(currentUser?.roles?.includes(ADMIN_ROLE));
-  const membersTabLabel = isAdmin ? 'Users' : 'Team Members';
-  const invitationsTabLabel = isAdmin ? 'User Invitations' : 'Invitations';
+  const membersTabLabel = isAdmin ? t('app.users.tabUsers') : t('app.users.tabMembers');
+  const invitationsTabLabel = isAdmin ? t('app.users.tabInvitesAdmin') : t('app.users.tabInvites');
 
   const teamRows = useMemo(() => users.map(mapUserToTableRow), [users]);
   const invitationRows = useMemo(
@@ -160,12 +162,12 @@ export default function UsersScreen() {
   };
 
   const openPageSizeMenu = () => {
-    Alert.alert('Rows per page', 'Select rows count', [
+    Alert.alert(t('app.common.rowsPerPage'), t('app.common.selectRowCount'), [
       ...PAGE_SIZE_OPTIONS.map((size) => ({
         text: String(size),
         onPress: () => updateActivePageSize(size),
       })),
-      { text: 'Cancel', style: 'cancel' },
+      { text: t('app.modal.cancel'), style: 'cancel' },
     ]);
   };
 
@@ -246,7 +248,7 @@ export default function UsersScreen() {
       ).unwrap();
       await dispatch(fetchUserInvitations()).unwrap();
       setActiveTab('invitations');
-      Alert.alert('Invitation sent', 'The team member will receive an email invitation.');
+      Alert.alert(t('app.users.inviteSentTitle'), t('app.users.inviteSentBody'));
     } catch (e) {
       const fallback = 'Failed to invite team member.';
       const message =

@@ -36,6 +36,7 @@ import type { TaskStepReadDTO, TaskWithDetailsReadDTO } from '../types/task';
 import { ShareDocumentModal } from '../components/documents/ShareDocumentModal';
 import { TaskStepPostModal, type TaskStepPostPayload } from '../components/taskDetail/TaskStepPostModal';
 import { screenStyles } from '../styles/screenStyles';
+import { useTranslation } from 'react-i18next';
 import { theme } from '../theme';
 import { taskReferencingOptions } from '../config/documentCreate';
 import {
@@ -110,6 +111,7 @@ function mapTaskStepToDocumentTaskStep(taskStep: TaskStepReadDTO): DocumentTaskS
 }
 
 export default function DocumentDetailScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation();
   const route = useRoute<RouteProp<{ params: DocumentDetailParams }, 'params'>>();
   const dispatch = useDispatch<AppDispatch>();
@@ -282,7 +284,7 @@ export default function DocumentDetailScreen() {
       } catch {
         if (!isCancelled) {
           setSections([]);
-          setSectionsError('Failed to load document sections.');
+          setSectionsError(t('app.documentDetail.loadSectionsFail'));
         }
       } finally {
         if (!isCancelled) {
@@ -311,7 +313,7 @@ export default function DocumentDetailScreen() {
         setSectionTasks((prev) => ({ ...prev, [sectionId]: orderedTasks }));
       } catch {
         setSectionTasks((prev) => ({ ...prev, [sectionId]: [] }));
-        setSectionTaskError((prev) => ({ ...prev, [sectionId]: 'Failed to load task steps.' }));
+        setSectionTaskError((prev) => ({ ...prev, [sectionId]: t('app.documentDetail.loadTaskStepsFail') }));
       } finally {
         setSectionTaskLoading((prev) => ({ ...prev, [sectionId]: false }));
       }
@@ -335,7 +337,7 @@ export default function DocumentDetailScreen() {
       } catch {
         if (!isCancelled) {
           setHistory([]);
-          setHistoryError('Failed to load document history.');
+          setHistoryError(t('app.documentDetail.loadHistoryFail'));
           setHistoryLoaded(true);
         }
       } finally {
@@ -384,7 +386,7 @@ export default function DocumentDetailScreen() {
       const message =
         typeof e === 'string'
           ? e
-          : (e as { message?: string } | null)?.message ?? 'Failed to edit document.';
+          : (e as { message?: string } | null)?.message ?? t('app.documentDetail.editDocFail');
       setEditError(message);
     } finally {
       setEditing(false);
@@ -395,23 +397,25 @@ export default function DocumentDetailScreen() {
     if (!doc) return;
 
     Alert.alert(
-      'Clone document',
-      `Create a copy of ${doc.documentNumberStr ?? doc.documentNo}?`,
+      t('app.documentDetail.cloneTitle'),
+      t('app.documentDetail.cloneConfirmName', {
+        name: doc.documentNumberStr ?? doc.documentNo ?? '',
+      }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('app.modal.cancel'), style: 'cancel' },
         {
-          text: 'Clone',
+          text: t('app.documentDetail.cloneOkBtn'),
           onPress: async () => {
             setCloning(true);
             try {
               const response = await duplicateDocument(doc.id);
               const cloned = response.data;
-              Alert.alert('Document', 'Document cloned successfully.');
+              Alert.alert(t('app.alerts.document'), t('app.document.cloneOk'));
               (navigation.navigate as (name: string, params?: object) => void)('DocumentDetail', {
                 document: cloned,
               });
             } catch {
-              Alert.alert('Document', 'Failed to clone document.');
+              Alert.alert(t('app.alerts.document'), t('app.document.cloneFail'));
             } finally {
               setCloning(false);
             }
@@ -419,7 +423,7 @@ export default function DocumentDetailScreen() {
         },
       ]
     );
-  }, [doc, navigation]);
+  }, [doc, navigation, t]);
 
   const handleDownloadReport = useCallback(
     async (isLarge: boolean) => {
@@ -438,7 +442,7 @@ export default function DocumentDetailScreen() {
         if (existingUrl) {
           const opened = await openExternalUrl(existingUrl);
           if (!opened) {
-            Alert.alert('Download', 'Could not open the document link.');
+            Alert.alert(t('app.alerts.download'), t('app.document.downloadFail'));
           }
           return;
         }
@@ -457,13 +461,13 @@ export default function DocumentDetailScreen() {
         if (generatedUrl) {
           const opened = await openExternalUrl(generatedUrl);
           if (!opened) {
-            Alert.alert('Download', 'Could not open the document link.');
+            Alert.alert(t('app.alerts.download'), t('app.document.downloadFail'));
           }
         } else {
-          Alert.alert('Download', 'Export is still in progress. Try again shortly.');
+          Alert.alert(t('app.alerts.download'), t('app.document.exportProgress'));
         }
       } catch {
-        Alert.alert('Download', 'Failed to generate document report.');
+        Alert.alert(t('app.alerts.download'), t('app.document.exportFail'));
       } finally {
         if (isLarge) {
           setDownloadingLargePdf(false);
@@ -472,7 +476,7 @@ export default function DocumentDetailScreen() {
         }
       }
     },
-    [doc, exportLargeReportUrl, exportReportUrl]
+    [doc, exportLargeReportUrl, exportReportUrl, t]
   );
 
   const openPostForTaskStep = useCallback(
@@ -695,15 +699,17 @@ export default function DocumentDetailScreen() {
 
         {isTaskDetailsExpanded ? (
           <View style={styles.taskBodyCard}>
-            <Text style={styles.infoLabel}>Document Title</Text>
+            <Text style={styles.infoLabel}>{t('app.documentDetail.documentTitle')}</Text>
             <Text style={styles.infoValue}>{doc.description || '—'}</Text>
 
-            <Text style={[styles.infoLabel, styles.taskReferenceLabel]}>Task Referencing</Text>
+            <Text style={[styles.infoLabel, styles.taskReferenceLabel]}>
+              {t('app.documentDetail.taskReferencing')}
+            </Text>
             <View style={styles.referencingRow}>
               <Text style={styles.infoValue}>{taskReferencing?.label ?? '—'}</Text>
               {taskReferencing?.tooltip ? (
                 <TouchableOpacity
-                  onPress={() => Alert.alert('Task referencing', taskReferencing.tooltip)}
+                  onPress={() => Alert.alert(t('app.document.taskRef'), taskReferencing.tooltip)}
                   hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
                 >
                   <MaterialIcons name="info" size={16} color="#6d7f9d" />
@@ -724,7 +730,7 @@ export default function DocumentDetailScreen() {
           </View>
         ) : sections.length === 0 ? (
           <View style={styles.emptySectionsBox}>
-            <Text style={styles.emptySectionsText}>No sections available.</Text>
+            <Text style={styles.emptySectionsText}>{t('app.documentDetail.noSections')}</Text>
           </View>
         ) : (
           sections.map((section, sectionIndex) => {

@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import i18n from '../i18n';
 import type { DefectReadDTO, DefectFilteringModel } from '../types/defect';
 import { getDefects, createDefect as apiCreateDefect, editDefect as apiEditDefect, deleteDefect as apiDeleteDefect } from '../api/defects';
 
@@ -13,7 +14,7 @@ export const fetchDefects = createAsyncThunk<
       const res = await getDefects(getState().defects.filteringModel);
       return { items: res.data.items, totalCount: res.data.totalCount };
     } catch (e: any) {
-      return rejectWithValue(e?.message ?? 'Failed to load defects');
+      return rejectWithValue(e?.message ?? i18n.t('app.errors.loadDefects'));
     }
   }
 );
@@ -45,7 +46,7 @@ export const fetchMoreDefects = createAsyncThunk<
         nextPageNumber: next.pageNumber,
       };
     } catch (e: any) {
-      return rejectWithValue(e?.message ?? 'Failed to load more');
+      return rejectWithValue(e?.message ?? i18n.t('app.errors.loadMore'));
     }
   }
 );
@@ -57,7 +58,7 @@ export const createDefect = createAsyncThunk<DefectReadDTO, FormData, { rejectVa
       const res = await apiCreateDefect(model);
       return res.data;
     } catch (e: any) {
-      return rejectWithValue(e?.message ?? 'Failed to create defect');
+      return rejectWithValue(e?.message ?? i18n.t('app.errors.createDefect'));
     }
   }
 );
@@ -71,7 +72,7 @@ export const editDefect = createAsyncThunk<
     const res = await apiEditDefect(defectId, model);
     return res.data;
   } catch (e: any) {
-    return rejectWithValue(e?.message ?? 'Failed to edit defect');
+    return rejectWithValue(e?.message ?? i18n.t('app.errors.editDefect'));
   }
 });
 
@@ -82,7 +83,7 @@ export const deleteDefect = createAsyncThunk<string, string, { rejectValue: stri
       await apiDeleteDefect(defectId);
       return defectId;
     } catch (e: any) {
-      return rejectWithValue(e?.message ?? 'Failed to delete defect');
+      return rejectWithValue(e?.message ?? i18n.t('app.errors.deleteDefect'));
     }
   }
 );
@@ -130,7 +131,7 @@ const defectsSlice = createSlice({
       })
       .addCase(fetchDefects.rejected, (state, { payload }) => {
         state.isLoading = false;
-        state.error = payload ?? 'Failed to load defects';
+        state.error = payload ?? i18n.t('app.errors.loadDefects');
       });
     builder
       .addCase(fetchMoreDefects.fulfilled, (state, { payload }) => {

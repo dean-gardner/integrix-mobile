@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import i18n from '../i18n';
 import type { UserReadDTO, UserFilteringModel, UserEditDTO } from '../types/user';
 import { getUsers, editUser as apiEditUser, deleteUser as apiDeleteUser } from '../api/users';
 
@@ -13,7 +14,7 @@ export const fetchUsers = createAsyncThunk<
       const res = await getUsers(getState().users.filteringModel);
       return { items: res.data.items, totalCount: res.data.totalCount };
     } catch (e: any) {
-      return rejectWithValue(e?.message ?? 'Failed to load users');
+      return rejectWithValue(e?.message ?? i18n.t('app.errors.loadUsers'));
     }
   }
 );
@@ -45,7 +46,7 @@ export const fetchMoreUsers = createAsyncThunk<
         nextPageNumber: next.pageNumber,
       };
     } catch (e: any) {
-      return rejectWithValue(e?.message ?? 'Failed to load more');
+      return rejectWithValue(e?.message ?? i18n.t('app.errors.loadMore'));
     }
   }
 );
@@ -60,7 +61,7 @@ export const editUser = createAsyncThunk<
     return res.data;
   } catch (e: unknown) {
     return rejectWithValue(
-      (e as { message?: string })?.message ?? 'Failed to edit user'
+      (e as { message?: string })?.message ?? i18n.t('app.errors.editUser')
     );
   }
 });
@@ -75,7 +76,7 @@ export const deleteUser = createAsyncThunk<
     return userId;
   } catch (e: unknown) {
     return rejectWithValue(
-      (e as { message?: string })?.message ?? 'Failed to delete user'
+      (e as { message?: string })?.message ?? i18n.t('app.errors.deleteUser')
     );
   }
 });
@@ -123,7 +124,7 @@ const usersSlice = createSlice({
       })
       .addCase(fetchUsers.rejected, (state, { payload }) => {
         state.isLoading = false;
-        state.error = payload ?? 'Failed to load users';
+        state.error = payload ?? i18n.t('app.errors.loadUsers');
       });
     builder
       .addCase(fetchMoreUsers.fulfilled, (state, { payload }) => {

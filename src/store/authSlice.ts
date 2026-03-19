@@ -4,6 +4,7 @@ import { apiSignIn, apiGetUserData, apiSignOut } from '../api/auth';
 import type { SignInDTO } from '../types/SignInDTO';
 import { getToken, setToken, removeToken } from '../storage/tokenStorage';
 import { getHttpErrorMessage } from '../utils/httpErrorMessage';
+import i18n from '../i18n';
 
 export const signIn = createAsyncThunk<
   UserDTO,
@@ -19,15 +20,15 @@ export const signIn = createAsyncThunk<
   } catch (e: unknown) {
     const status = (e as { response?: { status?: number } })?.response?.status;
     if (status === 429) {
-      return rejectWithValue('Too many failed attempts. Please try again later.');
+      return rejectWithValue(i18n.t('app.errors.tooManyAttempts'));
     }
     if (status === 400) {
       const detail = getHttpErrorMessage(e, '');
       return rejectWithValue(
-        detail || 'Invalid email or password. Please try again.'
+        detail || i18n.t('app.errors.invalidCredentials')
       );
     }
-    return rejectWithValue(getHttpErrorMessage(e, 'Sign in failed'));
+    return rejectWithValue(getHttpErrorMessage(e, i18n.t('app.errors.signInFailed')));
   }
 });
 

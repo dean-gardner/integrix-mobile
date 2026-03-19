@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
 import { launchCamera, launchImageLibrary, type Asset as ImagePickerAsset } from 'react-native-image-picker';
+import i18n from '../../i18n';
 import { getDefaultDefectFieldsTemplate } from '../../api/defectFieldsTemplates';
 import { editDefect, getDefectById, getTaskStepDefects } from '../../api/defects';
 import { getTaskPosts } from '../../api/feed';
@@ -182,17 +183,24 @@ function pickImagesWithSource(
 
   if (Platform.OS === 'ios') {
     ActionSheetIOS.showActionSheetWithOptions(
-      { options: ['Cancel', 'Take Photo', 'Choose from Gallery'], cancelButtonIndex: 0 },
+      {
+        options: [
+          i18n.t('app.modal.cancel'),
+          i18n.t('app.task.takePhoto'),
+          i18n.t('app.task.chooseLibrary'),
+        ],
+        cancelButtonIndex: 0,
+      },
       (index) => {
         if (index === 1) launch('camera');
         if (index === 2) launch('library');
       }
     );
   } else {
-    Alert.alert('Add Photo', '', [
-      { text: 'Take Photo', onPress: () => launch('camera') },
-      { text: 'Choose from Gallery', onPress: () => launch('library') },
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(i18n.t('app.task.addPhoto'), '', [
+      { text: i18n.t('app.task.takePhoto'), onPress: () => launch('camera') },
+      { text: i18n.t('app.task.chooseLibrary'), onPress: () => launch('library') },
+      { text: i18n.t('app.modal.cancel'), style: 'cancel' },
     ]);
   }
 }

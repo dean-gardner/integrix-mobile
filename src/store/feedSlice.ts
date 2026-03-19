@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { FeedItemDTO, FilteringModel } from '../types/feed';
 import { getFeed } from '../api/feed';
+import i18n from '../i18n';
 
 export const fetchFeedItems = createAsyncThunk<
   { items: FeedItemDTO[]; totalCount: number },
@@ -14,7 +15,7 @@ export const fetchFeedItems = createAsyncThunk<
       const res = await getFeed(filteringModel);
       return { items: res.data.items, totalCount: res.data.totalCount };
     } catch (e: any) {
-      return rejectWithValue(e?.message ?? 'Failed to load feed');
+      return rejectWithValue(e?.message ?? i18n.t('app.errors.loadFeed'));
     }
   }
 );
@@ -40,7 +41,7 @@ export const fetchMoreFeedItems = createAsyncThunk<
         nextPageNumber: next.pageNumber,
       };
     } catch (e: any) {
-      return rejectWithValue(e?.message ?? 'Failed to load more');
+      return rejectWithValue(e?.message ?? i18n.t('app.errors.loadMore'));
     }
   }
 );
@@ -92,7 +93,7 @@ const feedSlice = createSlice({
       })
       .addCase(fetchFeedItems.rejected, (state, { payload }) => {
         state.isLoading = false;
-        state.error = payload ?? 'Failed to load feed';
+        state.error = payload ?? i18n.t('app.errors.loadFeed');
       });
 
     builder

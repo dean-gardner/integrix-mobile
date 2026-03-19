@@ -9,10 +9,12 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { apiChangePassword } from '../api/auth';
 import { screenStyles } from '../styles/screenStyles';
 
 export default function ChangePasswordScreen() {
+  const { t } = useTranslation();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [repeatPassword, setRepeatPassword] = useState('');
@@ -22,15 +24,15 @@ export default function ChangePasswordScreen() {
   const handleSubmit = async () => {
     setError(null);
     if (!currentPassword.trim()) {
-      setError('Enter your current password.');
+      setError(t('app.changePassword.currentRequired'));
       return;
     }
     if (!newPassword) {
-      setError('Enter a new password.');
+      setError(t('app.changePassword.newRequired'));
       return;
     }
     if (newPassword !== repeatPassword) {
-      setError('New password and repeat do not match.');
+      setError(t('app.changePassword.mismatch'));
       return;
     }
     setLoading(true);
@@ -40,8 +42,8 @@ export default function ChangePasswordScreen() {
         newPassword,
         repeatPassword,
       });
-      Alert.alert('Success', 'Password changed. Please sign in again.', [
-        { text: 'OK', onPress: () => {
+      Alert.alert(t('app.alerts.success'), t('app.auth.passwordChanged'), [
+        { text: t('app.modal.ok'), onPress: () => {
           setCurrentPassword('');
           setNewPassword('');
           setRepeatPassword('');
@@ -50,8 +52,8 @@ export default function ChangePasswordScreen() {
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: string }; message?: string })?.message
         ?? (e as { response?: { data?: string } })?.response?.data
-        ?? 'Failed to change password';
-      setError(typeof msg === 'string' ? msg : 'Failed to change password');
+        ?? t('app.changePassword.failedChange');
+      setError(typeof msg === 'string' ? msg : t('app.changePassword.failedChange'));
     } finally {
       setLoading(false);
     }
@@ -59,39 +61,39 @@ export default function ChangePasswordScreen() {
 
   return (
     <ScrollView style={screenStyles.container} contentContainerStyle={screenStyles.content}>
-      <Text style={screenStyles.title}>Change password</Text>
+      <Text style={screenStyles.title}>{t('app.changePassword.title')}</Text>
       {error ? (
         <View style={screenStyles.errorBox}>
           <Text style={screenStyles.errorText}>{error}</Text>
         </View>
       ) : null}
       <View style={screenStyles.card}>
-        <Text style={screenStyles.formLabel}>Current password</Text>
+        <Text style={screenStyles.formLabel}>{t('app.changePassword.currentPh')}</Text>
         <TextInput
           style={screenStyles.formInput}
           value={currentPassword}
           onChangeText={setCurrentPassword}
-          placeholder="Current password"
+          placeholder={t('app.changePassword.currentPh')}
           placeholderTextColor="#6c757d"
           secureTextEntry
           editable={!loading}
         />
-        <Text style={screenStyles.formLabel}>New password</Text>
+        <Text style={screenStyles.formLabel}>{t('app.changePassword.newPh')}</Text>
         <TextInput
           style={screenStyles.formInput}
           value={newPassword}
           onChangeText={setNewPassword}
-          placeholder="New password"
+          placeholder={t('app.changePassword.newPh')}
           placeholderTextColor="#6c757d"
           secureTextEntry
           editable={!loading}
         />
-        <Text style={screenStyles.formLabel}>Repeat new password</Text>
+        <Text style={screenStyles.formLabel}>{t('app.changePassword.confirmPh')}</Text>
         <TextInput
           style={screenStyles.formInput}
           value={repeatPassword}
           onChangeText={setRepeatPassword}
-          placeholder="Repeat new password"
+          placeholder={t('app.changePassword.confirmPh')}
           placeholderTextColor="#6c757d"
           secureTextEntry
           editable={!loading}
@@ -104,7 +106,7 @@ export default function ChangePasswordScreen() {
           {loading ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Text style={screenStyles.formButtonText}>Change password</Text>
+            <Text style={screenStyles.formButtonText}>{t('app.changePassword.submit')}</Text>
           )}
         </TouchableOpacity>
       </View>

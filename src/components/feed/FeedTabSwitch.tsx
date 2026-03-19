@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { theme } from '../../theme';
 import type { FeedTabKey, FeedTabOption } from '../../config/feedScreen';
 
@@ -10,6 +11,7 @@ type FeedTabSwitchProps = {
 };
 
 export function FeedTabSwitch({ tabs, activeTab, onTabPress }: FeedTabSwitchProps) {
+  const { t } = useTranslation();
   return (
     <View style={styles.container}>
       {tabs.map((tab) => {
@@ -22,7 +24,7 @@ export function FeedTabSwitch({ tabs, activeTab, onTabPress }: FeedTabSwitchProp
             activeOpacity={0.8}
           >
             <Text style={[styles.tabText, isActive ? styles.tabTextActive : styles.tabTextInactive]}>
-              {tab.label}
+              {t(tab.titleKey)}
             </Text>
           </TouchableOpacity>
         );

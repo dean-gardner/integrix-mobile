@@ -5,43 +5,42 @@ export type FeedTaskFilterId = 'iStarted' | 'sharedWithMe' | 'myTeam';
 
 export type FeedTabOption = {
   key: FeedTabKey;
-  label: string;
+  titleKey: string;
 };
 
 export type FeedTaskFilterOption = {
   id: FeedTaskFilterId;
-  label: string;
+  titleKey: string;
   indicatorColor: string;
   taskType: TaskTypeEnum | null;
   useCurrentUserId?: boolean;
 };
 
 export const feedTabOptions: FeedTabOption[] = [
-  { key: 'feed', label: 'Activity Feed' },
-  { key: 'tasks', label: 'Tasks' },
+  { key: 'feed', titleKey: 'app.feed.tabActivity' },
+  { key: 'tasks', titleKey: 'app.feed.tabTasks' },
 ];
 
 export const feedTaskFilterOptions: FeedTaskFilterOption[] = [
   {
     id: 'iStarted',
-    label: 'Started by me',
+    titleKey: 'app.feed.startedByMe',
     indicatorColor: '#A78D7C',
     taskType: null,
     useCurrentUserId: true,
   },
   {
     id: 'myTeam',
-    label: 'Started by my team',
+    titleKey: 'app.feed.startedByTeam',
     indicatorColor: '#7E947D',
     taskType: TaskTypeEnum.TeamTasks,
   },
   {
     id: 'sharedWithMe',
-    label: 'Shared with me',
+    titleKey: 'app.feed.sharedWithMe',
     indicatorColor: '#6C8EBF',
     taskType: TaskTypeEnum.SharedTasks,
   },
 ];
 
 export const defaultFeedTaskIndicatorColor = '#6C8EBF';
-export const feedEmptyStateText = 'There are no defects or observations yet...';

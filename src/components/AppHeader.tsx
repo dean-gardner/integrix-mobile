@@ -9,6 +9,7 @@ import {
   ScrollView,
   TouchableWithoutFeedback,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { theme } from '../theme';
 import { useDrawer } from '../context/DrawerContext';
@@ -22,6 +23,13 @@ import {
   markNotificationRead,
 } from '../store/notificationsSlice';
 import type { NotificationDTO } from '../types/notification';
+import { useTranslation } from 'react-i18next';
+import {
+  findFirstUrlRangeInMessage,
+  findLinkRangeInMessage,
+  notificationActionLabel,
+  stripEmbeddedUrlsFromDisplay,
+} from '../utils/notificationDisplay';
 
 type AppHeaderProps = {
   title?: string;
@@ -29,7 +37,9 @@ type AppHeaderProps = {
   userDisplayName?: string;
 };
 
-export function AppHeader({ title = 'Integrix', showMenu = true }: AppHeaderProps) {
+export function AppHeader({ title, showMenu = true }: AppHeaderProps) {
+  const { t } = useTranslation();
+  const displayTitle = title ?? t('appName');
   const navigation = useNavigation();
   const dispatch = useDispatch<AppDispatch>();
   const { openDrawer } = useDrawer();
@@ -65,12 +75,6 @@ export function AppHeader({ title = 'Integrix', showMenu = true }: AppHeaderProp
     dispatch(markAllNotificationsRead());
   };
 
-  const onPressPreviewItem = (notification: NotificationDTO) => {
-    if (!notification.isRead) {
-      dispatch(markNotificationRead(notification.id));
-    }
-  };
-
   const formatDate = (dateUtc?: string): string => {
     if (!dateUtc) return '';
     return new Date(dateUtc).toLocaleString(undefined, {
@@ -80,6 +84,71 @@ export function AppHeader({ title = 'Integrix', showMenu = true }: AppHeaderProp
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  const openNotificationLink = async (notification: NotificationDTO) => {
+    if (!notification.link) return;
+
+    const rawLink = notification.link.trim();
+    if (!rawLink) return;
+
+    if (/^https?:\/\//i.test(rawLink)) {
+      try {
+        await Linking.openURL(rawLink);
+        return;
+      } catch {
+        // Try HTTPS when backend sends HTTP URL.
+        if (rawLink.startsWith('http://')) {
+          const httpsLink = `https://${rawLink.slice('http://'.length)}`;
+          try {
+            await Linking.openURL(httpsLink);
+            return;
+          } catch {
+            // fall through to route-keyword fallback below
+          }
+        }
+      }
+    }
+
+    const lower = rawLink.toLowerCase();
+    let pathLower = '';
+    try {
+      if (/^https?:\/\//i.test(rawLink)) {
+        const parsed = new URL(rawLink);
+        pathLower = `${parsed.pathname}${parsed.search}`.toLowerCase();
+      }
+    } catch {
+      // ignore parse error and fallback to raw string matching
+    }
+
+    const target = `${lower} ${pathLower}`;
+    if (target.includes('subscription')) {
+      (navigation.navigate as (name: string) => void)('Subscription');
+    } else if (target.includes('task')) {
+      (navigation.navigate as (name: string) => void)('Tasks');
+    } else if (target.includes('document')) {
+      (navigation.navigate as (name: string) => void)('Documents');
+    }
+  };
+
+  const onOpenFromNotification = (notification: NotificationDTO) => {
+    if (notification.link?.trim()) {
+      openNotificationLink(notification).catch(() => {});
+    }
+  };
+
+  const onPressPreviewItem = (notification: NotificationDTO) => {
+    if (!notification.isRead) {
+      dispatch(markNotificationRead(notification.id));
+    }
+    onOpenFromNotification(notification);
+  };
+
+  const onPressPreviewLink = (notification: NotificationDTO) => {
+    if (!notification.isRead) {
+      dispatch(markNotificationRead(notification.id));
+    }
+    onOpenFromNotification(notification);
   };
 
   return (
@@ -98,7 +167,7 @@ export function AppHeader({ title = 'Integrix', showMenu = true }: AppHeaderProp
         )}
 
         <Text style={styles.logo} numberOfLines={1}>
-          {title}
+          {displayTitle}
         </Text>
 
         <TouchableOpacity style={styles.iconBtn} onPress={() => setActionsVisible(true)}>
@@ -125,7 +194,7 @@ export function AppHeader({ title = 'Integrix', showMenu = true }: AppHeaderProp
                       ]}
                     />
                   </View>
-                  <Text style={styles.notificationsMenuText}>Notifications</Text>
+                  <Text style={styles.notificationsMenuText}>{t('header.notifications')}</Text>
                 </TouchableOpacity>
               </View>
             </TouchableWithoutFeedback>
@@ -145,8 +214,10 @@ export function AppHeader({ title = 'Integrix', showMenu = true }: AppHeaderProp
               <View style={styles.previewCard}>
                 <View style={styles.previewHeader}>
                   <View style={styles.previewHeaderTexts}>
-                    <Text style={styles.previewTitle}>Notifications</Text>
-                    <Text style={styles.previewSubtitle}>You have {unreadCount} unread notifications</Text>
+                    <Text style={styles.previewTitle}>{t('header.notificationsPreview')}</Text>
+                    <Text style={styles.previewSubtitle}>
+                      {t('header.unreadCount', { count: unreadCount })}
+                    </Text>
                   </View>
                   <TouchableOpacity
                     style={[styles.markReadButton, unreadCount === 0 && styles.markReadButtonDisabled]}
@@ -154,7 +225,7 @@ export function AppHeader({ title = 'Integrix', showMenu = true }: AppHeaderProp
                     disabled={unreadCount === 0}
                     activeOpacity={0.8}
                   >
-                    <Text style={styles.markReadButtonText}>Mark All Read</Text>
+                    <Text style={styles.markReadButtonText}>{t('header.markAllReadShort')}</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -164,34 +235,72 @@ export function AppHeader({ title = 'Integrix', showMenu = true }: AppHeaderProp
                   </View>
                 ) : previewItems.length === 0 ? (
                   <View style={styles.previewEmpty}>
-                    <Text style={styles.previewEmptyText}>No notifications.</Text>
+                    <Text style={styles.previewEmptyText}>{t('header.noNotificationsShort')}</Text>
                   </View>
                 ) : (
                   <ScrollView style={styles.previewList} nestedScrollEnabled>
-                    {previewItems.map((notification) => (
-                      <TouchableOpacity
-                        key={notification.id}
-                        style={[styles.previewItem, !notification.isRead && styles.previewItemUnread]}
-                        onPress={() => onPressPreviewItem(notification)}
-                        activeOpacity={0.85}
-                      >
-                        <View style={styles.previewItemIconWrap}>
-                          <MaterialIcons name="mail-outline" size={22} color="#2f3b57" />
-                        </View>
-                        <View style={styles.previewItemBody}>
-                          <Text style={styles.previewItemMessage}>{notification.message}</Text>
-                          {notification.linkText ? (
-                            <Text style={styles.previewItemLink}>{notification.linkText}</Text>
-                          ) : null}
-                          <Text style={styles.previewItemDate}>{formatDate(notification.createdOnUtc)}</Text>
-                        </View>
-                      </TouchableOpacity>
-                    ))}
+                    {previewItems.map((notification) => {
+                      const link = notification.link?.trim();
+                      const hasLink = Boolean(link);
+                      const actionLabel = hasLink ? notificationActionLabel(notification.linkText, t) : '';
+                      const inlineRange = hasLink
+                        ? findLinkRangeInMessage(notification.message, link) ??
+                          findFirstUrlRangeInMessage(notification.message)
+                        : null;
+                      const hasInlineLink = Boolean(hasLink && inlineRange);
+                      const fallbackMessage = hasLink
+                        ? stripEmbeddedUrlsFromDisplay(notification.message)
+                        : notification.message;
+
+                      return (
+                        <TouchableOpacity
+                          key={notification.id}
+                          style={[styles.previewItem, !notification.isRead && styles.previewItemUnread]}
+                          onPress={() => onPressPreviewItem(notification)}
+                          activeOpacity={0.85}
+                        >
+                          <View style={styles.previewItemIconWrap}>
+                            <MaterialIcons name="mail-outline" size={22} color="#2f3b57" />
+                          </View>
+                          <View style={styles.previewItemBody}>
+                            {hasInlineLink && inlineRange ? (
+                              <Text style={styles.previewItemMessage}>
+                                {notification.message.slice(0, inlineRange.start)}
+                                <Text
+                                  style={styles.previewItemLinkInline}
+                                  onPress={() => {
+                                    onPressPreviewLink(notification);
+                                  }}
+                                >
+                                  {actionLabel}
+                                </Text>
+                                {notification.message.slice(inlineRange.end)}
+                              </Text>
+                            ) : (
+                              <Text style={styles.previewItemMessage}>
+                                {fallbackMessage.trim() || t('app.notificationsScreen.openActionHint')}
+                              </Text>
+                            )}
+                            {hasLink && !hasInlineLink ? (
+                              <Text
+                                style={styles.previewItemLink}
+                                onPress={() => {
+                                  onPressPreviewLink(notification);
+                                }}
+                              >
+                                {actionLabel}
+                              </Text>
+                            ) : null}
+                            <Text style={styles.previewItemDate}>{formatDate(notification.createdOnUtc)}</Text>
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </ScrollView>
                 )}
 
                 <TouchableOpacity style={styles.viewAllButton} onPress={openNotificationsScreen}>
-                  <Text style={styles.viewAllButtonText}>View All</Text>
+                  <Text style={styles.viewAllButtonText}>{t('header.viewAllShort')}</Text>
                 </TouchableOpacity>
               </View>
             </TouchableWithoutFeedback>
@@ -376,6 +485,12 @@ const styles = StyleSheet.create({
     color: '#212633',
     fontSize: 14,
     lineHeight: 22,
+  },
+  previewItemLinkInline: {
+    color: '#243aa8',
+    fontSize: 14,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
   },
   previewItemLink: {
     marginTop: 2,

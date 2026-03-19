@@ -14,13 +14,18 @@ import { useDispatch } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import type { AppDispatch } from '../store';
 import { createDocument } from '../store/documentsSlice';
+import { useTranslation } from 'react-i18next';
 import { theme } from '../theme';
 import {
   DocumentTaskReferencing,
   taskReferencingOptions,
 } from '../config/documentCreate';
 
+const REF_LABEL_KEYS = ['ref0Label', 'ref1Label', 'ref2Label'] as const;
+const REF_TIP_KEYS = ['ref0Tip', 'ref1Tip', 'ref2Tip'] as const;
+
 export default function DocumentCreateScreen() {
+  const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation();
 
@@ -35,7 +40,7 @@ export default function DocumentCreateScreen() {
   const handleCreate = async () => {
     const trimmedTitle = documentTitle.trim();
     if (!trimmedTitle) {
-      setTitleError('Document title is required');
+      setTitleError(t('app.documentCreate.titleRequired'));
       return;
     }
 
@@ -51,7 +56,7 @@ export default function DocumentCreateScreen() {
         document: created,
       });
     } catch (e) {
-      Alert.alert('Create document', (e as string) || 'Failed to create document.');
+      Alert.alert(t('app.document.createDoc'), (e as string) || t('app.document.createFail'));
     } finally {
       setCreating(false);
     }
@@ -65,7 +70,7 @@ export default function DocumentCreateScreen() {
           onPress={() => setExpanded((prev) => !prev)}
           activeOpacity={0.8}
         >
-          <Text style={styles.sectionTitle}>TASK DETAILS</Text>
+          <Text style={styles.sectionTitle}>{t('app.documentCreate.taskDetails')}</Text>
           <MaterialIcons
             name={expanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
             size={22}
@@ -75,7 +80,7 @@ export default function DocumentCreateScreen() {
 
         {expanded ? (
           <View style={styles.innerCard}>
-            <Text style={styles.label}>Document Title *</Text>
+            <Text style={styles.label}>{t('app.documentCreate.docTitleStar')}</Text>
             <TextInput
               style={[styles.input, titleError && styles.inputError]}
               value={documentTitle}
@@ -86,9 +91,11 @@ export default function DocumentCreateScreen() {
             />
             {titleError ? <Text style={styles.errorText}>{titleError}</Text> : null}
 
-            <Text style={styles.label}>Task Referencing</Text>
-            {taskReferencingOptions.map((option) => {
+            <Text style={styles.label}>{t('app.documentCreate.taskReferencing')}</Text>
+            {taskReferencingOptions.map((option, idx) => {
               const selected = option.value === selectedTaskReferencing;
+              const lk = REF_LABEL_KEYS[idx];
+              const tk = REF_TIP_KEYS[idx];
               return (
                 <View key={option.value} style={styles.radioRow}>
                   <TouchableOpacity
@@ -99,10 +106,10 @@ export default function DocumentCreateScreen() {
                     <View style={[styles.radioOuter, selected && styles.radioOuterSelected]}>
                       {selected ? <View style={styles.radioInner} /> : null}
                     </View>
-                    <Text style={styles.radioLabel}>{option.label}</Text>
+                    <Text style={styles.radioLabel}>{t(`app.documentCreate.${lk}`)}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    onPress={() => Alert.alert('Task referencing', option.tooltip)}
+                    onPress={() => Alert.alert(t('app.document.taskRef'), t(`app.documentCreate.${tk}`))}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
                     <MaterialIcons name="info" size={16} color="#7d8ca8" />
@@ -111,19 +118,16 @@ export default function DocumentCreateScreen() {
               );
             })}
 
-            <Text style={[styles.label, styles.refDocsLabel]}>Reference Documentation</Text>
+            <Text style={[styles.label, styles.refDocsLabel]}>{t('app.documentCreate.refDocs')}</Text>
             <TouchableOpacity
               style={styles.fileButton}
               onPress={() =>
-                Alert.alert(
-                  'Reference Documentation',
-                  'File upload is not connected yet in mobile.'
-                )
+                Alert.alert(t('app.documentCreate.refDocsTitle'), t('app.documentCreate.refDocsBody'))
               }
               activeOpacity={0.85}
             >
               <MaterialIcons name="upload-file" size={24} color="#000000" />
-              <Text style={styles.fileButtonText}>Click to select the file</Text>
+              <Text style={styles.fileButtonText}>{t('app.documentCreate.selectFile')}</Text>
             </TouchableOpacity>
 
             <View style={styles.divider} />
@@ -136,7 +140,7 @@ export default function DocumentCreateScreen() {
               {creating ? (
                 <ActivityIndicator size="small" color="#ffffff" />
               ) : (
-                <Text style={styles.nextButtonText}>Next</Text>
+                <Text style={styles.nextButtonText}>{t('app.documentCreate.next')}</Text>
               )}
             </TouchableOpacity>
           </View>

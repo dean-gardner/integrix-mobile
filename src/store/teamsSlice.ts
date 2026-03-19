@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import i18n from '../i18n';
 import type {
   CompanyTeamNodeDTO,
   CompanyTeamCreateEditDTO,
@@ -22,7 +23,7 @@ export const fetchTeams = createAsyncThunk<
     const res = await getCompanyTeams(companyId);
     return res.data;
   } catch (e: unknown) {
-    return rejectWithValue((e as { message?: string })?.message ?? 'Failed to load teams');
+    return rejectWithValue((e as { message?: string })?.message ?? i18n.t('app.errors.loadTeams'));
   }
 });
 
@@ -35,7 +36,7 @@ export const createTeam = createAsyncThunk<
     const res = await apiCreateTeam(companyId, model);
     return res.data;
   } catch (e: unknown) {
-    return rejectWithValue((e as { message?: string })?.message ?? 'Failed to create team');
+    return rejectWithValue((e as { message?: string })?.message ?? i18n.t('app.errors.createTeam'));
   }
 });
 
@@ -48,7 +49,7 @@ export const editTeam = createAsyncThunk<
     const res = await apiEditTeam(companyId, model);
     return res.data;
   } catch (e: unknown) {
-    return rejectWithValue((e as { message?: string })?.message ?? 'Failed to edit team');
+    return rejectWithValue((e as { message?: string })?.message ?? i18n.t('app.errors.editTeam'));
   }
 });
 
@@ -62,7 +63,7 @@ export const reassignParentNode = createAsyncThunk<
     return res.data;
   } catch (e: unknown) {
     return rejectWithValue(
-      (e as { message?: string })?.message ?? 'Failed to reassign parent'
+      (e as { message?: string })?.message ?? i18n.t('app.errors.reassignTeamParent')
     );
   }
 });
@@ -76,7 +77,7 @@ export const deleteTeam = createAsyncThunk<
     await apiDeleteTeam(id);
     return id;
   } catch (e: unknown) {
-    return rejectWithValue((e as { message?: string })?.message ?? 'Failed to delete team');
+    return rejectWithValue((e as { message?: string })?.message ?? i18n.t('app.errors.deleteTeam'));
   }
 });
 
@@ -109,7 +110,7 @@ const teamsSlice = createSlice({
       })
       .addCase(fetchTeams.rejected, (state, { payload }) => {
         state.isLoading = false;
-        state.error = payload ?? 'Failed to load teams';
+        state.error = payload ?? i18n.t('app.errors.loadTeams');
       });
     builder
       .addCase(createTeam.fulfilled, (state, { payload }) => {

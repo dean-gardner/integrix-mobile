@@ -12,6 +12,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { screenStyles } from '../styles/screenStyles';
 import { theme } from '../theme';
 
@@ -82,6 +83,7 @@ export function LoadMoreButton({
   totalCount: number;
   disabled?: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <TouchableOpacity
       style={screenStyles.loadMore}
@@ -91,7 +93,9 @@ export function LoadMoreButton({
       {loading ? (
         <ActivityIndicator size="small" color={theme.colors.primary} />
       ) : (
-        <Text style={screenStyles.loadMoreText}>Load more ({totalCount} total)</Text>
+        <Text style={screenStyles.loadMoreText}>
+          {t('app.list.loadMoreTotal', { count: totalCount })}
+        </Text>
       )}
     </TouchableOpacity>
   );

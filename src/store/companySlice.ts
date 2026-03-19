@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import i18n from '../i18n';
 import type { CompanyReadDTO } from '../types/company';
 import { getUserCompany } from '../api/companies';
 
@@ -12,7 +13,7 @@ export const fetchUserCompany = createAsyncThunk<
     return res.data;
   } catch (e: unknown) {
     return rejectWithValue(
-      (e as { message?: string })?.message ?? 'Failed to load company'
+      (e as { message?: string })?.message ?? i18n.t('app.errors.loadCompany')
     );
   }
 });
@@ -46,7 +47,7 @@ const companySlice = createSlice({
       })
       .addCase(fetchUserCompany.rejected, (state, { payload }) => {
         state.isLoading = false;
-        state.error = payload ?? 'Failed to load company';
+        state.error = payload ?? i18n.t('app.errors.loadCompany');
       });
   },
 });

@@ -54,9 +54,9 @@ export function UserPickerModal({
     setLoading(true);
     getUsersBySearch({
       search: q,
-      shouldFindTeams: true,
+      shouldFindTeams: false,
       onlyRegisteredUsers: false,
-      onlyCompanyTeamUsers: false,
+      onlyCompanyTeamUsers: true,
       includeOwnPerson: true,
     })
       .then((res) => setResults(res.data ?? []))
@@ -79,8 +79,10 @@ export function UserPickerModal({
     try {
       const res = await getUsersBySearch({
         search: q,
+        shouldFindTeams: false,
+        includeOwnPerson: true,
+        onlyRegisteredUsers: false,
         onlyCompanyTeamUsers: true,
-        onlyRegisteredUsers: true,
       });
       setResults(res.data ?? []);
     } catch (e: unknown) {

@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import i18n from '../i18n';
 import type { DashboardStatsDTO, DashboardRequestDto } from '../types/dashboard';
 import type { DashboardTaskItem, DashboardDefectItem, DashboardObservationItem } from '../types/dashboard';
 import {
@@ -21,7 +22,7 @@ export const fetchDashboardStats = createAsyncThunk<
       const res = await getDashboardStats(model);
       return res.data;
     } catch (e: any) {
-      return rejectWithValue(e?.message ?? 'Failed to load dashboard stats');
+      return rejectWithValue(e?.message ?? i18n.t('app.errors.loadDashboardStats'));
     }
   }
 );
@@ -37,7 +38,7 @@ export const fetchDashboardTasks = createAsyncThunk<
       const res = await getDashboardTasks({ assetId, pageNumber: page, pageSize });
       return { items: res.data.items, totalCount: res.data.totalCount };
     } catch (e: any) {
-      return rejectWithValue(e?.message ?? 'Failed to load tasks');
+      return rejectWithValue(e?.message ?? i18n.t('app.errors.loadDashboardTasks'));
     }
   }
 );
@@ -59,7 +60,7 @@ export const fetchDashboardDefects = createAsyncThunk<
       const res = await getDashboardDefects(model);
       return { items: res.data.items, totalCount: res.data.totalCount };
     } catch (e: any) {
-      return rejectWithValue(e?.message ?? 'Failed to load defects');
+      return rejectWithValue(e?.message ?? i18n.t('app.errors.loadDashboardDefects'));
     }
   }
 );
@@ -81,7 +82,7 @@ export const fetchDashboardClosedDefects = createAsyncThunk<
       const res = await getDashboardDefects(model);
       return { items: res.data.items, totalCount: res.data.totalCount };
     } catch (e: any) {
-      return rejectWithValue(e?.message ?? 'Failed to load closed defects');
+      return rejectWithValue(e?.message ?? i18n.t('app.errors.loadDashboardClosedDefects'));
     }
   }
 );
@@ -103,7 +104,7 @@ export const fetchDashboardObservations = createAsyncThunk<
       const res = await getDashboardObservations(model);
       return { items: res.data.items, totalCount: res.data.totalCount };
     } catch (e: any) {
-      return rejectWithValue(e?.message ?? 'Failed to load observations');
+      return rejectWithValue(e?.message ?? i18n.t('app.errors.loadDashboardObservations'));
     }
   }
 );
@@ -145,7 +146,7 @@ const dashboardSlice = createSlice({
       })
       .addCase(fetchDashboardStats.rejected, (state, { payload }) => {
         state.isLoading = false;
-        state.error = payload ?? 'Failed to load dashboard';
+        state.error = payload ?? i18n.t('app.errors.loadDashboard');
       });
     // fetchDashboardTasks
     builder.addCase(fetchDashboardTasks.fulfilled, (state, { payload }) => {

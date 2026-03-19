@@ -66,6 +66,7 @@ import {
   TASK_STEP_COMPLETED_WITH_RECORD,
   TASK_STEP_NOT_COMPLETED,
 } from '../config/taskDetail';
+import { useTranslation } from 'react-i18next';
 import { TaskStepCard } from '../components/taskDetail/TaskStepCard';
 import { TaskStepPostModal, type TaskStepPostPayload } from '../components/taskDetail/TaskStepPostModal';
 
@@ -189,6 +190,7 @@ async function warmUrl(url: string, token: string | null): Promise<void> {
 }
 
 export default function TaskDetailScreen() {
+  const { t } = useTranslation();
   const route = useRoute<RouteProp<{ params: TaskDetailParams }, 'params'>>();
   const dispatch = useDispatch<AppDispatch>();
   const scrollRef = useRef<ScrollView>(null);
@@ -408,14 +410,14 @@ export default function TaskDetailScreen() {
   if (!task) {
     return (
       <View style={screenStyles.container}>
-        <Text style={screenStyles.muted}>Task not found.</Text>
+        <Text style={screenStyles.muted}>{t('app.task.notFound')}</Text>
       </View>
     );
   }
 
   const canChangeStatus = Boolean(task.documentId && task.versionId && task.id);
-  const taskStatusLabel = getTaskStatusLabel(task.status);
-  const statusAction = getTaskStatusAction(task.status);
+  const taskStatusLabel = getTaskStatusLabel(task.status, t);
+  const statusAction = getTaskStatusAction(task.status, t);
   const sharedUsers = task.usersSharedWith ?? [];
   const attachmentFiles: TaskFileDTO[] = Array.isArray(task.documentFiles) ? task.documentFiles : [];
   const allStepsRecorded =
@@ -430,11 +432,11 @@ export default function TaskDetailScreen() {
   const handlePrepareOfflineData = async () => {
     if (!task.id) return;
     if (!isOnline) {
-      Alert.alert('Offline mode', 'You can not cache task while offline.');
+      Alert.alert(t('app.task.offlineTitle'), t('app.task.offlineNoCache'));
       return;
     }
     if (sections.length === 0) {
-      Alert.alert('Offline mode', 'Task steps are still loading. Try again in a moment.');
+      Alert.alert(t('app.task.offlineTitle'), t('app.task.offlineStepsLoading'));
       return;
     }
 
@@ -486,13 +488,11 @@ export default function TaskDetailScreen() {
       await markTaskAvailableOffline(task.id);
       setIsOfflineReady(true);
       Alert.alert(
-        'Offline mode',
-        hasAnyStepCached
-          ? 'Task is available offline.'
-          : 'Task basics are available offline, but no task-step posts/defects were cached.'
+        t('app.task.offlineTitle'),
+        hasAnyStepCached ? t('app.task.offlineCached') : t('app.task.offlinePartial')
       );
     } catch {
-      Alert.alert('Offline mode', 'Failed to cache task for offline use.');
+      Alert.alert(t('app.task.offlineTitle'), t('app.task.offlineFailed'));
     } finally {
       setIsPreparingOfflineData(false);
     }
@@ -510,16 +510,16 @@ export default function TaskDetailScreen() {
         })
       ).unwrap();
     } catch (e) {
-      Alert.alert('Task', (e as string) || 'Failed to update task status.');
+      Alert.alert(t('app.alerts.task'), (e as string) || t('app.task.statusFailed'));
     }
   };
 
   const handleTaskStatusAction = () => {
     if (statusAction.nextStatus == null || !canChangeStatus) return;
-    Alert.alert(statusAction.label, `Are you sure you want to ${statusAction.label.toLowerCase()}?`, [
-      { text: 'No', style: 'cancel' },
+    Alert.alert(statusAction.alertTitle, statusAction.alertMessage, [
+      { text: t('app.common.no'), style: 'cancel' },
       {
-        text: 'Yes',
+        text: t('app.common.yes'),
         onPress: () => {
           changeStatus(statusAction.nextStatus!);
         },
@@ -529,13 +529,13 @@ export default function TaskDetailScreen() {
 
   const handleFinaliseTask = () => {
     if (!canFinalise) {
-      Alert.alert('Task', 'Not all task steps are recorded.');
+      Alert.alert(t('app.alerts.task'), t('app.task.stepsNotRecorded'));
       return;
     }
-    Alert.alert('Finalise task', 'Are you sure you want to finalise this task?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('app.task.finaliseTitle'), t('app.task.finaliseConfirm'), [
+      { text: t('app.modal.cancel'), style: 'cancel' },
       {
-        text: 'Finalise',
+        text: t('app.taskDetail.finaliseBtn'),
         onPress: () => {
           changeStatus(TASK_STATUS_COMPLETE);
         },
@@ -561,9 +561,9 @@ export default function TaskDetailScreen() {
       try {
         const res = await getUsersBySearch({
           search: trimmed,
-          shouldFindTeams: true,
+          shouldFindTeams: false,
           onlyRegisteredUsers: false,
-          onlyCompanyTeamUsers: false,
+          onlyCompanyTeamUsers: true,
           includeOwnPerson: true,
         });
         if (cancelled) return;
@@ -597,7 +597,7 @@ export default function TaskDetailScreen() {
       setShareQuery('');
       setShareSearchResults([]);
     } catch (e) {
-      Alert.alert('Task', (e as string) || 'Failed to share task.');
+      Alert.alert(t('app.alerts.task'), (e as string) || t('app.task.shareFailed'));
     }
   };
 
@@ -613,7 +613,7 @@ export default function TaskDetailScreen() {
         })
       ).unwrap();
     } catch (e) {
-      Alert.alert('Task', (e as string) || 'Failed to unshare task.');
+      Alert.alert(t('app.alerts.task'), (e as string) || t('app.task.unshareFailed'));
     }
   };
 
@@ -637,7 +637,7 @@ export default function TaskDetailScreen() {
 
   const submitEdit = async () => {
     if (!task.documentId || !task.versionId || !task.id) {
-      setEditError('Task is missing document/version context.');
+      setEditError(t('app.taskDetail.editMissingContext'));
       return;
     }
     try {
@@ -658,7 +658,7 @@ export default function TaskDetailScreen() {
       ).unwrap();
       setEditVisible(false);
     } catch (e) {
-      setEditError((e as string) || 'Failed to edit task.');
+      setEditError((e as string) || t('app.errors.editTask'));
     }
   };
 
@@ -719,14 +719,14 @@ export default function TaskDetailScreen() {
           setDoneConfirmError(null);
         })
         .catch(() => {
-          setDoneConfirmError('Failed to pick photo.');
+          setDoneConfirmError(t('app.taskDetail.pickPhotoFail'));
         });
     };
 
-    Alert.alert('Add Photo', '', [
-      { text: 'Take Photo', onPress: () => pickFromSource('camera') },
-      { text: 'Choose from Gallery', onPress: () => pickFromSource('gallery') },
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('app.task.addPhoto'), '', [
+      { text: t('app.task.takePhoto'), onPress: () => pickFromSource('camera') },
+      { text: t('app.task.chooseLibrary'), onPress: () => pickFromSource('gallery') },
+      { text: t('app.modal.cancel'), style: 'cancel' },
     ]);
   }, [doneConfirmSubmitting]);
 
@@ -805,7 +805,7 @@ export default function TaskDetailScreen() {
     const versionId = task.versionId ?? currentTask?.versionId;
     const taskId = task.id ?? currentTask?.id;
     if (!documentId || !versionId || !taskId) {
-      Alert.alert('Task', 'Task context is not ready yet. Please wait and try again.');
+      Alert.alert(t('app.alerts.task'), t('app.task.contextNotReady'));
       return;
     }
     setStatusUpdatingStepId(taskStepId);
@@ -823,7 +823,7 @@ export default function TaskDetailScreen() {
       setStepStatuses((prev) => ({ ...prev, [updatedTaskStepId]: updatedStatus }));
       await dispatch(fetchTaskById({ versionId, taskId })).unwrap();
     } catch (e) {
-      Alert.alert('Task', (e as string) || 'Failed to update task step status.');
+      Alert.alert(t('app.alerts.task'), (e as string) || t('app.task.stepStatusFailed'));
     } finally {
       setStatusUpdatingStepId(null);
       setStatusUpdatingAction(null);
@@ -833,7 +833,7 @@ export default function TaskDetailScreen() {
   const handleConfirmDoneWithPhoto = useCallback(async () => {
     if (!doneConfirmTaskStep) return;
     if (doneConfirmFiles.length === 0) {
-      setDoneConfirmError('At least one photo is required.');
+      setDoneConfirmError(t('app.taskDetail.photoRequired'));
       return;
     }
 
@@ -843,7 +843,7 @@ export default function TaskDetailScreen() {
       await handleSubmitTaskStepPost(
         {
           kind: 'observation',
-          description: doneConfirmDescription.trim() || 'Step completion confirmation',
+          description: doneConfirmDescription.trim() || t('app.taskDetail.stepCompletionDefault'),
           files: doneConfirmFiles,
         },
         doneConfirmTaskStep
@@ -854,7 +854,7 @@ export default function TaskDetailScreen() {
       setDoneConfirmDescription('');
       setDoneConfirmFiles([]);
     } catch (e) {
-      setDoneConfirmError((e as string) || 'Failed to mark task step as done.');
+      setDoneConfirmError((e as string) || t('app.taskDetail.stepDoneFail'));
     } finally {
       setDoneConfirmSubmitting(false);
     }
@@ -864,6 +864,7 @@ export default function TaskDetailScreen() {
     doneConfirmTaskStep,
     handleSubmitTaskStepPost,
     handleToggleTaskStepStatus,
+    t,
   ]);
 
   const handleToggleTaskStepDone = (taskStep: TaskStepReadDTO) => {
@@ -894,7 +895,7 @@ export default function TaskDetailScreen() {
         {isOfflineReady ? (
           <View style={styles.offlineReadyRow}>
             <MaterialIcons name="check" size={20} color={theme.colors.success} />
-            <Text style={styles.offlineReadyText}>Task is available offline</Text>
+            <Text style={styles.offlineReadyText}>{t('app.task.offlineReady')}</Text>
           </View>
         ) : (
           <TouchableOpacity
@@ -908,7 +909,7 @@ export default function TaskDetailScreen() {
             {isPreparingOfflineData ? (
               <ActivityIndicator size="small" color="#ffffff" />
             ) : (
-              <Text style={styles.offlineButtonText}>Make available offline</Text>
+              <Text style={styles.offlineButtonText}>{t('app.task.makeOffline')}</Text>
             )}
           </TouchableOpacity>
         )}
@@ -922,14 +923,18 @@ export default function TaskDetailScreen() {
       >
         <View style={styles.infoPanel}>
           <View style={styles.infoRow}>
-            <Text style={styles.infoText}>Asset: {task.asset?.name ?? '-'}</Text>
+            <Text style={styles.infoText}>
+              {t('app.task.asset')}: {task.asset?.name ?? '-'}
+            </Text>
             <TouchableOpacity onPress={openEdit} disabled={isActionLoading}>
               <MaterialIcons name="edit" size={20} color="#6e7280" />
             </TouchableOpacity>
           </View>
 
           <View style={styles.statusRow}>
-            <Text style={styles.infoText}>Status: {taskStatusLabel}</Text>
+            <Text style={styles.infoText}>
+              {t('app.task.statusLabel')}: {taskStatusLabel}
+            </Text>
             <TouchableOpacity
               style={[
                 styles.statusButton,
@@ -938,18 +943,22 @@ export default function TaskDetailScreen() {
               onPress={handleTaskStatusAction}
               disabled={statusAction.nextStatus == null || !canChangeStatus || isActionLoading}
             >
-              <Text style={styles.statusButtonText}>{statusAction.label}</Text>
+              <Text style={styles.statusButtonText}>{statusAction.alertTitle}</Text>
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.infoText}>Start Date: {formatDateTime(task.createdOnUtc)}</Text>
-          <Text style={styles.infoText}>Elapsed Time: {getElapsedTime(task.createdOnUtc)}</Text>
+          <Text style={styles.infoText}>
+            {t('app.task.startDate')}: {formatDateTime(task.createdOnUtc)}
+          </Text>
+          <Text style={styles.infoText}>
+            {t('app.task.elapsed')}: {getElapsedTime(task.createdOnUtc, t)}
+          </Text>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Attachments:</Text>
+          <Text style={styles.cardTitle}>{t('app.task.attachments')}:</Text>
           {attachmentFiles.length === 0 ? (
-            <Text style={styles.mutedText}>No attachments</Text>
+            <Text style={styles.mutedText}>{t('app.task.noAttachments')}</Text>
           ) : (
             <ScrollView horizontal showsHorizontalScrollIndicator>
               {attachmentFiles.map((file, index) => (
@@ -964,7 +973,7 @@ export default function TaskDetailScreen() {
                 >
                   <MaterialIcons name="description" size={18} color="#666f81" />
                   <Text style={styles.attachmentText} numberOfLines={1}>
-                    {file.name ?? 'Attachment'}
+                    {file.name ?? t('app.taskDetail.attachmentFallback')}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -980,11 +989,11 @@ export default function TaskDetailScreen() {
               onChangeText={setShareQuery}
               onSubmitEditing={handleSharePress}
               returnKeyType="done"
-              placeholder="Enter users (for external users..."
+              placeholder={t('app.task.sharePh')}
               placeholderTextColor="#7e7e85"
             />
             <TouchableOpacity style={styles.shareButton} onPress={handleSharePress}>
-              <Text style={styles.shareButtonText}>Share</Text>
+              <Text style={styles.shareButtonText}>{t('app.task.shareBtn')}</Text>
             </TouchableOpacity>
           </View>
           {shareSearchLoading ? (
@@ -1022,9 +1031,9 @@ export default function TaskDetailScreen() {
             </View>
           ) : null}
 
-          <Text style={styles.sharedWithTitle}>Shared with:</Text>
+          <Text style={styles.sharedWithTitle}>{t('app.task.sharedWith')}</Text>
           {sharedUsers.length === 0 ? (
-            <Text style={styles.mutedText}>No users yet.</Text>
+            <Text style={styles.mutedText}>{t('app.task.noUsersYet')}</Text>
           ) : (
             sharedUsers.map((user, index) => (
               <View key={`${user.userId ?? user.email}-${index}`} style={styles.sharedUserRow}>
@@ -1051,7 +1060,7 @@ export default function TaskDetailScreen() {
           }}
         >
           <View style={styles.taskStepsTab}>
-            <Text style={styles.taskStepsTabText}>Task steps</Text>
+            <Text style={styles.taskStepsTabText}>{t('app.task.taskSteps')}</Text>
           </View>
 
           {sectionsLoading || currentTaskLoading ? (
@@ -1059,7 +1068,7 @@ export default function TaskDetailScreen() {
               <ActivityIndicator size="small" color={theme.colors.primary} />
             </View>
           ) : sections.length === 0 ? (
-            <Text style={styles.mutedText}>No task steps found.</Text>
+            <Text style={styles.mutedText}>{t('app.task.noSteps')}</Text>
           ) : (
             sections.map((section, sectionIndex) => {
               const isOpen = expandedSectionId === section.id;
@@ -1117,12 +1126,12 @@ export default function TaskDetailScreen() {
           onPress={handleFinaliseTask}
           disabled={!canFinalise || isActionLoading}
         >
-          <Text style={styles.finaliseButtonText}>Finalise task</Text>
+          <Text style={styles.finaliseButtonText}>{t('app.task.finalise')}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.footerRow}>
-        <Text style={styles.footerText}>Copyright © 2025 Integri-X. All rights reserved</Text>
+        <Text style={styles.footerText}>{t('app.common.copyright')}</Text>
       </View>
       <TouchableOpacity
         style={styles.backToTopButton}
@@ -1145,7 +1154,7 @@ export default function TaskDetailScreen() {
                 maxFontSizeMultiplier={1.2}
                 accessibilityRole="header"
               >
-                Photo confirmation
+                {t('app.task.photoConfirmTitle')}
               </Text>
               <TouchableOpacity
                 onPress={closeDoneConfirmationModal}
@@ -1157,10 +1166,10 @@ export default function TaskDetailScreen() {
               </TouchableOpacity>
             </View>
             <Text style={styles.doneConfirmSubtitle} maxFontSizeMultiplier={1.3}>
-              Add a description and at least one photo to mark this step done.
+              {t('app.task.photoConfirmHint')}
             </Text>
 
-            <Text style={styles.doneConfirmLabel}>Description</Text>
+            <Text style={styles.doneConfirmLabel}>{t('app.task.description')}</Text>
             <View style={styles.doneConfirmInputWrap}>
               <TextInput
                 style={styles.doneConfirmInput}
@@ -1168,7 +1177,7 @@ export default function TaskDetailScreen() {
                 onChangeText={setDoneConfirmDescription}
                 multiline
                 numberOfLines={4}
-                placeholder="Add notes about the completion..."
+                placeholder={t('app.task.photoNotesPh')}
                 placeholderTextColor="#a0a6b6"
                 editable={!doneConfirmSubmitting}
               />
@@ -1219,7 +1228,7 @@ export default function TaskDetailScreen() {
               onPress={closeDoneConfirmationModal}
               disabled={doneConfirmSubmitting}
             >
-              <Text style={styles.doneConfirmCancelText}>Cancel</Text>
+              <Text style={styles.doneConfirmCancelText}>{t('app.modal.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.doneConfirmSubmitBtn, doneConfirmSubmitting && styles.buttonDisabled]}
@@ -1231,7 +1240,7 @@ export default function TaskDetailScreen() {
               {doneConfirmSubmitting ? (
                 <ActivityIndicator size="small" color="#ffffff" />
               ) : (
-                <Text style={styles.doneConfirmSubmitText}>Mark Done</Text>
+                <Text style={styles.doneConfirmSubmitText}>{t('app.task.markDone')}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -1242,7 +1251,7 @@ export default function TaskDetailScreen() {
         visible={pickerVisible}
         onClose={() => setPickerVisible(false)}
         onSelect={handleUserPick}
-        title="Share task with user"
+        title={t('app.taskDetail.shareWithUserTitle')}
         initialQuery={pickerVisible ? shareQuery : undefined}
       />
 
@@ -1258,7 +1267,7 @@ export default function TaskDetailScreen() {
       <Modal visible={editVisible} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.editModalCard}>
-            <Text style={styles.modalTitle}>Edit task</Text>
+            <Text style={styles.modalTitle}>{t('app.task.editTask')}</Text>
             <View style={styles.editModalBody}>
               <ScrollView
                 style={styles.editModalScroll}
@@ -1271,39 +1280,39 @@ export default function TaskDetailScreen() {
                   <Text style={screenStyles.errorText}>{editError}</Text>
                 </View>
               ) : null}
-              <Text style={screenStyles.formLabel}>Work order</Text>
+              <Text style={screenStyles.formLabel}>{t('app.task.workOrder')}</Text>
               <TextInput
                 style={screenStyles.formInput}
                 value={workOrderNumber}
                 onChangeText={setWorkOrderNumber}
-                placeholder="Work order number"
+                placeholder={t('app.tasksScreen.workOrderNumberPh')}
                 placeholderTextColor="#6c757d"
                 editable={!isActionLoading}
               />
-              <Text style={screenStyles.formLabel}>Notification</Text>
+              <Text style={screenStyles.formLabel}>{t('app.task.notification')}</Text>
               <TextInput
                 style={screenStyles.formInput}
                 value={notificationNumber}
                 onChangeText={setNotificationNumber}
-                placeholder="Notification number"
+                placeholder={t('app.tasksScreen.notificationNumberPh')}
                 placeholderTextColor="#6c757d"
                 editable={!isActionLoading}
               />
-              <Text style={screenStyles.formLabel}>Project</Text>
+              <Text style={screenStyles.formLabel}>{t('app.task.project')}</Text>
               <TextInput
                 style={screenStyles.formInput}
                 value={projectNumber}
                 onChangeText={setProjectNumber}
-                placeholder="Project number"
+                placeholder={t('app.tasksScreen.projectNumberPh')}
                 placeholderTextColor="#6c757d"
                 editable={!isActionLoading}
               />
-              <Text style={screenStyles.formLabel}>Asset ID</Text>
+              <Text style={screenStyles.formLabel}>{t('app.task.assetId')}</Text>
               <TextInput
                 style={screenStyles.formInput}
                 value={assetId}
                 onChangeText={setAssetId}
-                placeholder="Asset ID"
+                placeholder={t('app.task.assetId')}
                 placeholderTextColor="#6c757d"
                 keyboardType="number-pad"
                 editable={!isActionLoading}
@@ -1316,7 +1325,7 @@ export default function TaskDetailScreen() {
                 onPress={() => setEditVisible(false)}
                 disabled={isActionLoading}
               >
-                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+                <Text style={styles.modalCancelBtnText}>{t('app.modal.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
@@ -1331,7 +1340,7 @@ export default function TaskDetailScreen() {
                 {isActionLoading ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={screenStyles.formButtonText}>Save</Text>
+                  <Text style={screenStyles.formButtonText}>{t('app.common.save')}</Text>
                 )}
               </TouchableOpacity>
             </View>

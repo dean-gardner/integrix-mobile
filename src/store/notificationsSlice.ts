@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import i18n from '../i18n';
 import type { NotificationDTO } from '../types/notification';
 import { getNotifications, readNotification, readAllNotifications } from '../api/notifications';
 
@@ -11,7 +12,7 @@ export const fetchNotifications = createAsyncThunk<
     const res = await getNotifications();
     return res.data;
   } catch (e: unknown) {
-    return rejectWithValue((e as { message?: string })?.message ?? 'Failed to load notifications');
+    return rejectWithValue((e as { message?: string })?.message ?? i18n.t('app.errors.loadNotifications'));
   }
 });
 
@@ -24,7 +25,7 @@ export const markNotificationRead = createAsyncThunk<
     await readNotification(id);
     return id;
   } catch (e: unknown) {
-    return rejectWithValue((e as { message?: string })?.message ?? 'Failed to mark read');
+    return rejectWithValue((e as { message?: string })?.message ?? i18n.t('app.errors.markRead'));
   }
 });
 
@@ -36,7 +37,7 @@ export const markAllNotificationsRead = createAsyncThunk<
   try {
     await readAllNotifications();
   } catch (e: unknown) {
-    return rejectWithValue((e as { message?: string })?.message ?? 'Failed to mark all read');
+    return rejectWithValue((e as { message?: string })?.message ?? i18n.t('app.errors.markAllRead'));
   }
 });
 
@@ -69,7 +70,7 @@ const notificationsSlice = createSlice({
       })
       .addCase(fetchNotifications.rejected, (state, { payload }) => {
         state.isLoading = false;
-        state.error = payload ?? 'Failed to load notifications';
+        state.error = payload ?? i18n.t('app.errors.loadNotifications');
       });
     builder
       .addCase(markNotificationRead.fulfilled, (state, { payload }) => {

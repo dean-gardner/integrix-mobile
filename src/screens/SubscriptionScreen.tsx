@@ -23,8 +23,10 @@ import {
 import type { AppDispatch, RootState } from '../store';
 import { createSubscriptionEntry, fetchSubscriptionMemberPrices, fetchUserSubscription } from '../store/subscriptionSlice';
 import { theme } from '../theme';
+import { useTranslation } from 'react-i18next';
 
 export default function SubscriptionScreen() {
+  const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const scrollRef = useRef<ScrollView>(null);
   const user = useSelector((s: RootState) => s.auth.user);
@@ -71,7 +73,7 @@ export default function SubscriptionScreen() {
   const handlePlanPress = async (tariffPlan: number | null) => {
     if (tariffPlan == null) return;
     if (!user?.id) {
-      Alert.alert('Subscription', 'Sign in to change subscription.');
+      Alert.alert(t('subscription.title'), t('subscription.signInToChange'));
       return;
     }
 
@@ -93,7 +95,7 @@ export default function SubscriptionScreen() {
 
       await dispatch(fetchUserSubscription(user.id)).unwrap();
     } catch (e) {
-      Alert.alert('Subscription', (e as string) || 'Failed to update subscription.');
+      Alert.alert(t('subscription.title'), (e as string) || t('subscription.updateFailed'));
     }
   };
 
@@ -106,10 +108,10 @@ export default function SubscriptionScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.pageTitle}>Subscription</Text>
+        <Text style={styles.pageTitle}>{t('subscription.title')}</Text>
 
         <View style={styles.mainCard}>
-          <Text style={styles.chooseTitle}>Choose the subscription</Text>
+          <Text style={styles.chooseTitle}>{t('subscription.chooseTitle')}</Text>
 
           <View style={styles.billingCycleRow}>
             <TouchableOpacity
@@ -123,7 +125,7 @@ export default function SubscriptionScreen() {
                 size={18}
                 color={billingCycle === 'monthly' ? '#4aa14b' : '#9fa5b3'}
               />
-              <Text style={styles.billingOptionText}>Monthly</Text>
+              <Text style={styles.billingOptionText}>{t('subscription.monthly')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -138,7 +140,8 @@ export default function SubscriptionScreen() {
                 color={billingCycle === 'annual' ? '#4aa14b' : '#9fa5b3'}
               />
               <Text style={styles.billingOptionText}>
-                Annually <Text style={styles.saveText}>(Save 10%)</Text>
+                {t('subscription.annually')}{' '}
+                <Text style={styles.saveText}>{t('subscription.saveTen')}</Text>
               </Text>
             </TouchableOpacity>
           </View>
@@ -158,25 +161,25 @@ export default function SubscriptionScreen() {
           <View style={styles.planCardsWrap}>
             {subscriptionPlans.map((plan) => {
               const isCurrent = currentPlan === plan.key;
-              const features = getPlanFeatures(plan.key, billingCycle, memberPrices);
-              const buttonText = isCurrent ? 'CURRENT' : plan.actionText;
+              const features = getPlanFeatures(plan.key, billingCycle, memberPrices, t);
+              const buttonText = isCurrent ? t('subscription.current') : t(plan.actionKey);
               const isEnterprise = plan.key === 'enterprise';
 
               return (
                 <View key={plan.key} style={[styles.planCard, isCurrent && styles.planCardCurrent]}>
                   {isCurrent ? (
                     <View style={styles.currentBadge}>
-                      <Text style={styles.currentBadgeText}>CURRENT</Text>
+                      <Text style={styles.currentBadgeText}>{t('subscription.current')}</Text>
                     </View>
                   ) : null}
 
                   <View style={styles.planTitleBox}>
-                    <Text style={styles.planTitle}>{plan.title}</Text>
+                    <Text style={styles.planTitle}>{t(plan.titleKey)}</Text>
                   </View>
 
                   <View style={styles.planBody}>
-                    {features.map((feature) => (
-                      <Text key={`${plan.key}-${feature.label}`} style={styles.featureLine}>
+                    {features.map((feature, fi) => (
+                      <Text key={`${plan.key}-${fi}`} style={styles.featureLine}>
                         <Text style={styles.featureLabel}>{feature.label}:</Text> {feature.value}
                       </Text>
                     ))}
@@ -232,7 +235,7 @@ export default function SubscriptionScreen() {
         <View style={styles.contactModalBackdrop}>
           <View style={styles.contactModalCard}>
             <View style={styles.contactModalHeader}>
-              <Text style={styles.contactModalTitle}>Info</Text>
+              <Text style={styles.contactModalTitle}>{t('common.info')}</Text>
               <TouchableOpacity
                 onPress={() => setContactInfoVisible(false)}
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -241,7 +244,7 @@ export default function SubscriptionScreen() {
               </TouchableOpacity>
             </View>
             <Text style={styles.contactModalBody}>
-              Please contact{' '}
+              {t('subscription.contactPlease')}{' '}
               <Text
                 style={styles.contactModalEmail}
                 onPress={() => Linking.openURL(`mailto:${supportEmail}`).catch(() => {})}
@@ -254,7 +257,7 @@ export default function SubscriptionScreen() {
               onPress={() => setContactInfoVisible(false)}
               activeOpacity={0.85}
             >
-              <Text style={styles.contactModalCloseBtnText}>Close</Text>
+              <Text style={styles.contactModalCloseBtnText}>{t('common.close')}</Text>
             </TouchableOpacity>
           </View>
         </View>

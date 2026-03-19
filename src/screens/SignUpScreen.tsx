@@ -12,6 +12,7 @@ import {
   Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { apiSignUp } from '../api/auth';
 import { theme } from '../theme';
 
@@ -24,6 +25,7 @@ const getTimeZoneId = () => {
 };
 
 export default function SignUpScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -42,11 +44,11 @@ export default function SignUpScreen() {
     const em = (email ?? '').trim();
     const company = (companyName ?? '').trim();
     if (!fn || !ln || !em || !password || !company) {
-      setError('First name, last name, email, password, and company name are required.');
+      setError(t('app.signUp.errRequired'));
       return;
     }
     if (password !== repeatPassword) {
-      setError('Passwords must match.');
+      setError(t('app.signUp.errPasswordMatch'));
       return;
     }
 
@@ -63,11 +65,11 @@ export default function SignUpScreen() {
         companyName: company,
         timeZoneId: getTimeZoneId(),
       });
-      Alert.alert('Success', 'Account created. You can now sign in.', [
-        { text: 'OK', onPress: () => navigation.navigate('SignIn' as never) },
+      Alert.alert(t('app.alerts.success'), t('app.auth.signupSuccess'), [
+        { text: t('app.modal.ok'), onPress: () => navigation.navigate('SignIn' as never) },
       ]);
     } catch (e: unknown) {
-      setError((e as { message?: string })?.message ?? 'Failed to sign up.');
+      setError((e as { message?: string })?.message ?? t('app.signUp.signUpFailed'));
     } finally {
       setLoading(false);
     }
@@ -80,93 +82,93 @@ export default function SignUpScreen() {
     >
       <ScrollView contentContainerStyle={styles.formWrapper} keyboardShouldPersistTaps="handled">
         <View style={styles.card}>
-          <Text style={styles.title}>Sign up</Text>
+          <Text style={styles.title}>{t('app.signUp.title')}</Text>
           {error ? (
             <View style={styles.errorBox}>
               <Text style={styles.errorText}>{error}</Text>
             </View>
           ) : null}
 
-          <Text style={styles.label}>First name</Text>
+          <Text style={styles.label}>{t('app.signUp.firstNamePh')}</Text>
           <TextInput
             style={styles.input}
             value={firstName}
             onChangeText={setFirstName}
-            placeholder="First name"
+            placeholder={t('app.signUp.firstNamePh')}
             placeholderTextColor="#6c757d"
             editable={!loading}
           />
 
-          <Text style={styles.label}>Last name</Text>
+          <Text style={styles.label}>{t('app.signUp.lastNamePh')}</Text>
           <TextInput
             style={styles.input}
             value={lastName}
             onChangeText={setLastName}
-            placeholder="Last name"
+            placeholder={t('app.signUp.lastNamePh')}
             placeholderTextColor="#6c757d"
             editable={!loading}
           />
 
-          <Text style={styles.label}>Position</Text>
+          <Text style={styles.label}>{t('app.signUp.position')}</Text>
           <TextInput
             style={styles.input}
             value={position}
             onChangeText={setPosition}
-            placeholder="Position"
+            placeholder={t('app.signUp.positionPh')}
             placeholderTextColor="#6c757d"
             editable={!loading}
           />
 
-          <Text style={styles.label}>Company name</Text>
+          <Text style={styles.label}>{t('app.signUp.companyPh')}</Text>
           <TextInput
             style={styles.input}
             value={companyName}
             onChangeText={setCompanyName}
-            placeholder="Company name"
+            placeholder={t('app.signUp.companyPh')}
             placeholderTextColor="#6c757d"
             editable={!loading}
           />
 
-          <Text style={styles.label}>Phone</Text>
+          <Text style={styles.label}>{t('app.signUp.phone')}</Text>
           <TextInput
             style={styles.input}
             value={phone}
             onChangeText={setPhone}
-            placeholder="Phone"
+            placeholder={t('app.signUp.phonePh')}
             placeholderTextColor="#6c757d"
             keyboardType="phone-pad"
             editable={!loading}
           />
 
-          <Text style={styles.label}>Email</Text>
+          <Text style={styles.label}>{t('app.signUp.emailPh')}</Text>
           <TextInput
             style={styles.input}
             value={email}
             onChangeText={setEmail}
-            placeholder="Email"
+            placeholder={t('app.signUp.emailPh')}
             placeholderTextColor="#6c757d"
             keyboardType="email-address"
             autoCapitalize="none"
             editable={!loading}
           />
 
-          <Text style={styles.label}>Password</Text>
+          <Text style={styles.label}>{t('app.signUp.passwordPh')}</Text>
           <TextInput
             style={styles.input}
             value={password}
             onChangeText={setPassword}
-            placeholder="Password"
+            placeholder={t('app.signUp.passwordPh')}
             placeholderTextColor="#6c757d"
             secureTextEntry
             editable={!loading}
           />
 
-          <Text style={styles.label}>Repeat password</Text>
+          <Text style={styles.label}>{t('app.signUp.repeatPassword')}</Text>
           <TextInput
             style={styles.input}
             value={repeatPassword}
             onChangeText={setRepeatPassword}
-            placeholder="Repeat password"
+            placeholder={t('app.signUp.repeatPasswordPh')}
             placeholderTextColor="#6c757d"
             secureTextEntry
             editable={!loading}
@@ -177,7 +179,11 @@ export default function SignUpScreen() {
             onPress={submit}
             disabled={loading}
           >
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Create account</Text>}
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>{t('app.signUp.submit')}</Text>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -185,7 +191,7 @@ export default function SignUpScreen() {
             onPress={() => navigation.navigate('SignIn' as never)}
             disabled={loading}
           >
-            <Text style={styles.secondaryLinkText}>Already have an account? Sign in</Text>
+            <Text style={styles.secondaryLinkText}>{t('app.signUp.haveAccountFull')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

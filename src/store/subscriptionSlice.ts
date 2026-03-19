@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import i18n from '../i18n';
 import type {
   SubscriptionReadDTO,
   SubscriptionTariffs,
@@ -22,7 +23,7 @@ export const fetchUserSubscription = createAsyncThunk<
     const res = await getUserSubscription(userId);
     return res.data;
   } catch (e: unknown) {
-    return rejectWithValue((e as { message?: string })?.message ?? 'Failed to load subscription');
+    return rejectWithValue((e as { message?: string })?.message ?? i18n.t('app.errors.loadSubscription'));
   }
 });
 
@@ -36,7 +37,7 @@ export const fetchSubscriptionMemberPrices = createAsyncThunk<
     return res.data;
   } catch (e: unknown) {
     return rejectWithValue(
-      (e as { message?: string })?.message ?? 'Failed to load member prices'
+      (e as { message?: string })?.message ?? i18n.t('app.errors.loadMemberPrices')
     );
   }
 });
@@ -51,7 +52,7 @@ export const assignSubscriptionMembers = createAsyncThunk<
     return res.data;
   } catch (e: unknown) {
     return rejectWithValue(
-      (e as { message?: string })?.message ?? 'Failed to assign subscription'
+      (e as { message?: string })?.message ?? i18n.t('app.errors.assignSubscription')
     );
   }
 });
@@ -66,7 +67,7 @@ export const revokeSubscriptionMembers = createAsyncThunk<
     return res.data;
   } catch (e: unknown) {
     return rejectWithValue(
-      (e as { message?: string })?.message ?? 'Failed to revoke subscription'
+      (e as { message?: string })?.message ?? i18n.t('app.errors.revokeSubscription')
     );
   }
 });
@@ -81,7 +82,7 @@ export const createSubscriptionEntry = createAsyncThunk<
     return res.data;
   } catch (e: unknown) {
     return rejectWithValue(
-      (e as { message?: string })?.message ?? 'Failed to create subscription'
+      (e as { message?: string })?.message ?? i18n.t('app.errors.createSubscription')
     );
   }
 });
@@ -119,7 +120,7 @@ const subscriptionSlice = createSlice({
       })
       .addCase(fetchUserSubscription.rejected, (state, { payload }) => {
         state.isLoading = false;
-        state.error = payload ?? 'Failed to load subscription';
+        state.error = payload ?? i18n.t('app.errors.loadSubscription');
       });
 
     builder

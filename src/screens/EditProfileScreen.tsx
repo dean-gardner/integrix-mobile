@@ -18,9 +18,11 @@ import type { AppDispatch, RootState } from '../store';
 import { loadUser } from '../store/authSlice';
 import { editProfile } from '../api/users';
 import { screenStyles } from '../styles/screenStyles';
+import { useTranslation } from 'react-i18next';
 import { theme } from '../theme';
 
 export default function EditProfileScreen() {
+  const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation();
   const user = useSelector((s: RootState) => s.auth.user);
@@ -49,12 +51,12 @@ export default function EditProfileScreen() {
     });
     if (result.didCancel) return;
     if (result.errorCode) {
-      setError(result.errorMessage ?? 'Failed to pick photo.');
+      setError(result.errorMessage ?? t('app.editProfile.pickPhotoFail'));
       return;
     }
     const photo = result.assets?.[0] ?? null;
     if (!photo?.uri) {
-      setError('Failed to pick photo.');
+      setError(t('app.editProfile.pickPhotoFail'));
       return;
     }
     setError(null);
@@ -67,11 +69,11 @@ export default function EditProfileScreen() {
     const ln = (lastName ?? '').trim();
     const em = (email ?? '').trim();
     if (!fn || !ln) {
-      setError('First name and last name are required.');
+      setError(t('app.editProfile.fnLnRequired'));
       return;
     }
     if (!em) {
-      setError('Email is required.');
+      setError(t('app.editProfile.emailRequired'));
       return;
     }
     setError(null);
@@ -95,9 +97,9 @@ export default function EditProfileScreen() {
       await editProfile(formData);
       await dispatch(loadUser()).unwrap();
       setSelectedPhoto(null);
-      Alert.alert('Success', 'Profile updated.');
+      Alert.alert(t('app.alerts.success'), t('app.editProfile.success'));
     } catch (e: unknown) {
-      const msg = (e as { message?: string })?.message ?? 'Failed to update profile';
+      const msg = (e as { message?: string })?.message ?? t('app.editProfile.updateFailed');
       setError(msg);
     } finally {
       setSaving(false);
@@ -111,7 +113,7 @@ export default function EditProfileScreen() {
   if (!user) {
     return (
       <View style={screenStyles.container}>
-        <Text style={screenStyles.muted}>Sign in to edit profile.</Text>
+        <Text style={screenStyles.muted}>{t('app.editProfile.signInToEdit')}</Text>
       </View>
     );
   }
@@ -120,47 +122,47 @@ export default function EditProfileScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.pageTitle}>Edit Profile</Text>
+      <Text style={styles.pageTitle}>{t('app.editProfile.pageTitle')}</Text>
       {error ? (
         <View style={styles.errorBox}>
           <Text style={styles.errorText}>{error}</Text>
         </View>
       ) : null}
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>PERSONAL INFORMATION</Text>
+        <Text style={styles.sectionTitle}>{t('app.editProfile.personalInfo')}</Text>
 
-        <Text style={styles.label}>First Name *</Text>
+        <Text style={styles.label}>{t('app.editProfile.firstNameStar')}</Text>
         <TextInput
           style={styles.input}
           value={firstName}
           onChangeText={setFirstName}
-          placeholder="First Name"
+          placeholder={t('app.editProfile.firstNamePh')}
           placeholderTextColor="#6c757d"
           editable={!saving}
         />
 
-        <Text style={styles.label}>Last Name *</Text>
+        <Text style={styles.label}>{t('app.editProfile.lastNameStar')}</Text>
         <TextInput
           style={styles.input}
           value={lastName}
           onChangeText={setLastName}
-          placeholder="Last Name"
+          placeholder={t('app.editProfile.lastNamePh')}
           placeholderTextColor="#6c757d"
           editable={!saving}
         />
 
-        <Text style={styles.label}>Email *</Text>
+        <Text style={styles.label}>{t('app.editProfile.emailStar')}</Text>
         <TextInput
           style={[styles.input, styles.disabledInput]}
           value={email}
-          placeholder="Email"
+          placeholder={t('app.editProfile.emailPh')}
           placeholderTextColor="#6c757d"
           keyboardType="email-address"
           autoCapitalize="none"
           editable={false}
         />
 
-        <Text style={styles.label}>Phone</Text>
+        <Text style={styles.label}>{t('app.editProfile.phoneLabel')}</Text>
         <TextInput
           style={styles.input}
           value={phone}
@@ -171,14 +173,14 @@ export default function EditProfileScreen() {
           editable={!saving}
         />
 
-        <Text style={styles.label}>Password</Text>
+        <Text style={styles.label}>{t('app.editProfile.passwordLabel')}</Text>
         <TouchableOpacity
           style={styles.changePasswordButton}
           onPress={openChangePassword}
           disabled={saving}
           activeOpacity={0.8}
         >
-          <Text style={styles.changePasswordText}>Change password</Text>
+          <Text style={styles.changePasswordText}>{t('app.editProfile.changePasswordBtn')}</Text>
         </TouchableOpacity>
 
         <View style={styles.photoSection}>
@@ -211,7 +213,7 @@ export default function EditProfileScreen() {
             {saving ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text style={styles.saveButtonText}>Save</Text>
+              <Text style={styles.saveButtonText}>{t('app.editProfile.save')}</Text>
             )}
           </TouchableOpacity>
         </View>

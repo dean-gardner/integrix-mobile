@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next';
 import type { SubscriptionReadDTO, SubscriptionTariffs } from '../types/subscription';
 
 export type BillingCycle = 'monthly' | 'annual';
@@ -10,9 +11,9 @@ export type SubscriptionFeature = {
 
 export type SubscriptionPlan = {
   key: SubscriptionPlanKey;
-  title: string;
+  titleKey: string;
   tariffPlan: number | null;
-  actionText: string;
+  actionKey: string;
 };
 
 const TARIFF_PLAN = {
@@ -25,24 +26,29 @@ const TARIFF_PLAN = {
 export const supportEmail = 'support@integri-x.com';
 
 export const subscriptionPlans: SubscriptionPlan[] = [
-  { key: 'free', title: 'Free', tariffPlan: TARIFF_PLAN.free, actionText: 'Get started' },
+  {
+    key: 'free',
+    titleKey: 'subscription.free',
+    tariffPlan: TARIFF_PLAN.free,
+    actionKey: 'subscription.getStarted',
+  },
   {
     key: 'essential',
-    title: 'Essential',
+    titleKey: 'subscription.essential',
     tariffPlan: TARIFF_PLAN.essential,
-    actionText: 'Get started',
+    actionKey: 'subscription.getStarted',
   },
   {
     key: 'professional',
-    title: 'Professional',
+    titleKey: 'subscription.professional',
     tariffPlan: TARIFF_PLAN.professional,
-    actionText: 'Get started',
+    actionKey: 'subscription.getStarted',
   },
   {
     key: 'enterprise',
-    title: 'Enterprise',
+    titleKey: 'subscription.enterprise',
     tariffPlan: TARIFF_PLAN.enterprise,
-    actionText: 'Contact Us',
+    actionKey: 'subscription.contactUs',
   },
 ];
 
@@ -69,55 +75,70 @@ function getTariffPrice(
 function formatPrice(
   memberPrices: SubscriptionTariffs | null,
   tariffPlan: number,
-  billingCycle: BillingCycle
+  billingCycle: BillingCycle,
+  t: TFunction
 ): string {
   const price = getTariffPrice(memberPrices, tariffPlan, billingCycle);
   if (price == null) return '-';
-  return `${price} $ / user / ${billingCycle === 'monthly' ? 'month' : 'year'}`;
+  const period =
+    billingCycle === 'monthly' ? t('subscription.periodMonth') : t('subscription.periodYear');
+  return t('subscription.priceFormat', { price, period });
 }
 
 export function getPlanFeatures(
   planKey: SubscriptionPlanKey,
   billingCycle: BillingCycle,
-  memberPrices: SubscriptionTariffs | null
+  memberPrices: SubscriptionTariffs | null,
+  t: TFunction
 ): SubscriptionFeature[] {
+  const perMonth = (n: number) => t('subscription.feature.nPerMonth', { n });
+  const u = t('subscription.feature.unlimited');
+  const av = t('subscription.feature.available');
+  const br = t('subscription.feature.byRequest');
+
   if (planKey === 'free') {
     return [
-      { label: 'Publish documents', value: '2 per month' },
-      { label: 'Finalise tasks', value: '5 per month' },
-      { label: 'AI Credits', value: '100 per month' },
-      { label: 'Users', value: '5 per month' },
+      { label: t('subscription.feature.publishDocs'), value: perMonth(2) },
+      { label: t('subscription.feature.finalizeTasks'), value: perMonth(5) },
+      { label: t('subscription.feature.aiCredits'), value: perMonth(100) },
+      { label: t('subscription.feature.users'), value: perMonth(5) },
     ];
   }
 
   if (planKey === 'essential') {
     return [
-      { label: 'Publish documents', value: '10 per month' },
-      { label: 'Finalise tasks', value: '20 per month' },
-      { label: 'AI Credits', value: '1000 per month' },
-      { label: 'Users', value: '10 per month' },
-      { label: 'Price', value: formatPrice(memberPrices, TARIFF_PLAN.essential, billingCycle) },
+      { label: t('subscription.feature.publishDocs'), value: perMonth(10) },
+      { label: t('subscription.feature.finalizeTasks'), value: perMonth(20) },
+      { label: t('subscription.feature.aiCredits'), value: perMonth(1000) },
+      { label: t('subscription.feature.users'), value: perMonth(10) },
+      {
+        label: t('subscription.feature.price'),
+        value: formatPrice(memberPrices, TARIFF_PLAN.essential, billingCycle, t),
+      },
     ];
   }
 
   if (planKey === 'professional') {
     return [
-      { label: 'Publish documents', value: 'unlimited' },
-      { label: 'Finalise tasks', value: 'unlimited' },
-      { label: 'AI Credits', value: 'unlimited' },
-      { label: 'Users', value: 'unlimited' },
-      { label: 'Price', value: formatPrice(memberPrices, TARIFF_PLAN.professional, billingCycle) },
+      { label: t('subscription.feature.publishDocs'), value: u },
+      { label: t('subscription.feature.finalizeTasks'), value: u },
+      { label: t('subscription.feature.aiCredits'), value: u },
+      { label: t('subscription.feature.users'), value: u },
+      {
+        label: t('subscription.feature.price'),
+        value: formatPrice(memberPrices, TARIFF_PLAN.professional, billingCycle, t),
+      },
     ];
   }
 
   return [
-    { label: 'Publish documents', value: 'unlimited' },
-    { label: 'Finalise tasks', value: 'unlimited' },
-    { label: 'AI Credits', value: 'unlimited' },
-    { label: 'Users', value: 'unlimited' },
-    { label: 'SAP integration', value: 'available' },
-    { label: 'Upload of Assets', value: 'available' },
-    { label: 'Custom task completion reports', value: 'By request' },
-    { label: 'Report regeneration with updated format', value: 'By request' },
+    { label: t('subscription.feature.publishDocs'), value: u },
+    { label: t('subscription.feature.finalizeTasks'), value: u },
+    { label: t('subscription.feature.aiCredits'), value: u },
+    { label: t('subscription.feature.users'), value: u },
+    { label: t('subscription.feature.sapIntegration'), value: av },
+    { label: t('subscription.feature.uploadAssets'), value: av },
+    { label: t('subscription.feature.customReports'), value: br },
+    { label: t('subscription.feature.reportRegen'), value: br },
   ];
 }

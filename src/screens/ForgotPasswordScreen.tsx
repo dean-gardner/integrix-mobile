@@ -11,10 +11,12 @@ import {
   Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { apiForgotPassword } from '../api/auth';
 import { theme } from '../theme';
 
 export default function ForgotPasswordScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,19 +26,17 @@ export default function ForgotPasswordScreen() {
     setError(null);
     const em = (email ?? '').trim();
     if (!em) {
-      setError('Enter your email address.');
+      setError(t('app.forgotPassword.emailRequired'));
       return;
     }
     setLoading(true);
     try {
       await apiForgotPassword({ email: em });
-      Alert.alert(
-        'Check your email',
-        "If an account exists for this email, you'll receive a link to reset your password.",
-        [{ text: 'OK', onPress: () => navigation.goBack() }]
-      );
+      Alert.alert(t('app.forgotPassword.checkEmailTitle'), t('app.forgotPassword.checkEmailBody'), [
+        { text: t('app.modal.ok'), onPress: () => navigation.goBack() },
+      ]);
     } catch (e: unknown) {
-      const msg = (e as { message?: string })?.message ?? 'Request failed. Try again.';
+      const msg = (e as { message?: string })?.message ?? t('app.forgotPassword.requestFailed');
       setError(msg);
     } finally {
       setLoading(false);
@@ -49,19 +49,19 @@ export default function ForgotPasswordScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.card}>
-        <Text style={styles.title}>Forgot password</Text>
-        <Text style={styles.hint}>Enter your email and we'll send a reset link.</Text>
+        <Text style={styles.title}>{t('app.forgotPassword.title')}</Text>
+        <Text style={styles.hint}>{t('app.forgotPassword.hint')}</Text>
         {error ? (
           <View style={styles.errorBox}>
             <Text style={styles.errorText}>{error}</Text>
           </View>
         ) : null}
-        <Text style={styles.label}>Email</Text>
+        <Text style={styles.label}>{t('app.forgotPassword.emailPh')}</Text>
         <TextInput
           style={styles.input}
           value={email}
           onChangeText={setEmail}
-          placeholder="Email"
+          placeholder={t('app.forgotPassword.emailPh')}
           placeholderTextColor="#6c757d"
           keyboardType="email-address"
           autoCapitalize="none"
@@ -75,18 +75,18 @@ export default function ForgotPasswordScreen() {
           {loading ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Text style={styles.buttonText}>Send reset link</Text>
+            <Text style={styles.buttonText}>{t('app.forgotPassword.sendLink')}</Text>
           )}
         </TouchableOpacity>
         <TouchableOpacity style={styles.backLink} onPress={() => navigation.goBack()} disabled={loading}>
-          <Text style={styles.backLinkText}>Back to sign in</Text>
+          <Text style={styles.backLinkText}>{t('app.forgotPassword.backSignIn')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.secondaryLink}
           onPress={() => navigation.navigate('ResetPassword' as never)}
           disabled={loading}
         >
-          <Text style={styles.backLinkText}>Already have a reset link?</Text>
+          <Text style={styles.backLinkText}>{t('app.forgotPassword.haveResetLink')}</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>

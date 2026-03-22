@@ -1,5 +1,15 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Keyboard,
+  Modal,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  ScrollView,
+  Pressable,
+} from 'react-native';
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
 import { useTranslation } from 'react-i18next';
 import { DocumentsSelect } from '../documents/DocumentsSelect';
@@ -23,6 +33,11 @@ export function TasksFilterModal({
 }: TasksFilterModalProps) {
   const { t } = useTranslation();
   const [form, setForm] = useState<TasksFilterForm>(initialValues);
+  const taskNoRef = useRef<TextInput>(null);
+  const descRef = useRef<TextInput>(null);
+  const refContainsRef = useRef<TextInput>(null);
+  const createdByRef = useRef<TextInput>(null);
+  const wasVisibleRef = useRef(false);
 
   const taskRefOptions = useMemo(
     () =>
@@ -39,15 +54,34 @@ export function TasksFilterModal({
   );
 
   useEffect(() => {
-    if (!visible) return;
-    setForm(initialValues);
+    if (visible && !wasVisibleRef.current) {
+      setForm(initialValues);
+    }
+    wasVisibleRef.current = visible;
   }, [visible, initialValues]);
+
+  useEffect(() => {
+    if (visible) return;
+    const id = requestAnimationFrame(() => {
+      Keyboard.dismiss();
+      taskNoRef.current?.blur();
+      descRef.current?.blur();
+      refContainsRef.current?.blur();
+      createdByRef.current?.blur();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [visible]);
 
   const setField = <T extends keyof TasksFilterForm>(field: T, value: TasksFilterForm[T]) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleReset = () => {
+    Keyboard.dismiss();
+    taskNoRef.current?.blur();
+    descRef.current?.blur();
+    refContainsRef.current?.blur();
+    createdByRef.current?.blur();
     setForm({
       taskNumber: '',
       description: '',
@@ -61,7 +95,7 @@ export function TasksFilterModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <View style={styles.card}>
+        <View style={styles.card} collapsable={false}>
           <View style={styles.headerRow}>
             <Text style={styles.title}>{t('app.tasks.filter')}</Text>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
@@ -69,64 +103,96 @@ export function TasksFilterModal({
             </TouchableOpacity>
           </View>
 
-          <View style={styles.fieldRow}>
-            <Text style={styles.label}>{t('app.tasksScreen.taskNo')}</Text>
-            <TextInput
-              style={styles.input}
-              value={form.taskNumber}
-              onChangeText={(value) => setField('taskNumber', value)}
-            />
-          </View>
+          <ScrollView
+            keyboardShouldPersistTaps="always"
+            keyboardDismissMode="on-drag"
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+            nestedScrollEnabled
+            contentContainerStyle={styles.scrollInner}
+          >
+            <View style={styles.fieldRow}>
+              <Text style={styles.label}>{t('app.tasksScreen.taskNo')}</Text>
+              <TextInput
+                ref={taskNoRef}
+                style={styles.input}
+                value={form.taskNumber}
+                onChangeText={(value) => setField('taskNumber', value)}
+                blurOnSubmit
+                returnKeyType="next"
+              />
+            </View>
 
-          <View style={styles.fieldRow}>
-            <Text style={styles.label}>{t('app.tasksScreen.description')}</Text>
-            <TextInput
-              style={styles.input}
-              value={form.description}
-              onChangeText={(value) => setField('description', value)}
-            />
-          </View>
+            <View style={styles.fieldRow}>
+              <Text style={styles.label}>{t('app.tasksScreen.description')}</Text>
+              <TextInput
+                ref={descRef}
+                style={styles.input}
+                value={form.description}
+                onChangeText={(value) => setField('description', value)}
+                blurOnSubmit
+                returnKeyType="next"
+              />
+            </View>
 
-          <View style={styles.fieldRow}>
-            <Text style={styles.label}>{t('app.tasksScreen.taskReference')}</Text>
-            <DocumentsSelect
-              value={form.taskReferenceField}
-              options={taskRefOptions}
-              onChange={(value) => setField('taskReferenceField', value)}
-            />
-          </View>
+            <View style={styles.fieldRow}>
+              <Text style={styles.label}>{t('app.tasksScreen.taskReference')}</Text>
+              <DocumentsSelect
+                value={form.taskReferenceField}
+                options={taskRefOptions}
+                onChange={(value) => setField('taskReferenceField', value)}
+              />
+            </View>
 
-          <View style={styles.fieldRow}>
-            <Text style={styles.label}>{t('app.tasksScreen.contains')}</Text>
-            <TextInput
-              style={styles.input}
-              value={form.taskReference}
-              onChangeText={(value) => setField('taskReference', value)}
-            />
-          </View>
+            <View style={styles.fieldRow}>
+              <Text style={styles.label}>{t('app.tasksScreen.contains')}</Text>
+              <TextInput
+                ref={refContainsRef}
+                style={styles.input}
+                value={form.taskReference}
+                onChangeText={(value) => setField('taskReference', value)}
+                blurOnSubmit
+                returnKeyType="next"
+              />
+            </View>
 
-          <View style={styles.fieldRow}>
-            <Text style={styles.label}>{t('app.tasksScreen.createdBy')}</Text>
-            <TextInput
-              style={styles.input}
-              value={form.createdBy}
-              onChangeText={(value) => setField('createdBy', value)}
-            />
-          </View>
+            <View style={styles.fieldRow}>
+              <Text style={styles.label}>{t('app.tasksScreen.createdBy')}</Text>
+              <TextInput
+                ref={createdByRef}
+                style={styles.input}
+                value={form.createdBy}
+                onChangeText={(value) => setField('createdBy', value)}
+                blurOnSubmit
+                returnKeyType="done"
+              />
+            </View>
 
-          <TouchableOpacity style={styles.resetButton} onPress={handleReset}>
-            <Text style={styles.resetText}>{t('app.tasksScreen.resetFilter')}</Text>
-            <MaterialIcons name="refresh" size={18} color="#27324e" />
-          </TouchableOpacity>
+            <Pressable
+              style={({ pressed }) => [styles.resetButton, pressed && styles.resetButtonPressed]}
+              onPress={handleReset}
+              hitSlop={12}
+              android_ripple={{ color: 'rgba(39, 50, 78, 0.12)' }}
+            >
+              <Text style={styles.resetText}>{t('app.tasksScreen.resetFilter')}</Text>
+              <MaterialIcons name="refresh" size={18} color="#27324e" />
+            </Pressable>
 
-          <View style={styles.actionsRow}>
-            <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-              <Text style={styles.cancelText}>{t('app.modal.cancel')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.applyButton} onPress={() => onApply(form)}>
-              <Text style={styles.applyText}>{t('app.tasksScreen.apply')}</Text>
-            </TouchableOpacity>
-          </View>
+            <View style={styles.actionsRow}>
+              <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+                <Text style={styles.cancelText}>{t('app.modal.cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.applyButton}
+                onPress={() => {
+                  Keyboard.dismiss();
+                  onApply(form);
+                }}
+              >
+                <Text style={styles.applyText}>{t('app.tasksScreen.apply')}</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -145,6 +211,11 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     paddingHorizontal: 20,
     paddingVertical: 16,
+    maxHeight: '90%',
+  },
+  scrollInner: {
+    paddingBottom: 4,
+    flexGrow: 1,
   },
   headerRow: {
     flexDirection: 'row',
@@ -182,13 +253,16 @@ const styles = StyleSheet.create({
   },
   resetButton: {
     marginTop: 18,
-    height: 36,
+    minHeight: 44,
     borderRadius: 4,
     backgroundColor: '#edf1fa',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+  },
+  resetButtonPressed: {
+    opacity: 0.88,
   },
   resetText: {
     color: '#27324e',

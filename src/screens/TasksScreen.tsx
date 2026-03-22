@@ -226,13 +226,15 @@ export default function TasksScreen() {
   };
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.panel}>
+    <View style={styles.wrapper}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.panel}>
         <View style={styles.topFilterRow}>
           <Text style={styles.topFilterLabel}>{t('app.tasks.status')}</Text>
           <DocumentsSelect
@@ -307,7 +309,8 @@ export default function TasksScreen() {
             onPageChange={handleGoToPage}
           />
         ) : null}
-      </View>
+        </View>
+      </ScrollView>
 
       <DocumentsSortModal
         visible={sortModalVisible}
@@ -326,14 +329,17 @@ export default function TasksScreen() {
         onApply={handleApplyFilter}
         onResetFlag={() => setHasAppliedFilters(false)}
       />
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  wrapper: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  container: {
+    flex: 1,
   },
   content: {
     paddingHorizontal: 10,

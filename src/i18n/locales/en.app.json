@@ -110,7 +110,15 @@
       "userInvitations": "User Invitations",
       "invitations": "Invitations",
       "noMembers": "No team members found.",
-      "noInvites": "No invitations found."
+      "noInvites": "No invitations found.",
+      "colFullName": "Full Name",
+      "colEmail": "Email",
+      "colTeam": "Team",
+      "colLicense": "License",
+      "colRole": "Role",
+      "colLastAccess": "Last Access",
+      "colStatus": "Status",
+      "colSendOn": "Send On"
     },
     "auth": {
       "signupSuccess": "Account created. You can now sign in.",

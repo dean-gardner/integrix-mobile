@@ -108,7 +108,15 @@
       "tabUsers": "المستخدمون",
       "tabMembers": "أعضاء الفريق",
       "tabInvitesAdmin": "دعوات المستخدمين",
-      "tabInvites": "الدعوات"
+      "tabInvites": "الدعوات",
+      "colFullName": "الاسم الكامل",
+      "colEmail": "البريد",
+      "colTeam": "الفريق",
+      "colLicense": "الترخيص",
+      "colRole": "الدور",
+      "colLastAccess": "آخر وصول",
+      "colStatus": "الحالة",
+      "colSendOn": "تاريخ الإرسال"
     },
     "auth": {
       "signupSuccess": "Account created. You can now sign in.",

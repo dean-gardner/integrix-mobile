@@ -108,7 +108,15 @@
       "tabUsers": "Usuarios",
       "tabMembers": "Miembros del equipo",
       "tabInvitesAdmin": "Invitaciones de usuario",
-      "tabInvites": "Invitaciones"
+      "tabInvites": "Invitaciones",
+      "colFullName": "Nombre completo",
+      "colEmail": "Correo",
+      "colTeam": "Equipo",
+      "colLicense": "Licencia",
+      "colRole": "Rol",
+      "colLastAccess": "Último acceso",
+      "colStatus": "Estado",
+      "colSendOn": "Enviado el"
     },
     "auth": {
       "signupSuccess": "Cuenta creada. Ya puedes entrar.",

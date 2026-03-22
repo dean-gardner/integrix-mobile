@@ -279,13 +279,15 @@ export default function DocumentsScreen() {
   };
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.panel}>
+    <View style={styles.wrapper}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.panel}>
         <View style={styles.topFilterRow}>
           <Text style={styles.topFilterLabel}>{t('app.documentsScreen.status')}</Text>
           <DocumentsSelect
@@ -364,8 +366,10 @@ export default function DocumentsScreen() {
             onPageChange={handleGoToPage}
           />
         ) : null}
-      </View>
+        </View>
+      </ScrollView>
 
+      {/* Modals outside ScrollView so filter modal taps (e.g. Reset) work on first press. */}
       <DocumentsSortModal
         visible={sortModalVisible}
         sortingField={currentSortingField}
@@ -407,14 +411,17 @@ export default function DocumentsScreen() {
         document={shareModalDocument}
         onClose={closeShareDocumentModal}
       />
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  wrapper: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  container: {
+    flex: 1,
   },
   content: {
     paddingHorizontal: 10,

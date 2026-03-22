@@ -15,7 +15,12 @@ import type { AppDispatch, RootState } from '../store';
 import { getRoles } from '../api/auth';
 import { InviteTeamMemberModal } from '../components/users/InviteTeamMemberModal';
 import { theme } from '../theme';
-import type { UserInvitationCreateDTO, UserInvitationReadDTO } from '../types/invitation';
+import { formatDateTime } from '../config/taskDetail';
+import {
+  toInvitationStatusLabel,
+  type UserInvitationCreateDTO,
+  type UserInvitationReadDTO,
+} from '../types/invitation';
 import type { RoleDTO, UserReadDTO } from '../types/user';
 import { fetchTeams } from '../store/teamsSlice';
 import { fetchUsers, setUsersFilter } from '../store/usersSlice';
@@ -32,7 +37,36 @@ type UsersTableRow = {
   id: string;
   fullName: string;
   email: string;
+  team: string;
+  role?: string;
+  license?: string;
+  lastAccess?: string;
+  status?: string;
+  sendOn?: string;
 };
+
+/** Fixed column widths so the table overflows horizontally and can scroll (web parity). */
+const CHECK_COL_W = 40;
+const COL_FULL_NAME_W = 168;
+const COL_EMAIL_W = 220;
+const COL_TEAM_W = 148;
+const COL_LICENSE_W = 96;
+const COL_ROLE_W = 104;
+const COL_LAST_ACCESS_W = 156;
+const COL_STATUS_W = 104;
+const COL_SEND_ON_W = 156;
+
+const MEMBERS_TABLE_MIN_WIDTH =
+  CHECK_COL_W +
+  COL_FULL_NAME_W +
+  COL_EMAIL_W +
+  COL_TEAM_W +
+  COL_LICENSE_W +
+  COL_ROLE_W +
+  COL_LAST_ACCESS_W;
+
+const INVITATIONS_TABLE_MIN_WIDTH =
+  CHECK_COL_W + COL_FULL_NAME_W + COL_EMAIL_W + COL_TEAM_W + COL_STATUS_W + COL_SEND_ON_W;
 
 const ADMIN_ROLE = 'Admin';
 const PAGE_SIZE_OPTIONS = [10, 25, 100];
@@ -42,10 +76,15 @@ function mapUserToTableRow(user: UserReadDTO): UsersTableRow {
     user.fullName?.trim() ||
     `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() ||
     user.email;
+  const license = user.subscriptionTariff?.trim();
   return {
     id: user.id,
     fullName: computedFullName,
     email: user.email,
+    team: user.team?.trim() ? user.team : '—',
+    role: user.role?.trim() ? user.role : '—',
+    license: license && license.length > 0 ? license : '—',
+    lastAccess: formatDateTime(user.lastAccessUtc),
   };
 }
 
@@ -54,6 +93,9 @@ function mapInvitationToTableRow(invitation: UserInvitationReadDTO): UsersTableR
     id: invitation.id,
     fullName: invitation.fullName || invitation.email,
     email: invitation.email,
+    team: invitation.team?.trim() ? invitation.team : '—',
+    status: toInvitationStatusLabel(invitation.status),
+    sendOn: formatDateTime(invitation.sendOn),
   };
 }
 
@@ -262,18 +304,22 @@ export default function UsersScreen() {
     }
   };
 
+  const tableMinWidth =
+    activeTab === 'members' ? MEMBERS_TABLE_MIN_WIDTH : INVITATIONS_TABLE_MIN_WIDTH;
+
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       showsVerticalScrollIndicator={false}
+      nestedScrollEnabled
     >
       <View style={styles.panel}>
-        <Text style={styles.panelTitle}>USERS</Text>
+        <Text style={styles.panelTitle}>{t('app.users.usersTitle')}</Text>
 
         <TouchableOpacity style={styles.inviteButton} onPress={openInviteModal} activeOpacity={0.85}>
-          <Text style={styles.inviteButtonText}>Invite team member</Text>
+          <Text style={styles.inviteButtonText}>{t('app.users.inviteMember')}</Text>
         </TouchableOpacity>
 
         <View style={styles.tabsPanel}>
@@ -306,24 +352,6 @@ export default function UsersScreen() {
           </View>
         ) : null}
 
-        <View style={styles.tableHeader}>
-          <TouchableOpacity onPress={toggleSelectAllVisibleRows} hitSlop={8} style={styles.checkCell}>
-            <MaterialIcons
-              name={
-                allRowsSelected
-                  ? 'check-box'
-                  : someRowsSelected
-                    ? 'indeterminate-check-box'
-                    : 'check-box-outline-blank'
-              }
-              size={22}
-              color="#7e8086"
-            />
-          </TouchableOpacity>
-          <Text style={[styles.headerText, styles.fullNameHeader]}>Full Name</Text>
-          <Text style={[styles.headerText, styles.emailHeader]}>Email</Text>
-        </View>
-
         {activeLoading && rows.length === 0 ? (
           <View style={styles.loader}>
             <ActivityIndicator size="small" color={theme.colors.primary} />
@@ -331,39 +359,116 @@ export default function UsersScreen() {
         ) : rows.length === 0 ? (
           <View style={styles.emptyWrap}>
             <Text style={styles.emptyText}>
-              {activeTab === 'members' ? 'No team members found.' : 'No invitations found.'}
+              {activeTab === 'members' ? t('app.users.noMembers') : t('app.users.noInvites')}
             </Text>
           </View>
         ) : (
-          rows.map((row) => {
-            const checked = selectedIds.includes(row.id);
-            return (
-              <View key={row.id} style={styles.dataRow}>
+          <ScrollView
+            horizontal
+            nestedScrollEnabled
+            showsHorizontalScrollIndicator
+            keyboardShouldPersistTaps="handled"
+            style={styles.tableHScroll}
+            contentContainerStyle={styles.tableHScrollContent}
+          >
+            <View style={[styles.tableSheet, { minWidth: tableMinWidth }]}>
+              <View style={styles.tableHeader}>
                 <TouchableOpacity
-                  onPress={() => toggleRowSelection(row.id)}
+                  onPress={toggleSelectAllVisibleRows}
                   hitSlop={8}
                   style={styles.checkCell}
                 >
                   <MaterialIcons
-                    name={checked ? 'check-box' : 'check-box-outline-blank'}
+                    name={
+                      allRowsSelected
+                        ? 'check-box'
+                        : someRowsSelected
+                          ? 'indeterminate-check-box'
+                          : 'check-box-outline-blank'
+                    }
                     size={22}
                     color="#7e8086"
                   />
                 </TouchableOpacity>
-                <Text style={[styles.rowText, styles.fullNameCell]} numberOfLines={1}>
-                  {row.fullName}
+                <Text style={[styles.headerText, styles.colFullNameHeader]}>
+                  {t('app.users.colFullName')}
                 </Text>
-                <Text style={[styles.rowText, styles.emailCell]} numberOfLines={1}>
-                  {row.email}
-                </Text>
+                <Text style={[styles.headerText, styles.colEmailHeader]}>{t('app.users.colEmail')}</Text>
+                <Text style={[styles.headerText, styles.colTeamHeader]}>{t('app.users.colTeam')}</Text>
+                {activeTab === 'members' ? (
+                  <>
+                    <Text style={[styles.headerText, styles.colLicenseHeader]}>
+                      {t('app.users.colLicense')}
+                    </Text>
+                    <Text style={[styles.headerText, styles.colRoleHeader]}>{t('app.users.colRole')}</Text>
+                    <Text style={[styles.headerText, styles.colLastAccessHeader]}>
+                      {t('app.users.colLastAccess')}
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={[styles.headerText, styles.colStatusHeader]}>
+                      {t('app.users.colStatus')}
+                    </Text>
+                    <Text style={[styles.headerText, styles.colSendOnHeader]}>
+                      {t('app.users.colSendOn')}
+                    </Text>
+                  </>
+                )}
               </View>
-            );
-          })
-        )}
 
-        <View style={styles.footerTrack}>
-          <View style={styles.footerTrackFill} />
-        </View>
+              {rows.map((row) => {
+                const checked = selectedIds.includes(row.id);
+                return (
+                  <View key={row.id} style={styles.dataRow}>
+                    <TouchableOpacity
+                      onPress={() => toggleRowSelection(row.id)}
+                      hitSlop={8}
+                      style={styles.checkCell}
+                    >
+                      <MaterialIcons
+                        name={checked ? 'check-box' : 'check-box-outline-blank'}
+                        size={22}
+                        color="#7e8086"
+                      />
+                    </TouchableOpacity>
+                    <Text style={[styles.rowText, styles.colFullNameCell]} numberOfLines={1}>
+                      {row.fullName}
+                    </Text>
+                    <Text style={[styles.rowText, styles.colEmailCell]} numberOfLines={1}>
+                      {row.email}
+                    </Text>
+                    <Text style={[styles.rowText, styles.colTeamCell]} numberOfLines={1}>
+                      {row.team}
+                    </Text>
+                    {activeTab === 'members' ? (
+                      <>
+                        <Text style={[styles.rowText, styles.colLicenseCell]} numberOfLines={1}>
+                          {row.license}
+                        </Text>
+                        <Text style={[styles.rowText, styles.colRoleCell]} numberOfLines={1}>
+                          {row.role}
+                        </Text>
+                        <Text style={[styles.rowText, styles.colLastAccessCell]} numberOfLines={1}>
+                          {row.lastAccess}
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        <Text style={[styles.rowText, styles.colStatusCell]} numberOfLines={1}>
+                          {row.status}
+                        </Text>
+                        <Text style={[styles.rowText, styles.colSendOnCell]} numberOfLines={1}>
+                          {row.sendOn}
+                        </Text>
+                      </>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          </ScrollView>
+        )}
 
         <View style={styles.paginationRow}>
           <TouchableOpacity style={styles.pageSizeControl} onPress={openPageSizeMenu} activeOpacity={0.75}>
@@ -499,8 +604,17 @@ const styles = StyleSheet.create({
     color: theme.colors.error,
     fontSize: 13,
   },
-  tableHeader: {
+  tableHScroll: {
     marginTop: 10,
+    flexGrow: 0,
+  },
+  tableHScrollContent: {
+    paddingBottom: 4,
+  },
+  tableSheet: {
+    flexDirection: 'column',
+  },
+  tableHeader: {
     minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
@@ -509,7 +623,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   checkCell: {
-    width: 34,
+    width: CHECK_COL_W,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -518,12 +632,36 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  fullNameHeader: {
-    flex: 1,
+  colFullNameHeader: {
+    width: COL_FULL_NAME_W,
     paddingLeft: 10,
   },
-  emailHeader: {
-    flex: 1.1,
+  colEmailHeader: {
+    width: COL_EMAIL_W,
+    paddingLeft: 10,
+  },
+  colTeamHeader: {
+    width: COL_TEAM_W,
+    paddingLeft: 10,
+  },
+  colLicenseHeader: {
+    width: COL_LICENSE_W,
+    paddingLeft: 10,
+  },
+  colRoleHeader: {
+    width: COL_ROLE_W,
+    paddingLeft: 10,
+  },
+  colLastAccessHeader: {
+    width: COL_LAST_ACCESS_W,
+    paddingLeft: 10,
+  },
+  colStatusHeader: {
+    width: COL_STATUS_W,
+    paddingLeft: 10,
+  },
+  colSendOnHeader: {
+    width: COL_SEND_ON_W,
     paddingLeft: 10,
   },
   dataRow: {
@@ -538,13 +676,43 @@ const styles = StyleSheet.create({
     color: '#272b33',
     fontSize: 14,
   },
-  fullNameCell: {
-    flex: 1,
+  colFullNameCell: {
+    width: COL_FULL_NAME_W,
     paddingLeft: 10,
     paddingRight: 4,
   },
-  emailCell: {
-    flex: 1.1,
+  colEmailCell: {
+    width: COL_EMAIL_W,
+    paddingLeft: 10,
+    paddingRight: 4,
+  },
+  colTeamCell: {
+    width: COL_TEAM_W,
+    paddingLeft: 10,
+    paddingRight: 4,
+  },
+  colLicenseCell: {
+    width: COL_LICENSE_W,
+    paddingLeft: 10,
+    paddingRight: 4,
+  },
+  colRoleCell: {
+    width: COL_ROLE_W,
+    paddingLeft: 10,
+    paddingRight: 4,
+  },
+  colLastAccessCell: {
+    width: COL_LAST_ACCESS_W,
+    paddingLeft: 10,
+    paddingRight: 4,
+  },
+  colStatusCell: {
+    width: COL_STATUS_W,
+    paddingLeft: 10,
+    paddingRight: 4,
+  },
+  colSendOnCell: {
+    width: COL_SEND_ON_W,
     paddingLeft: 10,
     paddingRight: 4,
   },
@@ -559,18 +727,6 @@ const styles = StyleSheet.create({
   emptyText: {
     color: '#7c8190',
     fontSize: 14,
-  },
-  footerTrack: {
-    marginTop: 10,
-    marginBottom: 8,
-    height: 12,
-    width: 138,
-    backgroundColor: '#d0d5dd',
-  },
-  footerTrackFill: {
-    height: '100%',
-    width: '62%',
-    backgroundColor: '#9ca3ae',
   },
   paginationRow: {
     flexDirection: 'row',

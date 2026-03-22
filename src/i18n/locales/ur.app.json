@@ -108,7 +108,15 @@
       "tabUsers": "صارفین",
       "tabMembers": "ٹیم ممبر",
       "tabInvitesAdmin": "دعوت نامے",
-      "tabInvites": "دعوتیں"
+      "tabInvites": "دعوتیں",
+      "colFullName": "مکمل نام",
+      "colEmail": "ای میل",
+      "colTeam": "ٹیم",
+      "colLicense": "لائسنس",
+      "colRole": "کردار",
+      "colLastAccess": "آخری رسائی",
+      "colStatus": "حالت",
+      "colSendOn": "بھیجا گیا"
     },
     "auth": {
       "signupSuccess": "Account created. You can now sign in.",

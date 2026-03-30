@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   View,
   Text,
   StyleSheet,
@@ -20,7 +22,7 @@ type TasksFilterModalProps = {
   visible: boolean;
   initialValues: TasksFilterForm;
   onClose: () => void;
-  onApply: (values: TasksFilterForm) => void;
+  onApply: (values: TasksFilterForm, meta?: { taskReferenceFieldTouched: boolean }) => void;
   onResetFlag: () => void;
 };
 
@@ -33,6 +35,7 @@ export function TasksFilterModal({
 }: TasksFilterModalProps) {
   const { t } = useTranslation();
   const [form, setForm] = useState<TasksFilterForm>(initialValues);
+  const [taskReferenceFieldTouched, setTaskReferenceFieldTouched] = useState(false);
   const taskNoRef = useRef<TextInput>(null);
   const descRef = useRef<TextInput>(null);
   const refContainsRef = useRef<TextInput>(null);
@@ -56,6 +59,7 @@ export function TasksFilterModal({
   useEffect(() => {
     if (visible && !wasVisibleRef.current) {
       setForm(initialValues);
+      setTaskReferenceFieldTouched(false);
     }
     wasVisibleRef.current = visible;
   }, [visible, initialValues]);
@@ -89,12 +93,17 @@ export function TasksFilterModal({
       taskReference: '',
       createdBy: '',
     });
+    setTaskReferenceFieldTouched(false);
     onResetFlag();
   };
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+      <KeyboardAvoidingView
+        style={styles.backdrop}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
         <View style={styles.card} collapsable={false}>
           <View style={styles.headerRow}>
             <Text style={styles.title}>{t('app.tasks.filter')}</Text>
@@ -104,6 +113,7 @@ export function TasksFilterModal({
           </View>
 
           <ScrollView
+            style={styles.formScroll}
             keyboardShouldPersistTaps="always"
             keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={false}
@@ -140,7 +150,10 @@ export function TasksFilterModal({
               <DocumentsSelect
                 value={form.taskReferenceField}
                 options={taskRefOptions}
-                onChange={(value) => setField('taskReferenceField', value)}
+                onChange={(value) => {
+                  setField('taskReferenceField', value);
+                  setTaskReferenceFieldTouched(true);
+                }}
               />
             </View>
 
@@ -167,7 +180,9 @@ export function TasksFilterModal({
                 returnKeyType="done"
               />
             </View>
+          </ScrollView>
 
+          <View style={styles.footer}>
             <Pressable
               style={({ pressed }) => [styles.resetButton, pressed && styles.resetButtonPressed]}
               onPress={handleReset}
@@ -186,15 +201,15 @@ export function TasksFilterModal({
                 style={styles.applyButton}
                 onPress={() => {
                   Keyboard.dismiss();
-                  onApply(form);
+                  onApply(form, { taskReferenceFieldTouched });
                 }}
               >
                 <Text style={styles.applyText}>{t('app.tasksScreen.apply')}</Text>
               </TouchableOpacity>
             </View>
-          </ScrollView>
+          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -212,10 +227,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     maxHeight: '90%',
+    width: '100%',
+  },
+  formScroll: {
+    minHeight: 0,
+    flexShrink: 1,
   },
   scrollInner: {
-    paddingBottom: 4,
-    flexGrow: 1,
+    paddingBottom: 6,
   },
   headerRow: {
     flexDirection: 'row',
@@ -252,7 +271,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   resetButton: {
-    marginTop: 18,
     minHeight: 44,
     borderRadius: 4,
     backgroundColor: '#edf1fa',
@@ -268,8 +286,14 @@ const styles = StyleSheet.create({
     color: '#27324e',
     fontSize: 15,
   },
+  footer: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#e8edf6',
+  },
   actionsRow: {
-    marginTop: 14,
+    marginTop: 10,
     flexDirection: 'row',
     gap: 8,
   },

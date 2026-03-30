@@ -10,6 +10,7 @@ import type { RootState, AppDispatch } from '../store';
 import { signOut } from '../store/authSlice';
 import { drawerMenuGroups, type DrawerMenuItem } from '../config/drawerMenu';
 import { setAppLanguage, SUPPORTED_LANGUAGES } from '../i18n';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type DrawerContentProps = { onClose: () => void };
 
@@ -17,6 +18,7 @@ export function DrawerContent({ onClose }: DrawerContentProps) {
   const { t, i18n } = useTranslation();
   const navigation = useNavigation();
   const dispatch = useDispatch<AppDispatch>();
+  const safeAreaInsets = useSafeAreaInsets();
   const user = useSelector((s: RootState) => s.auth.user);
   const roles = user?.roles ?? [];
 
@@ -39,7 +41,7 @@ export function DrawerContent({ onClose }: DrawerContentProps) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: Math.max(14, safeAreaInsets.top + 8) }]}>
         <TouchableOpacity onPress={onClose} style={styles.headerIconButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <MaterialIcons name="close" size={20} color={theme.colors.sidebarText} />
         </TouchableOpacity>
@@ -48,7 +50,10 @@ export function DrawerContent({ onClose }: DrawerContentProps) {
           <MaterialIcons name="more-vert" size={20} color={theme.colors.sidebarText} />
         </View>
       </View>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 32 + safeAreaInsets.bottom }]}
+      >
         {drawerMenuGroups.map((group) => {
           const visibleItems = group.items.filter(canSee);
           if (visibleItems.length === 0) return null;

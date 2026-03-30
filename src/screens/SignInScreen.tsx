@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   Linking,
   useWindowDimensions,
   StatusBar,
+  I18nManager,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '../store';
@@ -35,8 +36,13 @@ const getTimeZoneId = () => {
 };
 
 export default function SignInScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
+  const isRtl = useMemo(() => {
+    const languageCode = (i18n.resolvedLanguage ?? i18n.language ?? '').toLowerCase();
+    if (languageCode.startsWith('ar') || languageCode.startsWith('ur')) return true;
+    return I18nManager.isRTL || i18n.dir(languageCode) === 'rtl';
+  }, [i18n]);
   const scrollViewRef = useRef<ScrollView>(null);
   const { height } = useWindowDimensions();
   const { isLoading, error } = useSelector((s: RootState) => s.auth);
@@ -78,35 +84,39 @@ export default function SignInScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.card}>
-          <Text style={styles.title}>{t('signIn.title')}</Text>
+          <Text style={[styles.title, isRtl ? styles.textRtl : styles.textLtr]}>{t('signIn.title')}</Text>
 
           {error ? (
             <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{error}</Text>
+              <Text style={[styles.errorText, isRtl ? styles.textRtl : styles.textLtr]}>{error}</Text>
             </View>
           ) : null}
 
-          <Text style={styles.label}>{t('signIn.email')}</Text>
+          <Text style={[styles.label, isRtl ? styles.textRtl : styles.textLtr]}>{t('signIn.email')}</Text>
           <TextInput
-            style={styles.input}
-            placeholder=""
+            style={[styles.input, isRtl ? styles.inputRtl : styles.inputLtr]}
+            textAlign={isRtl ? 'right' : 'left'}
+            placeholder={t('signIn.email')}
             placeholderTextColor="#6c757d"
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
             keyboardType="email-address"
             editable={!isLoading}
+            textContentType="username"
           />
 
-          <Text style={styles.label}>{t('signIn.password')}</Text>
+          <Text style={[styles.label, isRtl ? styles.textRtl : styles.textLtr]}>{t('signIn.password')}</Text>
           <TextInput
-            style={styles.input}
-            placeholder=""
+            style={[styles.input, isRtl ? styles.inputRtl : styles.inputLtr]}
+            textAlign={isRtl ? 'right' : 'left'}
+            placeholder={t('signIn.password')}
             placeholderTextColor="#6c757d"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
             editable={!isLoading}
+            textContentType="password"
             onFocus={() =>
               setTimeout(
                 () =>
@@ -129,7 +139,7 @@ export default function SignInScreen() {
             )}
           </TouchableOpacity>
 
-          <Text style={styles.termsText}>
+          <Text style={[styles.termsText, isRtl ? styles.textRtl : styles.textLtr]}>
             {t('signIn.termsPrefix')}{' '}
             <Text style={styles.termsLink} onPress={() => openURL(TERMS_URL)}>
               {t('signIn.termsLink')}
@@ -137,19 +147,23 @@ export default function SignInScreen() {
           </Text>
 
           <TouchableOpacity
-            style={styles.forgotLink}
+            style={[styles.forgotLink, isRtl && styles.linkRtl]}
             onPress={() => openURL(FORGOT_PASSWORD_URL)}
             disabled={isLoading}
           >
-            <Text style={styles.forgotLinkText}>{t('signIn.forgotPassword')}</Text>
+            <Text style={[styles.forgotLinkText, isRtl ? styles.textRtl : styles.textLtr]}>
+              {t('signIn.forgotPassword')}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.secondaryLink}
+            style={[styles.secondaryLink, isRtl && styles.linkRtl]}
             onPress={() => openURL(CREATE_ACCOUNT_URL)}
             disabled={isLoading}
           >
-            <Text style={styles.secondaryLinkText}>{t('signIn.createAccount')}</Text>
+            <Text style={[styles.secondaryLinkText, isRtl ? styles.textRtl : styles.textLtr]}>
+              {t('signIn.createAccount')}
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -187,6 +201,15 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: 10,
   },
+  textLtr: {
+    textAlign: 'left',
+    writingDirection: 'ltr',
+  },
+  textRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+    alignSelf: 'stretch',
+  },
   input: {
     borderWidth: 1,
     borderColor: '#d2d7e5',
@@ -197,6 +220,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     backgroundColor: '#d2d7e5',
     color: '#151a22',
+  },
+  inputLtr: {
+    textAlign: 'left',
+    writingDirection: 'ltr',
+  },
+  inputRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   errorBox: {
     backgroundColor: '#fee',
@@ -252,5 +283,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.primary,
     fontWeight: '700',
+  },
+  /** In RTL, flex-start is the physical right; keep link row full width so text aligns with form. */
+  linkRtl: {
+    alignSelf: 'stretch',
   },
 });

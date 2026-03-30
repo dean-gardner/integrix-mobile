@@ -31,6 +31,7 @@ import type { DefectFieldReadDTO, DefectFieldsTemplateDTO } from '../../types/de
 import type { FeedItemDTO, FilteringModel } from '../../types/feed';
 import type { TaskStepReadDTO } from '../../types/task';
 import { theme } from '../../theme';
+import { useTranslation } from 'react-i18next';
 
 const DEFECT_FIELD_TYPES = {
   FreeText: 0,
@@ -130,21 +131,26 @@ function formatPostDate(utcValue?: string): string {
   if (!utcValue) return '-';
   const date = new Date(utcValue);
   if (Number.isNaN(date.getTime())) return '-';
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = date.toLocaleString('en-US', { month: 'long' });
-  const year = date.getFullYear();
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  return `Created ${day} ${month} ${year}, ${hours}:${minutes}`;
+  try {
+    return new Intl.DateTimeFormat(i18n.language || 'en', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(date);
+  } catch {
+    return date.toLocaleString();
+  }
 }
 
 function formatRelativeTime(utcValue?: string | null): string {
   if (!utcValue) return '';
-  const diff = Date.now() - new Date(utcValue).getTime();
-  if (diff < 60_000) return 'just now';
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} minutes ago`;
-  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} hours ago`;
-  return `${Math.floor(diff / 86_400_000)} days ago`;
+  const value = new Date(utcValue).getTime();
+  if (Number.isNaN(value)) return '';
+  const diff = Date.now() - value;
+  const formatter = new Intl.RelativeTimeFormat(i18n.language || 'en', { numeric: 'auto' });
+  if (diff < 60_000) return formatter.format(0, 'second');
+  if (diff < 3_600_000) return formatter.format(-Math.floor(diff / 60_000), 'minute');
+  if (diff < 86_400_000) return formatter.format(-Math.floor(diff / 3_600_000), 'hour');
+  return formatter.format(-Math.floor(diff / 86_400_000), 'day');
 }
 
 const IMAGE_MIME_TYPES = new Set([
@@ -213,6 +219,7 @@ export function TaskStepPostModal({
   onClose,
   onSubmit,
 }: TaskStepPostModalProps) {
+  const { t } = useTranslation();
   const canCreateDefect = Boolean(taskStep?.canUserCreateDefect ?? taskStep?.defectFieldsTemplate);
 
   const [activeTab, setActiveTab] = useState<ModalTab>('posts');
@@ -295,7 +302,7 @@ export function TaskStepPostModal({
         setPostsError(null);
       } else {
         setPosts([]);
-        setPostsError('Failed to load posts.');
+        setPostsError(i18n.t('app.taskStepPost.loadPostsFail'));
       }
     } finally {
       setPostsLoading(false);
@@ -341,7 +348,7 @@ export function TaskStepPostModal({
         setDefectsError(null);
       } else {
         setDefects([]);
-        setDefectsError('Failed to load defects.');
+        setDefectsError(i18n.t('app.taskStepPost.loadDefectsFail'));
       }
     } finally {
       setDefectsLoading(false);
@@ -379,7 +386,7 @@ export function TaskStepPostModal({
       })
       .catch(() => {
         if (!mounted) return;
-        setError('Failed to load defect template.');
+        setError(i18n.t('app.taskStepPost.loadTemplateFail'));
       })
       .finally(() => {
         if (!mounted) return;
@@ -465,7 +472,7 @@ export function TaskStepPostModal({
         });
         setError(null);
       },
-      () => setError('Failed to pick attachment.')
+      () => setError(i18n.t('app.taskStepPost.pickAttachmentFail'))
     );
   };
 
@@ -480,17 +487,17 @@ export function TaskStepPostModal({
 
     const cleanDescription = description.trim();
     if (!cleanDescription) {
-      setError('Description is required.');
+      setError(i18n.t('app.taskStepPost.descriptionRequired'));
       return;
     }
 
     if (isDefect && !selectedTemplate) {
-      setError('Defect template is not available.');
+      setError(i18n.t('app.taskStepPost.templateUnavailable'));
       return;
     }
 
     if (isDefect && requiredMissingFields.length > 0) {
-      setError(`Fill required fields: ${requiredMissingFields.join(', ')}.`);
+      setError(i18n.t('app.defects.fillRequired', { fields: requiredMissingFields.join(', ') }));
       return;
     }
 
@@ -532,7 +539,7 @@ export function TaskStepPostModal({
         await loadDefects();
       }
     } catch (submitError) {
-      const fallbackMessage = 'Failed to create post.';
+      const fallbackMessage = i18n.t('app.taskStepPost.createPostFail');
       if (typeof submitError === 'string') {
         setError(submitError || fallbackMessage);
       } else if (
@@ -736,7 +743,7 @@ export function TaskStepPostModal({
           ? err.response.data.message
           : err?.response?.data
             ? String(err.response.data)
-            : 'Failed to update defect.';
+            : i18n.t('app.taskStepPost.updateDefectFail');
       setUpdateError(message);
     } finally {
       setUpdateSubmitting(false);
@@ -754,6 +761,17 @@ export function TaskStepPostModal({
     loadDefects,
     loadPosts,
   ]);
+
+  const getDefectStatusLabel = useCallback(
+    (statusCode?: string | null) => {
+      const normalized = String(statusCode ?? '').trim().toLowerCase();
+      if (normalized === 'open') return t('app.taskStepPost.statusOpen');
+      if (normalized === 'closed') return t('app.taskStepPost.statusClosed');
+      if (normalized === 'cancelled' || normalized === 'canceled') return t('app.taskStepPost.statusCancelled');
+      return toReadableText(statusCode);
+    },
+    [t]
+  );
 
   const renderCustomField = (field: DefectFieldReadDTO) => {
     const label = `${field.name}${field.isRequired ? ' *' : ''}`;
@@ -887,7 +905,7 @@ export function TaskStepPostModal({
     const isModified = !!post.modifiedOnUtc;
     const authorName = isModified ? (post.modifiedByName ?? post.createdByName) : post.createdByName;
     const dateStr = formatPostDate(post.modifiedOnUtc ?? post.createdOnUtc);
-    const actionLabel = isModified ? 'Edited' : 'Created';
+    const actionLabel = isModified ? t('app.taskStepPost.edited') : t('app.taskStepPost.created');
 
     const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic', 'heif']);
     const imageFiles = (post.files ?? []).filter((f) => {
@@ -909,10 +927,10 @@ export function TaskStepPostModal({
       : styles.pillTextObservation;
 
     const pillLabel = isDefectPost
-      ? 'DEFECT'
+      ? t('app.feed.defect')
       : isStepCompletion
-      ? 'STEP COMPLETION'
-      : 'OBSERVATION';
+      ? t('app.feed.stepCompletion')
+      : t('app.feed.observation');
 
     return (
       <View key={post.id}>
@@ -934,41 +952,43 @@ export function TaskStepPostModal({
 
           {isDefectPost ? (
             <>
-              <Text style={styles.postKindHeading}>Defect</Text>
+              <Text style={styles.postKindHeading}>{t('app.feed.defect')}</Text>
               {post.defectNumber ? (
                 <View style={styles.postFieldBlock}>
-                  <Text style={styles.postFieldLabel}>Defect Number</Text>
+                  <Text style={styles.postFieldLabel}>{t('app.taskStepPost.defectNumber')}</Text>
                   <Text style={styles.postFieldValue}>{post.defectNumber}</Text>
                 </View>
               ) : null}
               {post.statusCode ? (
                 <View style={styles.postFieldBlock}>
-                  <Text style={styles.postFieldLabel}>Status</Text>
-                  <Text style={styles.postFieldValue}>{post.statusCode}</Text>
+                  <Text style={styles.postFieldLabel}>{t('app.task.statusLabel')}</Text>
+                  <Text style={styles.postFieldValue}>{getDefectStatusLabel(post.statusCode)}</Text>
                 </View>
               ) : null}
               {post.description ? (
                 <View style={styles.postFieldBlock}>
-                  <Text style={styles.postFieldLabel}>Defect description</Text>
+                  <Text style={styles.postFieldLabel}>{t('app.taskStepPost.defectDescription')}</Text>
                   <Text style={styles.postFieldValue}>{post.description}</Text>
                 </View>
               ) : null}
               {post.assetName ? (
                 <View style={styles.postFieldBlock}>
-                  <Text style={styles.postFieldLabel}>Asset name</Text>
+                  <Text style={styles.postFieldLabel}>{t('app.taskStepPost.assetName')}</Text>
                   <Text style={styles.postFieldValue}>{post.assetName}</Text>
                 </View>
               ) : null}
               {post.remediationDetails ? (
                 <View style={styles.postFieldBlock}>
-                  <Text style={styles.postFieldLabel}>Remediation details</Text>
+                  <Text style={styles.postFieldLabel}>{t('app.feed.remediationDetails')}</Text>
                   <Text style={styles.postFieldValue}>{post.remediationDetails}</Text>
                 </View>
               ) : null}
             </>
           ) : (
             <>
-              <Text style={styles.postKindHeading}>{isStepCompletion ? 'Step Completion' : 'Observation'}</Text>
+              <Text style={styles.postKindHeading}>
+                {isStepCompletion ? t('app.feed.stepCompletion') : t('app.feed.observation')}
+              </Text>
               {post.description ? (
                 <Text style={styles.postObservationText}>{post.description}</Text>
               ) : null}
@@ -996,7 +1016,8 @@ export function TaskStepPostModal({
     const isExpanded = expandedDefectId === defect.id;
     const isUpdating = updatingDefect?.id === defect.id;
     const showUpdateInHeader = canCreateDefect;
-    const remediationDetails = typeof defect.remediationDetails === 'string' ? defect.remediationDetails : '';
+    const defectRemediationDetails =
+      typeof defect.remediationDetails === 'string' ? defect.remediationDetails : '';
     const modifiedOrCreatedOnUtc =
       (typeof defect.modifiedOnUtc === 'string' ? defect.modifiedOnUtc : null) ?? defect.createdOnUtc;
 
@@ -1019,7 +1040,7 @@ export function TaskStepPostModal({
                 openUpdateDefect(defect).catch(() => {});
               }}
             >
-              <Text style={styles.defectUpdateButtonText}>Update</Text>
+              <Text style={styles.defectUpdateButtonText}>{t('app.taskStepPost.update')}</Text>
             </TouchableOpacity>
           ) : null}
           <MaterialIcons
@@ -1043,7 +1064,7 @@ export function TaskStepPostModal({
                       {toReadableText(defect.modifiedByName ?? defect.createdByName)}
                     </Text>
                     <Text style={styles.postDate}>
-                      {`Edited ${formatRelativeTime(modifiedOrCreatedOnUtc)}`}
+                      {`${t('app.taskStepPost.edited')} ${formatRelativeTime(modifiedOrCreatedOnUtc)}`}
                     </Text>
                   </View>
                 </View>
@@ -1063,7 +1084,7 @@ export function TaskStepPostModal({
                     multiline
                     numberOfLines={4}
                     editable={!updateSubmitting}
-                    placeholder="Add description…"
+                    placeholder={t('app.taskStepPost.addDescription')}
                     placeholderTextColor="#9da2b2"
                   />
                   {updateDescription.trim() ? (
@@ -1080,7 +1101,7 @@ export function TaskStepPostModal({
                 {/* Description history */}
                 {((defect.comments ?? []) as DefectCommentDTO[]).length > 0 ? (
                   <View style={styles.commentsSection}>
-                    <Text style={styles.updateSectionLabel}>Descriptions</Text>
+                    <Text style={styles.updateSectionLabel}>{t('app.taskStepPost.descriptions')}</Text>
                     {((defect.comments ?? []) as DefectCommentDTO[])
                       .slice()
                       .sort((a, b) => new Date(b.createdOnUtc).getTime() - new Date(a.createdOnUtc).getTime())
@@ -1105,17 +1126,29 @@ export function TaskStepPostModal({
 
                 {/* Status row */}
                 <View style={styles.updateStatusRow}>
-                  <Text style={styles.updateStatusLabel}>Status</Text>
+                  <Text style={styles.updateStatusLabel}>{t('app.task.statusLabel')}</Text>
                   <View style={styles.statusChipsRow}>
-                    {(['Open', 'Closed', 'Cancelled'] as const).map((status) => (
+                    {([
+                      { value: 'Open', label: t('app.taskStepPost.statusOpen') },
+                      { value: 'Closed', label: t('app.taskStepPost.statusClosed') },
+                      { value: 'Cancelled', label: t('app.taskStepPost.statusCancelled') },
+                    ] as const).map((statusOption) => (
                       <TouchableOpacity
-                        key={status}
-                        style={[styles.statusChip, updateStatus === status && styles.statusChipActive]}
-                        onPress={() => setUpdateStatus(status)}
+                        key={statusOption.value}
+                        style={[
+                          styles.statusChip,
+                          updateStatus === statusOption.value && styles.statusChipActive,
+                        ]}
+                        onPress={() => setUpdateStatus(statusOption.value)}
                         disabled={updateSubmitting}
                       >
-                        <Text style={[styles.statusChipText, updateStatus === status && styles.statusChipTextActive]}>
-                          {status}
+                        <Text
+                          style={[
+                            styles.statusChipText,
+                            updateStatus === statusOption.value && styles.statusChipTextActive,
+                          ]}
+                        >
+                          {statusOption.label}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -1124,19 +1157,19 @@ export function TaskStepPostModal({
 
                 {/* Asset name (read-only) */}
                 <View style={styles.readOnlyField}>
-                  <Text style={styles.readOnlyLabel}>Asset name</Text>
+                  <Text style={styles.readOnlyLabel}>{t('app.taskStepPost.assetName')}</Text>
                   <Text style={styles.readOnlyValue}>{assetName ?? defect.assetName ?? '-'}</Text>
                 </View>
 
                 {/* GPS */}
                 <View style={styles.readOnlyFieldRow}>
-                  <Text style={styles.readOnlyLabel}>GPS position:</Text>
+                  <Text style={styles.readOnlyLabel}>{t('app.taskStepPost.gpsPosition')}</Text>
                   {gpsCoords ? (
                     <Text style={styles.readOnlyAutoText}>
                       {`${gpsCoords.lat.toFixed(5)}, ${gpsCoords.lng.toFixed(5)}`}
                     </Text>
                   ) : (
-                    <Text style={styles.readOnlyAutoText}>auto</Text>
+                    <Text style={styles.readOnlyAutoText}>{t('app.taskStepPost.auto')}</Text>
                   )}
                   <TouchableOpacity
                     style={styles.readOnlyLinkButton}
@@ -1146,14 +1179,16 @@ export function TaskStepPostModal({
                     {gpsLoading ? (
                       <ActivityIndicator size="small" color={theme.colors.primary} />
                     ) : (
-                      <Text style={styles.readOnlyLinkText}>{gpsCoords ? 'Change pin' : 'View'}</Text>
+                      <Text style={styles.readOnlyLinkText}>
+                        {gpsCoords ? t('app.taskStepPost.changePin') : t('app.common.view')}
+                      </Text>
                     )}
                   </TouchableOpacity>
                 </View>
 
                 {/* Remediation details */}
                 <View style={styles.fieldBlock}>
-                  <Text style={styles.fieldLabel}>Remediation details</Text>
+                  <Text style={styles.fieldLabel}>{t('app.feed.remediationDetails')}</Text>
                   <TextInput
                     style={[styles.fieldInput, styles.fieldTextArea]}
                     value={updateRemediation}
@@ -1183,7 +1218,7 @@ export function TaskStepPostModal({
 
                 {/* New image upload */}
                 <TouchableOpacity
-                  style={[styles.uploadArea, { marginTop: 8 }]}
+                  style={[styles.uploadArea, styles.uploadAreaUpdate]}
                   onPress={() => { addUpdateFiles().catch(() => {}); }}
                   disabled={updateSubmitting}
                 >
@@ -1221,13 +1256,13 @@ export function TaskStepPostModal({
 
                 {updateError ? <Text style={styles.errorText}>{updateError}</Text> : null}
 
-                <View style={[styles.actionButtons, { marginTop: 14 }]}>
+                <View style={[styles.actionButtons, styles.actionButtonsUpdate]}>
                   <TouchableOpacity
                     style={styles.cancelButton}
                     onPress={closeUpdateDefect}
                     disabled={updateSubmitting}
                   >
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                    <Text style={styles.cancelButtonText}>{t('app.modal.cancel')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.postButton, updateSubmitting && styles.buttonDisabled]}
@@ -1237,7 +1272,7 @@ export function TaskStepPostModal({
                     {updateSubmitting ? (
                       <ActivityIndicator size="small" color="#ffffff" />
                     ) : (
-                      <Text style={styles.postButtonText}>Save</Text>
+                      <Text style={styles.postButtonText}>{t('app.common.save')}</Text>
                     )}
                   </TouchableOpacity>
                 </View>
@@ -1251,31 +1286,31 @@ export function TaskStepPostModal({
                     <Text style={styles.postAuthor}>{toReadableText(defect.createdByName)}</Text>
                     <Text style={styles.postDate}>
                       {defect.modifiedOnUtc
-                        ? `Edited ${formatRelativeTime(defect.modifiedOnUtc)}`
-                        : `Created ${formatRelativeTime(defect.createdOnUtc)}`}
+                        ? `${t('app.taskStepPost.edited')} ${formatRelativeTime(defect.modifiedOnUtc)}`
+                        : `${t('app.taskStepPost.created')} ${formatRelativeTime(defect.createdOnUtc)}`}
                     </Text>
                   </View>
                 </View>
-                <Text style={styles.defectBodyHeading}>Defect</Text>
+                <Text style={styles.defectBodyHeading}>{t('app.feed.defect')}</Text>
                 <View style={styles.defectFieldRow}>
-                  <Text style={styles.defectFieldLabel}>Defect Number</Text>
+                  <Text style={styles.defectFieldLabel}>{t('app.taskStepPost.defectNumber')}</Text>
                   <Text style={styles.defectFieldValue}>{toReadableText(defect.defectNumber)}</Text>
                 </View>
                 <View style={styles.defectFieldRow}>
-                  <Text style={styles.defectFieldLabel}>Status</Text>
-                  <Text style={styles.defectFieldValue}>{toReadableText(defect.statusCode)}</Text>
+                  <Text style={styles.defectFieldLabel}>{t('app.task.statusLabel')}</Text>
+                  <Text style={styles.defectFieldValue}>{getDefectStatusLabel(defect.statusCode)}</Text>
                 </View>
                 <View style={styles.defectFieldRow}>
-                  <Text style={styles.defectFieldLabel}>Defect description</Text>
+                  <Text style={styles.defectFieldLabel}>{t('app.taskStepPost.defectDescription')}</Text>
                   <Text style={styles.defectFieldValue}>{toReadableText(defect.description)}</Text>
                 </View>
                 <View style={styles.defectFieldRow}>
-                  <Text style={styles.defectFieldLabel}>Asset name</Text>
+                  <Text style={styles.defectFieldLabel}>{t('app.taskStepPost.assetName')}</Text>
                   <Text style={styles.defectFieldValue}>{toReadableText(assetName ?? defect.assetName)}</Text>
                 </View>
                 <View style={styles.defectFieldRow}>
-                  <Text style={styles.defectFieldLabel}>Remediation details</Text>
-                  <Text style={styles.defectFieldValue}>{toReadableText(remediationDetails)}</Text>
+                  <Text style={styles.defectFieldLabel}>{t('app.feed.remediationDetails')}</Text>
+                  <Text style={styles.defectFieldValue}>{toReadableText(defectRemediationDetails)}</Text>
                 </View>
                 {(defect.files ?? []).length > 0 ? (
                   <View style={styles.defectImagesWrap}>
@@ -1305,7 +1340,7 @@ export function TaskStepPostModal({
         <TouchableOpacity style={styles.backdropPressArea} onPress={closeModal} activeOpacity={1} />
         <View style={styles.modalCard}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Posts</Text>
+            <Text style={styles.modalTitle}>{t('app.taskStepPost.postsTitle')}</Text>
             <TouchableOpacity onPress={closeModal} disabled={submitting}>
               <MaterialIcons name="close" size={24} color="#2f3444" />
             </TouchableOpacity>
@@ -1322,7 +1357,7 @@ export function TaskStepPostModal({
                   numberOfLines={1}
                   ellipsizeMode="tail"
                 >
-                  POSTS
+                  {t('app.taskStepPost.postsTab')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -1334,7 +1369,9 @@ export function TaskStepPostModal({
                   numberOfLines={1}
                   ellipsizeMode="tail"
                 >
-                  {`VIEW DEFECTS (${assetName ?? 'ASSET'})`}
+                  {t('app.taskStepPost.viewDefectsTab', {
+                    asset: assetName ?? t('app.taskStepPost.assetFallback'),
+                  })}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1348,7 +1385,7 @@ export function TaskStepPostModal({
             {activeTab === 'posts' ? (
               <View style={styles.createCard}>
                 <View style={styles.descriptionHeader}>
-                  <Text style={styles.descriptionLabel}>Description</Text>
+                  <Text style={styles.descriptionLabel}>{t('app.tasksScreen.description')}</Text>
                   {canCreateDefect ? (
                     <TouchableOpacity
                       style={styles.inlineCheckboxRow}
@@ -1360,7 +1397,7 @@ export function TaskStepPostModal({
                         size={18}
                         color={isDefect ? theme.colors.primary : '#9da2b2'}
                       />
-                      <Text style={styles.inlineCheckboxText}>This is a defect</Text>
+                      <Text style={styles.inlineCheckboxText}>{t('app.taskStepPost.isDefectToggle')}</Text>
                     </TouchableOpacity>
                   ) : null}
                 </View>
@@ -1388,17 +1425,17 @@ export function TaskStepPostModal({
                 {isDefect ? (
                   <>
                     <View style={styles.readOnlyField}>
-                      <Text style={styles.readOnlyLabel}>Asset name</Text>
+                      <Text style={styles.readOnlyLabel}>{t('app.taskStepPost.assetName')}</Text>
                       <Text style={styles.readOnlyValue}>{assetName ?? '-'}</Text>
                     </View>
                     <View style={styles.readOnlyFieldRow}>
-                      <Text style={styles.readOnlyLabel}>GPS position:</Text>
+                      <Text style={styles.readOnlyLabel}>{t('app.taskStepPost.gpsPosition')}</Text>
                       {gpsCoords ? (
                         <Text style={styles.readOnlyAutoText}>
                           {`${gpsCoords.lat.toFixed(5)}, ${gpsCoords.lng.toFixed(5)}`}
                         </Text>
                       ) : (
-                        <Text style={styles.readOnlyAutoText}>auto</Text>
+                        <Text style={styles.readOnlyAutoText}>{t('app.taskStepPost.auto')}</Text>
                       )}
                       <TouchableOpacity
                         style={styles.readOnlyLinkButton}
@@ -1409,13 +1446,13 @@ export function TaskStepPostModal({
                           <ActivityIndicator size="small" color={theme.colors.primary} />
                         ) : (
                           <Text style={styles.readOnlyLinkText}>
-                            {gpsCoords ? 'Change pin' : 'View'}
+                            {gpsCoords ? t('app.taskStepPost.changePin') : t('app.common.view')}
                           </Text>
                         )}
                       </TouchableOpacity>
                     </View>
                     <View style={styles.fieldBlock}>
-                      <Text style={styles.fieldLabel}>Remediation details</Text>
+                      <Text style={styles.fieldLabel}>{t('app.feed.remediationDetails')}</Text>
                       <TextInput
                         style={[styles.fieldInput, styles.fieldTextArea]}
                         value={remediationDetails}
@@ -1481,7 +1518,7 @@ export function TaskStepPostModal({
 
                 <View style={styles.actionButtons}>
                   <TouchableOpacity style={styles.cancelButton} onPress={resetComposer} disabled={submitting}>
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                    <Text style={styles.cancelButtonText}>{t('app.modal.cancel')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.postButton, submitting && styles.buttonDisabled]}
@@ -1491,7 +1528,7 @@ export function TaskStepPostModal({
                     {submitting ? (
                       <ActivityIndicator size="small" color="#ffffff" />
                     ) : (
-                      <Text style={styles.postButtonText}>Post</Text>
+                      <Text style={styles.postButtonText}>{t('app.taskDetail.stepPost')}</Text>
                     )}
                   </TouchableOpacity>
                 </View>
@@ -1507,7 +1544,7 @@ export function TaskStepPostModal({
                 ) : defectsError ? (
                   <Text style={styles.errorText}>{defectsError}</Text>
                 ) : defects.length === 0 ? (
-                  <Text style={styles.emptyText}>There are no defects yet...</Text>
+                  <Text style={styles.emptyText}>{t('app.taskStepPost.noDefects')}</Text>
                 ) : (
                   <View style={styles.defectsAccordionWrap}>
                     {defects.map((defect) => renderDefectItem(defect))}
@@ -1520,13 +1557,13 @@ export function TaskStepPostModal({
               ) : postsError ? (
                 <Text style={styles.errorText}>{postsError}</Text>
               ) : mainPosts.length === 0 && otherPosts.length === 0 ? (
-                <Text style={styles.emptyText}>There are no defects or observations yet...</Text>
+                <Text style={styles.emptyText}>{t('app.taskStepPost.noPosts')}</Text>
               ) : (
                 <>
                   {mainPosts.map((post) => renderPostItem(post))}
                   {otherPosts.length > 0 ? (
                     <>
-                      <Text style={styles.otherPostsHeading}>Other Post Items</Text>
+                      <Text style={styles.otherPostsHeading}>{t('app.taskStepPost.otherPosts')}</Text>
                       {otherPosts.map((post) => renderPostItem(post))}
                     </>
                   ) : null}
@@ -1756,6 +1793,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 4,
   },
+  uploadAreaUpdate: {
+    marginTop: 8,
+  },
   filesList: {
     marginTop: 8,
     gap: 6,
@@ -1807,6 +1847,9 @@ const styles = StyleSheet.create({
   actionButtons: {
     marginTop: 10,
     gap: 8,
+  },
+  actionButtonsUpdate: {
+    marginTop: 14,
   },
   cancelButton: {
     minHeight: 40,

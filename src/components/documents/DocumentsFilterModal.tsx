@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   View,
   Text,
   StyleSheet,
@@ -11,6 +13,7 @@ import {
   Pressable,
 } from 'react-native';
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
+import { useTranslation } from 'react-i18next';
 import type { DocumentsFilterForm } from '../../config/documentsScreen';
 
 type DocumentsFilterModalProps = {
@@ -28,6 +31,7 @@ export function DocumentsFilterModal({
   onApply,
   onResetFlag,
 }: DocumentsFilterModalProps) {
+  const { t } = useTranslation();
   const [form, setForm] = useState<DocumentsFilterForm>(initialValues);
   const docNoRef = useRef<TextInput>(null);
   const titleRef = useRef<TextInput>(null);
@@ -69,10 +73,14 @@ export function DocumentsFilterModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+      <KeyboardAvoidingView
+        style={styles.backdrop}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
         <View style={styles.card} collapsable={false}>
           <View style={styles.headerRow}>
-            <Text style={styles.title}>Filter</Text>
+            <Text style={styles.title}>{t('app.documents.filter')}</Text>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <MaterialIcons name="close" size={28} color="#2a2c32" />
             </TouchableOpacity>
@@ -83,6 +91,7 @@ export function DocumentsFilterModal({
             "dismiss keyboard / blur field" instead of reaching the Reset button.
           */}
           <ScrollView
+            style={styles.formScroll}
             keyboardShouldPersistTaps="always"
             keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={false}
@@ -91,7 +100,7 @@ export function DocumentsFilterModal({
             contentContainerStyle={styles.scrollInner}
           >
             <View style={styles.fieldRow}>
-              <Text style={styles.label}>Document No</Text>
+              <Text style={styles.label}>{t('app.documentsScreen.docNo')}</Text>
               <TextInput
                 ref={docNoRef}
                 style={styles.input}
@@ -103,7 +112,7 @@ export function DocumentsFilterModal({
             </View>
 
             <View style={styles.fieldRow}>
-              <Text style={styles.label}>Title</Text>
+              <Text style={styles.label}>{t('app.documentsScreen.docTitle')}</Text>
               <TextInput
                 ref={titleRef}
                 style={styles.input}
@@ -115,7 +124,7 @@ export function DocumentsFilterModal({
             </View>
 
             <View style={styles.fieldRow}>
-              <Text style={styles.label}>Author</Text>
+              <Text style={styles.label}>{t('app.documentsScreen.author')}</Text>
               <TextInput
                 ref={authorRef}
                 style={styles.input}
@@ -125,20 +134,22 @@ export function DocumentsFilterModal({
                 returnKeyType="done"
               />
             </View>
+          </ScrollView>
 
+          <View style={styles.footer}>
             <Pressable
               style={({ pressed }) => [styles.resetButton, pressed && styles.resetButtonPressed]}
               onPress={handleReset}
               hitSlop={12}
               android_ripple={{ color: 'rgba(39, 50, 78, 0.12)' }}
             >
-              <Text style={styles.resetText}>Reset filter</Text>
+              <Text style={styles.resetText}>{t('app.tasksScreen.resetFilter')}</Text>
               <MaterialIcons name="refresh" size={18} color="#27324e" />
             </Pressable>
 
             <View style={styles.actionsRow}>
               <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-                <Text style={styles.cancelText}>Cancel</Text>
+                <Text style={styles.cancelText}>{t('app.modal.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.applyButton}
@@ -147,12 +158,12 @@ export function DocumentsFilterModal({
                   onApply(form);
                 }}
               >
-                <Text style={styles.applyText}>Apply</Text>
+                <Text style={styles.applyText}>{t('app.tasksScreen.apply')}</Text>
               </TouchableOpacity>
             </View>
-          </ScrollView>
+          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -170,10 +181,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     maxHeight: '90%',
+    width: '100%',
+  },
+  formScroll: {
+    minHeight: 0,
+    flexShrink: 1,
   },
   scrollInner: {
-    paddingBottom: 4,
-    flexGrow: 1,
+    paddingBottom: 6,
   },
   headerRow: {
     flexDirection: 'row',
@@ -210,7 +225,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   resetButton: {
-    marginTop: 18,
     minHeight: 44,
     borderRadius: 4,
     backgroundColor: '#edf1fa',
@@ -226,8 +240,14 @@ const styles = StyleSheet.create({
     color: '#27324e',
     fontSize: 15,
   },
+  footer: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#e8edf6',
+  },
   actionsRow: {
-    marginTop: 14,
+    marginTop: 10,
     flexDirection: 'row',
     gap: 8,
   },

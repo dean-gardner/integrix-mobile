@@ -297,7 +297,7 @@ export default function DocumentDetailScreen() {
     return () => {
       isCancelled = true;
     };
-  }, [doc?.documentId, doc?.id, documentTaskId]);
+  }, [doc?.documentId, doc?.id, documentTaskId, t]);
 
   const loadSectionTasks = useCallback(
     async (sectionId: string) => {
@@ -318,7 +318,7 @@ export default function DocumentDetailScreen() {
         setSectionTaskLoading((prev) => ({ ...prev, [sectionId]: false }));
       }
     },
-    [doc?.documentId, doc?.id]
+    [doc?.documentId, doc?.id, t]
   );
 
   useEffect(() => {
@@ -351,7 +351,7 @@ export default function DocumentDetailScreen() {
     return () => {
       isCancelled = true;
     };
-  }, [activeTab, doc?.id, historyLoaded]);
+  }, [activeTab, doc?.id, historyLoaded, t]);
 
   const taskReferencing = useMemo(() => {
     const referencingCode =
@@ -596,7 +596,7 @@ export default function DocumentDetailScreen() {
   if (!doc) {
     return (
       <View style={screenStyles.container}>
-        <Text style={screenStyles.muted}>Document not found.</Text>
+        <Text style={screenStyles.muted}>{t('app.documentDetail.notFound')}</Text>
       </View>
     );
   }
@@ -607,7 +607,9 @@ export default function DocumentDetailScreen() {
     taskStep: DocumentTaskStepReadDTO
   ) => {
     const orderLabel = `${sectionIndex + 1}.${taskStepIndex + 1}`;
-    const description = stripHtmlToText(taskStep.taskDescription) || `Task step ${orderLabel}`;
+    const description =
+      stripHtmlToText(taskStep.taskDescription) ||
+      t('app.taskDetail.stepDescriptionFallback', { order: orderLabel });
     const status = stepStatuses[taskStep.id] ?? null;
     const isDone = status === TASK_STEP_COMPLETED_WITH_RECORD;
     const isSkipped = status === TASK_STEP_NOT_COMPLETED;
@@ -617,7 +619,7 @@ export default function DocumentDetailScreen() {
 
     return (
       <View key={`${taskStep.id}-${orderLabel}`} style={styles.stepCard}>
-        <Text style={styles.stepCardTitle}>TASK STEP {orderLabel}</Text>
+        <Text style={styles.stepCardTitle}>{t('app.taskDetail.taskStepHeading', { order: orderLabel })}</Text>
         <Text style={styles.stepCardDescription}>{description}</Text>
         <View style={styles.stepButtonsRow}>
           <TouchableOpacity
@@ -631,7 +633,7 @@ export default function DocumentDetailScreen() {
             {postingStepId === taskStep.id ? (
               <ActivityIndicator size="small" color="#ffffff" />
             ) : (
-              <Text style={styles.stepActionText}>Post</Text>
+              <Text style={styles.stepActionText}>{t('app.taskDetail.stepPost')}</Text>
             )}
           </TouchableOpacity>
 
@@ -648,7 +650,9 @@ export default function DocumentDetailScreen() {
               {isSkipUpdating ? (
                 <ActivityIndicator size="small" color="#ffffff" />
               ) : (
-                <Text style={styles.stepActionText}>{isSkipped ? 'Skipped' : 'Skip'}</Text>
+                <Text style={styles.stepActionText}>
+                  {isSkipped ? t('app.taskDetail.stepSkipped') : t('app.taskDetail.stepSkip')}
+                </Text>
               )}
             </TouchableOpacity>
           ) : null}
@@ -667,7 +671,7 @@ export default function DocumentDetailScreen() {
                 <ActivityIndicator size="small" color="#ffffff" />
               ) : (
                 <View style={styles.doneButtonInner}>
-                  <Text style={styles.stepActionText}>Done</Text>
+                  <Text style={styles.stepActionText}>{t('app.taskDetail.stepDone')}</Text>
                   {isDone ? <MaterialIcons name="check" size={16} color="#ffffff" /> : null}
                 </View>
               )}
@@ -689,7 +693,7 @@ export default function DocumentDetailScreen() {
           activeOpacity={0.85}
           onPress={() => setIsTaskDetailsExpanded((prev) => !prev)}
         >
-          <Text style={styles.taskHeaderText}>TASK DETAILS</Text>
+          <Text style={styles.taskHeaderText}>{t('app.documentCreate.taskDetails')}</Text>
           <MaterialIcons
             name={isTaskDetailsExpanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
             size={22}
@@ -773,7 +777,9 @@ export default function DocumentDetailScreen() {
                     ) : sectionTaskError[section.id] ? (
                       <Text style={styles.sectionTaskErrorText}>{sectionTaskError[section.id]}</Text>
                     ) : sectionRows.length === 0 ? (
-                      <Text style={styles.sectionTaskEmptyText}>No task steps in this section.</Text>
+                      <Text style={styles.sectionTaskEmptyText}>
+                        {t('app.documentDetail.noTaskStepsInSection')}
+                      </Text>
                     ) : (
                       sectionRows.map((taskStep, taskStepIndex) =>
                         renderTaskStepCard(sectionIndex, taskStepIndex, taskStep)
@@ -809,7 +815,7 @@ export default function DocumentDetailScreen() {
     if (!history.length) {
       return (
         <View style={styles.emptyHistoryBox}>
-          <Text style={styles.emptyHistoryText}>No history available.</Text>
+          <Text style={styles.emptyHistoryText}>{t('app.documentDetail.noHistory')}</Text>
         </View>
       );
     }
@@ -817,8 +823,12 @@ export default function DocumentDetailScreen() {
     return (
       <View style={styles.historyTable}>
         <View style={[styles.historyRow, styles.historyHeaderRow]}>
-          <Text style={[styles.historyHeaderText, styles.historyActionCell]}>Action</Text>
-          <Text style={[styles.historyHeaderText, styles.historyUserCell]}>User</Text>
+          <Text style={[styles.historyHeaderText, styles.historyActionCell]}>
+            {t('app.documentDetail.historyAction')}
+          </Text>
+          <Text style={[styles.historyHeaderText, styles.historyUserCell]}>
+            {t('app.documentDetail.historyUser')}
+          </Text>
         </View>
 
         {history.map((item, index) => {
@@ -847,7 +857,7 @@ export default function DocumentDetailScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.card}>
-        <Text style={styles.pageTitle}>Document details</Text>
+        <Text style={styles.pageTitle}>{t('app.documentDetail.pageTitle')}</Text>
 
         <View style={styles.actionsRow}>
           <TouchableOpacity style={styles.iconButton} onPress={() => setShareModalVisible(true)}>
@@ -857,15 +867,15 @@ export default function DocumentDetailScreen() {
 
         <View style={styles.documentMetaWrap}>
           <Text style={styles.metaText}>
-            <Text style={styles.metaLabel}>Document Number: </Text>
+            <Text style={styles.metaLabel}>{t('app.documentDetail.documentNumberLabel')}</Text>
             {doc.documentNumberStr ?? doc.documentNo}
           </Text>
           <Text style={styles.metaText}>
-            <Text style={styles.metaLabel}>Document Title </Text>
+            <Text style={styles.metaLabel}>{t('app.documentDetail.documentTitleLabel')}</Text>
             {doc.description || '—'}
           </Text>
           <Text style={styles.metaText}>
-            <Text style={styles.metaLabel}>Document Version </Text>
+            <Text style={styles.metaLabel}>{t('app.documentDetail.documentVersionLabel')}</Text>
             {doc.versionNo ?? '—'}
           </Text>
         </View>
@@ -880,7 +890,7 @@ export default function DocumentDetailScreen() {
           {downloadingPdf ? (
             <ActivityIndicator size="small" color="#ffffff" />
           ) : (
-            <Text style={styles.downloadButtonText}>Download as PDF</Text>
+            <Text style={styles.downloadButtonText}>{t('app.documentDetail.downloadPdf')}</Text>
           )}
         </TouchableOpacity>
 
@@ -894,7 +904,7 @@ export default function DocumentDetailScreen() {
           {downloadingLargePdf ? (
             <ActivityIndicator size="small" color="#ffffff" />
           ) : (
-            <Text style={styles.downloadButtonText}>Download as large PDF</Text>
+            <Text style={styles.downloadButtonText}>{t('app.documentDetail.downloadLargePdf')}</Text>
           )}
         </TouchableOpacity>
 
@@ -904,7 +914,7 @@ export default function DocumentDetailScreen() {
             onPress={() => setActiveTab('document')}
           >
             <Text style={[styles.tabButtonText, activeTab === 'document' && styles.tabButtonTextActive]}>
-              Document
+              {t('app.documentDetail.tabDocument')}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -912,7 +922,7 @@ export default function DocumentDetailScreen() {
             onPress={() => setActiveTab('history')}
           >
             <Text style={[styles.tabButtonText, activeTab === 'history' && styles.tabButtonTextActive]}>
-              History
+              {t('app.documentDetail.tabHistory')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -923,18 +933,18 @@ export default function DocumentDetailScreen() {
       <Modal visible={editVisible} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Edit document</Text>
+            <Text style={styles.modalTitle}>{t('app.documentDetail.editTitle')}</Text>
             {editError ? (
               <View style={screenStyles.errorBox}>
                 <Text style={screenStyles.errorText}>{editError}</Text>
               </View>
             ) : null}
-            <Text style={screenStyles.formLabel}>Description</Text>
+            <Text style={screenStyles.formLabel}>{t('app.tasksScreen.description')}</Text>
             <TextInput
               style={[screenStyles.formInput, styles.textArea]}
               value={editDescription}
               onChangeText={setEditDescription}
-              placeholder="Description"
+              placeholder={t('app.tasksScreen.description')}
               placeholderTextColor="#6c757d"
               multiline
               numberOfLines={4}
@@ -946,7 +956,7 @@ export default function DocumentDetailScreen() {
                 onPress={() => setEditVisible(false)}
                 disabled={editing}
               >
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text style={styles.cancelBtnText}>{t('app.modal.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[screenStyles.formButton, editing && styles.buttonDisabled]}
@@ -958,7 +968,7 @@ export default function DocumentDetailScreen() {
                 {editing ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={screenStyles.formButtonText}>Save</Text>
+                  <Text style={screenStyles.formButtonText}>{t('app.common.save')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -984,17 +994,17 @@ export default function DocumentDetailScreen() {
       <Modal visible={readOnlyWarningVisible !== null} transparent animationType="fade" onRequestClose={() => setReadOnlyWarningVisible(null)}>
         <View style={styles.warningOverlay}>
           <View style={styles.warningCard}>
-            <Text style={styles.warningTitle}>Warning</Text>
+            <Text style={styles.warningTitle}>{t('app.documentDetail.warningTitle')}</Text>
             <TouchableOpacity style={styles.warningClose} onPress={() => setReadOnlyWarningVisible(null)}>
               <MaterialIcons name="close" size={20} color="#555" />
             </TouchableOpacity>
             <Text style={styles.warningBody}>
               {readOnlyWarningVisible === 'post'
-                ? 'The document is in the view (read-only) mode that\'s why you cannot post either defects or observations'
-                : 'The document is in the view(read-only) mode that\'s why you cannot mark task step as either Done or Skip'}
+                ? t('app.documentDetail.readOnlyPostWarning')
+                : t('app.documentDetail.readOnlyMarkWarning')}
             </Text>
             <TouchableOpacity style={styles.warningButton} onPress={() => setReadOnlyWarningVisible(null)}>
-              <Text style={styles.warningButtonText}>Close</Text>
+              <Text style={styles.warningButtonText}>{t('app.modal.close')}</Text>
             </TouchableOpacity>
           </View>
         </View>

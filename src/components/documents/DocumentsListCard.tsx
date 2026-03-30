@@ -8,6 +8,7 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
+import { useTranslation } from 'react-i18next';
 import type { DocumentVersionReadDTO } from '../../types/document';
 
 type DocumentsListCardProps = {
@@ -29,12 +30,29 @@ function formatDateTime(dateUtc?: string): string {
   return `${day}-${month}-${year} ${hours}:${minutes}`;
 }
 
+function formatDocumentStatusLabel(
+  versionStatusCode: unknown,
+  t: (key: string) => string
+): string {
+  const raw = String(versionStatusCode ?? '').trim();
+  const s = raw.toLowerCase();
+  if (!raw) return '-';
+  if (s === 'published') return t('app.documentsScreen.published');
+  if (s === 'draft') return t('app.documentsScreen.draft');
+  if (s === 'archived') return t('app.documentsScreen.archived');
+  if (s === 'inworkflow' || s === 'in workflow' || s === 'in_workflow') {
+    return t('app.documentsScreen.inWorkflow');
+  }
+  return raw;
+}
+
 export function DocumentsListCard({
   document,
   onStartTask,
   onView,
   onShare,
 }: DocumentsListCardProps) {
+  const { t } = useTranslation();
   const isPublished = String(document.versionStatusCode ?? '').trim().toLowerCase() === 'published';
   const actionsRef = useRef<any>(null);
   const [actionsVisible, setActionsVisible] = useState(false);
@@ -63,7 +81,7 @@ export function DocumentsListCard({
         <Text style={styles.docNumber}>{document.documentNumberStr ?? document.documentNo}</Text>
         {isPublished ? (
           <TouchableOpacity style={styles.startTaskButton} onPress={() => onStartTask(document)}>
-            <Text style={styles.startTaskText}>Start Task</Text>
+            <Text style={styles.startTaskText}>{t('app.documents.startTask')}</Text>
           </TouchableOpacity>
         ) : null}
       </View>
@@ -73,20 +91,20 @@ export function DocumentsListCard({
       <View style={styles.divider} />
 
       <View style={styles.fieldRow}>
-        <Text style={styles.fieldLabel}>Status</Text>
-        <Text style={styles.fieldValue}>{document.versionStatusCode}</Text>
+        <Text style={styles.fieldLabel}>{t('app.documentsScreen.status')}</Text>
+        <Text style={styles.fieldValue}>{formatDocumentStatusLabel(document.versionStatusCode, t)}</Text>
       </View>
       <View style={styles.fieldRow}>
-        <Text style={styles.fieldLabel}>Author</Text>
-        <Text style={styles.fieldValue}>{document.createdByName}</Text>
+        <Text style={styles.fieldLabel}>{t('app.documentsScreen.author')}</Text>
+        <Text style={styles.fieldValue}>{document.createdByName ?? '-'}</Text>
       </View>
       <View style={styles.fieldRow}>
-        <Text style={styles.fieldLabel}>Created Date</Text>
+        <Text style={styles.fieldLabel}>{t('app.documentsScreen.createdDate')}</Text>
         <Text style={styles.fieldValue}>{formatDateTime(document.createdOnUtc)}</Text>
       </View>
 
       <TouchableOpacity ref={actionsRef} style={styles.actionsButton} onPress={openActions}>
-        <Text style={styles.actionsText}>Actions</Text>
+        <Text style={styles.actionsText}>{t('app.documentsScreen.actions')}</Text>
         <MaterialIcons name="more-vert" size={20} color="#3d4662" />
       </TouchableOpacity>
 
@@ -103,7 +121,7 @@ export function DocumentsListCard({
                   }}
                 >
                   <MaterialIcons name="share" size={20} color="#2b3550" />
-                  <Text style={styles.menuItemText}>Share</Text>
+                  <Text style={styles.menuItemText}>{t('app.common.share')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.menuItem}
@@ -113,7 +131,7 @@ export function DocumentsListCard({
                   }}
                 >
                   <MaterialIcons name="visibility" size={20} color="#2b3550" />
-                  <Text style={styles.menuItemText}>View</Text>
+                  <Text style={styles.menuItemText}>{t('app.common.view')}</Text>
                 </TouchableOpacity>
               </View>
             </TouchableWithoutFeedback>

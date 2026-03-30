@@ -21,6 +21,7 @@ import type { DocumentVersionReadDTO } from '../../types/document';
 import type { TaskCreateDTO } from '../../types/task';
 import type { FoundUserDTO } from '../../types/user';
 import { theme } from '../../theme';
+import { useTranslation } from 'react-i18next';
 
 const DocumentTaskReferencing = {
   WorkOrderAndNotificationNo: 0,
@@ -37,6 +38,8 @@ type ShareOption = {
   userId: string | null;
   users: FoundUserDTO[] | null;
 };
+
+type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
 
 type StartTaskModalProps = {
   visible: boolean;
@@ -67,15 +70,16 @@ function extractEmails(input: string): string[] {
   return Array.from(dedup);
 }
 
-function getTeamDescription(users: FoundUserDTO[]): string {
-  if (users.length === 0) return 'No users';
+function getTeamDescription(users: FoundUserDTO[], t: TranslateFn): string {
+  if (users.length === 0) return t('app.startTask.noUsers');
   if (users.length === 1) return users[0].email;
   const preview = users.slice(0, 3).map((u) => u.email).join(', ');
   const suffix = users.length > 3 ? ', ...' : '';
-  return `${users.length} users: ${preview}${suffix}`;
+  const usersLabel = users.length === 1 ? t('app.startTask.user') : t('app.startTask.users');
+  return `${users.length} ${usersLabel}: ${preview}${suffix}`;
 }
 
-function generateShareOptions(users: FoundUserDTO[]): ShareOption[] {
+function generateShareOptions(users: FoundUserDTO[], t: TranslateFn): ShareOption[] {
   const teamMap = new Map<number, { name: string; users: FoundUserDTO[] }>();
   users.forEach((user) => {
     const team = user.companyTeam;
@@ -92,8 +96,8 @@ function generateShareOptions(users: FoundUserDTO[]): ShareOption[] {
     options.push({
       kind: 'team',
       key: `team:${teamId}`,
-      title: `${value.name} (${count} ${count === 1 ? 'user' : 'users'})`,
-      subtitle: getTeamDescription(value.users),
+      title: `${value.name} (${count} ${count === 1 ? t('app.startTask.user') : t('app.startTask.users')})`,
+      subtitle: getTeamDescription(value.users, t),
       email: null,
       userId: null,
       users: value.users,
@@ -156,6 +160,7 @@ export function StartTaskModal({
   onSubmit,
   onOpenAssetsPage,
 }: StartTaskModalProps) {
+  const { t } = useTranslation();
   const [workOrderNumber, setWorkOrderNumber] = useState('');
   const [notificationNumber, setNotificationNumber] = useState('');
   const [projectNumber, setProjectNumber] = useState('');
@@ -237,7 +242,7 @@ export function StartTaskModal({
 
         const sharedWithResponse = await getDocumentUsersSharedWith(document.id);
         if (!cancelled) {
-          setSelectedUsers(generateShareOptions(sharedWithResponse.data ?? []));
+          setSelectedUsers(generateShareOptions(sharedWithResponse.data ?? [], t));
         }
 
         if (companyId) {
@@ -268,7 +273,7 @@ export function StartTaskModal({
     return () => {
       cancelled = true;
     };
-  }, [companyId, document, visible]);
+  }, [companyId, document, t, visible]);
 
   useEffect(() => {
     if (!visible || !companyId) return;
@@ -323,7 +328,7 @@ export function StartTaskModal({
           const filteredUsers = (response.data ?? []).filter(
             (user) => !selectedUserEmails.has(toLowerSafe(user.email))
           );
-          setUserOptions(generateShareOptions(filteredUsers));
+          setUserOptions(generateShareOptions(filteredUsers, t));
         }
       } catch {
         if (!cancelled) {
@@ -340,7 +345,7 @@ export function StartTaskModal({
       cancelled = true;
       clearTimeout(timeout);
     };
-  }, [selectedUserEmails, userSearch, visible]);
+  }, [selectedUserEmails, t, userSearch, visible]);
 
   const addOption = (option: ShareOption) => {
     setSelectedUsers((previous) => {
@@ -419,17 +424,17 @@ export function StartTaskModal({
       !workOrder &&
       !notification
     ) {
-      setError('Please fill Work Order Number or Notification Number.');
+      setError(t('app.startTask.fillWorkOrderOrNotification'));
       return;
     }
 
     if (taskReferencingType === DocumentTaskReferencing.ProjectNo && !project) {
-      setError('Project Number is required.');
+      setError(t('app.startTask.projectRequired'));
       return;
     }
 
     if (!selectedAsset) {
-      setError('Please tag an asset.');
+      setError(t('app.startTask.assetRequired'));
       return;
     }
 
@@ -469,7 +474,7 @@ export function StartTaskModal({
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
           >
-            <Text style={styles.title}>Start a task</Text>
+            <Text style={styles.title}>{t('app.startTask.title')}</Text>
 
             {initialLoading ? (
               <View style={styles.initialLoader}>
@@ -477,7 +482,7 @@ export function StartTaskModal({
               </View>
             ) : (
               <>
-                <Text style={styles.label}>Document Title*</Text>
+                <Text style={styles.label}>{t('app.documentCreate.docTitleStar')}</Text>
                 <TextInput
                   value={document?.description ?? ''}
                   editable={false}
@@ -486,7 +491,7 @@ export function StartTaskModal({
 
                 {taskReferencingType === DocumentTaskReferencing.WorkOrderAndNotificationNo ? (
                   <>
-                    <Text style={styles.label}>Work Order Number*</Text>
+                    <Text style={styles.label}>{`${t('app.task.workOrderNumber')} *`}</Text>
                     <TextInput
                       value={workOrderNumber}
                       onChangeText={(text) => { workOrderRef.current = text; setWorkOrderNumber(text); setError(null); }}
@@ -495,7 +500,7 @@ export function StartTaskModal({
                       placeholder=""
                     />
 
-                    <Text style={styles.label}>Notification Number*</Text>
+                    <Text style={styles.label}>{`${t('app.task.notificationNumber')} *`}</Text>
                     <TextInput
                       value={notificationNumber}
                       onChangeText={(text) => { notificationRef.current = text; setNotificationNumber(text); setError(null); }}
@@ -508,7 +513,7 @@ export function StartTaskModal({
 
                 {taskReferencingType === DocumentTaskReferencing.ProjectNo ? (
                   <>
-                    <Text style={styles.label}>Project Number*</Text>
+                    <Text style={styles.label}>{`${t('app.tasksScreen.projectNo')} *`}</Text>
                     <TextInput
                       value={projectNumber}
                       onChangeText={(text) => { projectRef.current = text; setProjectNumber(text); setError(null); }}
@@ -519,8 +524,8 @@ export function StartTaskModal({
                   </>
                 ) : null}
 
-                <Text style={styles.label}>Tag an asset*</Text>
-                <Text style={styles.searchLabel}>Search an asset by name or ID</Text>
+                <Text style={styles.label}>{`${t('app.startTask.tagAsset')} *`}</Text>
+                <Text style={styles.searchLabel}>{t('app.startTask.searchAssetHint')}</Text>
                 <TextInput
                   value={assetSearch}
                   onChangeText={(text) => {
@@ -567,7 +572,9 @@ export function StartTaskModal({
                         disabled={submitting}
                       >
                         <Text style={styles.optionTitle}>{asset.name}</Text>
-                        <Text style={styles.optionSubtitle}>ID: {asset.externalId}</Text>
+                        <Text style={styles.optionSubtitle}>
+                          {t('app.startTask.assetIdLabel', { id: asset.externalId })}
+                        </Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -575,22 +582,22 @@ export function StartTaskModal({
 
                 {hasAssets === false && !selectedAsset ? (
                   <Text style={styles.assetsWarning}>
-                    Your company doesn't have any assets yet. Please open the{' '}
+                    {t('app.startTask.noAssetsPrefix')}{' '}
                     <Text style={styles.assetsPageLink} onPress={onOpenAssetsPage}>
-                      Assets page
+                      {t('app.startTask.assetsPageLink')}
                     </Text>{' '}
-                    and add a new asset.
+                    {t('app.startTask.noAssetsSuffix')}
                   </Text>
                 ) : null}
 
-                <Text style={styles.label}>Share with users</Text>
+                <Text style={styles.label}>{t('app.task.usersToShare')}</Text>
                 <TextInput
                   value={userSearch}
                   onChangeText={handleUserInputChange}
                   onSubmitEditing={handleUserInputSubmit}
                   editable={!submitting}
                   style={styles.underlineInput}
-                  placeholder="Enter users (for external users..."
+                  placeholder={t('app.document.shareUsersPh')}
                   placeholderTextColor="#6a6a6a"
                 />
                 {usersLoading ? (
@@ -652,7 +659,7 @@ export function StartTaskModal({
               onPress={handleBackdropClose}
               disabled={submitting}
             >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={styles.cancelButtonText}>{t('app.modal.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.footerButton, styles.startButton, submitting && styles.disabledButton]}
@@ -662,7 +669,7 @@ export function StartTaskModal({
               {submitting ? (
                 <ActivityIndicator size="small" color="#ffffff" />
               ) : (
-                <Text style={styles.startButtonText}>Start</Text>
+                <Text style={styles.startButtonText}>{t('app.startTask.start')}</Text>
               )}
             </TouchableOpacity>
           </View>

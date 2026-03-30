@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
+import { useTranslation } from 'react-i18next';
 import type { TaskReadDTO } from '../../types/task';
 
 type TasksListCardProps = {
@@ -21,41 +22,48 @@ function formatDateTime(dateUtc?: string): string {
   return `${day}-${month}-${year} ${hours}:${minutes}`;
 }
 
-function getTaskStatusText(status?: number): string {
+function getTaskStatusText(
+  status: number | undefined,
+  t: (key: string) => string
+): string {
   switch (status) {
     case 0:
-      return 'In Progress';
+      return t('app.taskDetail.statusInProgress');
     case 1:
-      return 'Complete';
+      return t('app.taskDetail.statusComplete');
     case 2:
-      return 'Cancelled';
+      return t('app.taskDetail.statusCancelled');
     case 3:
-      return 'Locked';
+      return t('app.taskDetail.statusLocked');
     case 4:
-      return 'Planned';
+      return t('app.taskDetail.statusPlanned');
     default:
       return '-';
   }
 }
 
-function getTaskReference(task: TaskReadDTO): string {
+function getTaskReference(task: TaskReadDTO, t: (key: string) => string): string {
   if (task.workOrderNumber || task.notificationNumber) {
     const parts: string[] = [];
-    if (task.workOrderNumber) parts.push(`Work Order: ${task.workOrderNumber}`);
-    if (task.notificationNumber) parts.push(`Notification No: ${task.notificationNumber}`);
+    if (task.workOrderNumber) parts.push(`${t('app.tasksScreen.workOrder')}: ${task.workOrderNumber}`);
+    if (task.notificationNumber) {
+      parts.push(`${t('app.tasksScreen.notificationNo')}: ${task.notificationNumber}`);
+    }
     return parts.join('; ');
   }
-  if (task.projectNumber) return `Project No: ${task.projectNumber}`;
+  if (task.projectNumber) return `${t('app.tasksScreen.projectNo')}: ${task.projectNumber}`;
   return '';
 }
 
 export function TasksListCard({ task, onViewTask, onOpenActions }: TasksListCardProps) {
+  const { t } = useTranslation();
+
   return (
     <View style={styles.card}>
       <View style={styles.topRow}>
         <Text style={styles.taskNumber}>{task.taskNumber ?? '-'}</Text>
         <TouchableOpacity style={styles.viewTaskButton} onPress={() => onViewTask(task)}>
-          <Text style={styles.viewTaskText}>View Task</Text>
+          <Text style={styles.viewTaskText}>{t('app.tasksScreen.viewTask')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -64,28 +72,28 @@ export function TasksListCard({ task, onViewTask, onOpenActions }: TasksListCard
       <View style={styles.divider} />
 
       <View style={styles.fieldRow}>
-        <Text style={styles.fieldLabel}>Asset</Text>
+        <Text style={styles.fieldLabel}>{t('app.tasksScreen.asset')}</Text>
         <Text style={styles.fieldValue}>{task.asset?.name ?? '-'}</Text>
       </View>
       <View style={styles.fieldRow}>
-        <Text style={styles.fieldLabel}>Task Reference</Text>
-        <Text style={styles.fieldValue}>{getTaskReference(task)}</Text>
+        <Text style={styles.fieldLabel}>{t('app.tasksScreen.taskReference')}</Text>
+        <Text style={styles.fieldValue}>{getTaskReference(task, t)}</Text>
       </View>
       <View style={styles.fieldRow}>
-        <Text style={styles.fieldLabel}>Status</Text>
-        <Text style={styles.fieldValue}>{getTaskStatusText(task.status)}</Text>
+        <Text style={styles.fieldLabel}>{t('app.tasks.status')}</Text>
+        <Text style={styles.fieldValue}>{getTaskStatusText(task.status, t)}</Text>
       </View>
       <View style={styles.fieldRow}>
-        <Text style={styles.fieldLabel}>Created By</Text>
+        <Text style={styles.fieldLabel}>{t('app.tasksScreen.createdBy')}</Text>
         <Text style={styles.fieldValue}>{task.createdBy ?? '-'}</Text>
       </View>
       <View style={styles.fieldRow}>
-        <Text style={styles.fieldLabel}>Created Date</Text>
+        <Text style={styles.fieldLabel}>{t('app.documentsScreen.createdDate')}</Text>
         <Text style={styles.fieldValue}>{formatDateTime(task.createdOnUtc)}</Text>
       </View>
 
       <TouchableOpacity style={styles.actionsButton} onPress={() => onOpenActions(task)}>
-        <Text style={styles.actionsText}>Actions</Text>
+        <Text style={styles.actionsText}>{t('app.tasksScreen.actions')}</Text>
         <MaterialIcons name="more-vert" size={20} color="#3d4662" />
       </TouchableOpacity>
     </View>

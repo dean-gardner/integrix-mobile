@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigation } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import type { AppDispatch, RootState } from '../store';
 import {
   fetchFeedItems,
@@ -50,6 +50,7 @@ export default function FeedScreen() {
   const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation();
+  const isFocused = useIsFocused();
   const scrollRef = useRef<ScrollView>(null);
   const user = useSelector((s: RootState) => s.auth.user);
   const feedState = useSelector((s: RootState) => s.feed);
@@ -93,6 +94,7 @@ export default function FeedScreen() {
   }, [dispatch]);
 
   useEffect(() => {
+    if (!isFocused || activeTab !== 'tasks') return;
     dispatch(setTasksFilteringOption({ field: 'pageNumber', value: 0 }));
 
     if (!selectedTaskFilter) {
@@ -112,18 +114,20 @@ export default function FeedScreen() {
     dispatch(setTasksFilteringOption({ field: 'createdById', value: null }));
     dispatch(setTasksFilteringOption({ field: 'type', value: selectedTaskFilter.taskType }));
     dispatch(fetchTasks());
-  }, [dispatch, selectedTaskFilter, user?.id]);
+  }, [activeTab, dispatch, isFocused, selectedTaskFilter, user?.id]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     dispatch(setFeedFilteringOption({ field: 'pageNumber', value: 0 }));
-    dispatch(setTasksFilteringOption({ field: 'pageNumber', value: 0 }));
-    await Promise.all([
-      dispatch(fetchFeedItems()).unwrap().catch(() => {}),
-      dispatch(fetchTasks()).unwrap().catch(() => {}),
-    ]);
+    const refreshTasks = activeTab === 'tasks' && isFocused;
+    const requests: Array<Promise<unknown>> = [dispatch(fetchFeedItems()).unwrap().catch(() => {})];
+    if (refreshTasks) {
+      dispatch(setTasksFilteringOption({ field: 'pageNumber', value: 0 }));
+      requests.push(dispatch(fetchTasks()).unwrap().catch(() => {}));
+    }
+    await Promise.all(requests);
     setRefreshing(false);
-  }, [dispatch]);
+  }, [activeTab, dispatch, isFocused]);
 
   const openTaskDetail = useCallback(
     (task: TaskReadDTO, taskStepId?: string, scrollToSteps?: boolean) => {

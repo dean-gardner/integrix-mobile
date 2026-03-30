@@ -15,6 +15,7 @@ import { getDocuments } from '../api/documents';
 import type { DocumentVersionReadDTO } from '../types/document';
 import { screenStyles } from '../styles/screenStyles';
 import { theme } from '../theme';
+import { useTranslation } from 'react-i18next';
 
 export type DocumentVersionPickerModalProps = {
   visible: boolean;
@@ -27,8 +28,10 @@ export function DocumentVersionPickerModal({
   visible,
   onClose,
   onSelect,
-  title = 'Select document version',
+  title,
 }: DocumentVersionPickerModalProps) {
+  const { t } = useTranslation();
+  const resolvedTitle = title ?? t('app.documentVersionPicker.title');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<DocumentVersionReadDTO[]>([]);
   const [loading, setLoading] = useState(false);
@@ -53,12 +56,12 @@ export function DocumentVersionPickerModal({
         setResults(res.data?.items ?? []);
       } catch (e: unknown) {
         setResults([]);
-        setError((e as { message?: string })?.message ?? 'Failed to search documents.');
+        setError((e as { message?: string })?.message ?? t('app.documentVersionPicker.searchFail'));
       } finally {
         setLoading(false);
       }
     },
-    []
+    [t]
   );
 
   useEffect(() => {
@@ -97,9 +100,9 @@ export function DocumentVersionPickerModal({
       >
         <View style={styles.card}>
           <View style={styles.header}>
-            <Text style={styles.title}>{title}</Text>
+            <Text style={styles.title}>{resolvedTitle}</Text>
             <TouchableOpacity onPress={handleClose} hitSlop={12}>
-              <Text style={styles.closeText}>Close</Text>
+              <Text style={styles.closeText}>{t('app.modal.close')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -107,11 +110,11 @@ export function DocumentVersionPickerModal({
             <TextInput
               style={styles.input}
               value={query}
-              onChangeText={(t) => {
-                setQuery(t);
+              onChangeText={(text) => {
+                setQuery(text);
                 setError(null);
               }}
-              placeholder="Document number or description..."
+              placeholder={t('app.documentVersionPicker.searchPlaceholder')}
               placeholderTextColor="#6c757d"
               autoCorrect={false}
               returnKeyType="search"
@@ -126,7 +129,7 @@ export function DocumentVersionPickerModal({
               {loading ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <Text style={styles.searchBtnText}>Search</Text>
+                <Text style={styles.searchBtnText}>{t('app.documentVersionPicker.search')}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -146,7 +149,7 @@ export function DocumentVersionPickerModal({
           {searched && !loading ? (
             <ScrollView style={styles.resultsScroll} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
               {results.length === 0 ? (
-                <Text style={screenStyles.muted}>No document versions found.</Text>
+                <Text style={screenStyles.muted}>{t('app.documentVersionPicker.noResults')}</Text>
               ) : (
                 results.map((d) => (
                   <TouchableOpacity

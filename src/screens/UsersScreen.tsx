@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
+import NetInfo from '@react-native-community/netinfo';
 import type { AppDispatch, RootState } from '../store';
 import { getRoles } from '../api/auth';
 import { InviteTeamMemberModal } from '../components/users/InviteTeamMemberModal';
@@ -128,6 +129,8 @@ export default function UsersScreen() {
   const [inviteVisible, setInviteVisible] = useState(false);
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [rolesLoading, setRolesLoading] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
   const [roles, setRoles] = useState<RoleDTO[]>([]);
 
   const isAdmin = Boolean(currentUser?.roles?.includes(ADMIN_ROLE));
@@ -161,6 +164,13 @@ export default function UsersScreen() {
     dispatch(setUserInvitationsFilter({ pageNumber: 0, pageSize: 10 }));
     setInitialized(true);
   }, [dispatch]);
+
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      setIsOffline(state.isConnected === false || state.isInternetReachable === false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (!initialized || activeTab !== 'members') return;
@@ -238,24 +248,37 @@ export default function UsersScreen() {
     );
   };
 
-  const openInviteModal = () => {
+  const openInviteModal = async () => {
+    setInviteError(null);
+    setInviteVisible(true);
+    const netState = await NetInfo.fetch();
+    const offlineNow =
+      netState.isConnected === false || netState.isInternetReachable === false;
+    setIsOffline(offlineNow);
+    if (offlineNow) {
+      setRolesLoading(false);
+      return;
+    }
     if (currentUser?.companyId) {
       dispatch(fetchTeams(currentUser.companyId));
     }
-    setInviteError(null);
-    setInviteVisible(true);
+    setRolesLoading(true);
     getRoles()
       .then((res) => {
         setRoles(res.data ?? []);
       })
       .catch(() => {
         setRoles([]);
-        setInviteError('Failed to load roles.');
+        setInviteError(t('app.users.loadRolesFail'));
+      })
+      .finally(() => {
+        setRolesLoading(false);
       });
   };
 
   const closeInviteModal = () => {
     setInviteVisible(false);
+    setRolesLoading(false);
     setInviteError(null);
   };
 
@@ -266,16 +289,16 @@ export default function UsersScreen() {
     const teamId = isAdmin ? model.companyTeamId : currentUser?.companyTeamId ?? null;
 
     if (!roleId) {
-      setInviteError('Role is not available yet. Try again.');
-      throw new Error('Role is not available.');
+      setInviteError(t('app.users.roleUnavailable'));
+      throw new Error(t('app.users.roleUnavailable'));
     }
     if (teamId == null || teamId === 0) {
       setInviteError(
         teamId === 0
-          ? 'You must be assigned to a team before inviting members.'
-          : 'Team is not available yet. Try again.'
+          ? t('app.users.teamRequiredBeforeInvite')
+          : t('app.users.teamUnavailable')
       );
-      throw new Error('Team is not available.');
+      throw new Error(t('app.users.teamUnavailable'));
     }
 
     setInviteSubmitting(true);
@@ -292,7 +315,7 @@ export default function UsersScreen() {
       setActiveTab('invitations');
       Alert.alert(t('app.users.inviteSentTitle'), t('app.users.inviteSentBody'));
     } catch (e) {
-      const fallback = 'Failed to invite team member.';
+      const fallback = t('app.users.inviteFailed');
       const message =
         typeof e === 'string'
           ? e || fallback
@@ -512,6 +535,8 @@ export default function UsersScreen() {
       <InviteTeamMemberModal
         visible={inviteVisible}
         isAdmin={isAdmin}
+        offlineMode={isOffline}
+        rolesLoading={rolesLoading}
         roles={roles}
         teams={teams}
         currentTeamId={currentUser?.companyTeamId ?? null}

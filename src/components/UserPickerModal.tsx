@@ -19,6 +19,7 @@ import { getUsersBySearch } from '../api/users';
 import type { FoundUserDTO } from '../types/user';
 import { screenStyles } from '../styles/screenStyles';
 import { theme } from '../theme';
+import { useTranslation } from 'react-i18next';
 
 const MIN_QUERY_LENGTH = 2;
 
@@ -35,9 +36,11 @@ export function UserPickerModal({
   visible,
   onClose,
   onSelect,
-  title = 'Select user',
+  title,
   initialQuery,
 }: UserPickerModalProps) {
+  const { t } = useTranslation();
+  const resolvedTitle = title ?? t('app.userSearch.title');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<FoundUserDTO[]>([]);
   const [loading, setLoading] = useState(false);
@@ -62,15 +65,15 @@ export function UserPickerModal({
       .then((res) => setResults(res.data ?? []))
       .catch((e: unknown) => {
         setResults([]);
-        setError((e as { message?: string })?.message ?? 'Search failed.');
+        setError((e as { message?: string })?.message ?? t('app.userSearch.failed'));
       })
       .finally(() => setLoading(false));
-  }, [visible, initialQuery]);
+  }, [visible, initialQuery, t]);
 
   const onSearch = useCallback(async () => {
     const q = (query ?? '').trim();
     if (q.length < MIN_QUERY_LENGTH) {
-      setError(`Enter at least ${MIN_QUERY_LENGTH} characters.`);
+      setError(t('app.userSearch.minChars', { min: MIN_QUERY_LENGTH }));
       return;
     }
     setError(null);
@@ -87,11 +90,11 @@ export function UserPickerModal({
       setResults(res.data ?? []);
     } catch (e: unknown) {
       setResults([]);
-      setError((e as { message?: string })?.message ?? 'Search failed.');
+      setError((e as { message?: string })?.message ?? t('app.userSearch.failed'));
     } finally {
       setLoading(false);
     }
-  }, [query]);
+  }, [query, t]);
 
   const handleSelect = useCallback(
     (u: FoundUserDTO) => {
@@ -120,20 +123,20 @@ export function UserPickerModal({
       >
         <View style={styles.card}>
             <View style={styles.header}>
-              <Text style={styles.title}>{title}</Text>
+              <Text style={styles.title}>{resolvedTitle}</Text>
               <TouchableOpacity onPress={handleClose} hitSlop={12}>
-                <Text style={styles.closeText}>Close</Text>
+                <Text style={styles.closeText}>{t('app.modal.close')}</Text>
               </TouchableOpacity>
             </View>
             <View style={styles.searchRow}>
               <TextInput
                 style={styles.input}
                 value={query}
-                onChangeText={(t) => {
-                  setQuery(t);
+                onChangeText={(text) => {
+                  setQuery(text);
                   setError(null);
                 }}
-                placeholder="Name or email..."
+                placeholder={t('app.userSearch.placeholder')}
                 placeholderTextColor="#6c757d"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -149,7 +152,7 @@ export function UserPickerModal({
                 {loading ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.searchBtnText}>Search</Text>
+                  <Text style={styles.searchBtnText}>{t('app.userSearch.search')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -170,7 +173,7 @@ export function UserPickerModal({
                 nestedScrollEnabled
               >
                 {results.length === 0 ? (
-                  <Text style={screenStyles.muted}>No users found.</Text>
+                  <Text style={screenStyles.muted}>{t('app.userSearch.noResults')}</Text>
                 ) : (
                   results.map((u, idx) => (
                     <TouchableOpacity
@@ -184,7 +187,9 @@ export function UserPickerModal({
                         <Text style={screenStyles.muted}>{u.email}</Text>
                       ) : null}
                       {u.companyTeam ? (
-                        <Text style={styles.team}>Team: {u.companyTeam.name}</Text>
+                        <Text style={styles.team}>
+                          {t('app.userSearch.teamLabel', { name: u.companyTeam.name })}
+                        </Text>
                       ) : null}
                     </TouchableOpacity>
                   ))

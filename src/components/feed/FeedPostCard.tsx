@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
+import { useTranslation } from 'react-i18next';
 import { config } from '../../config';
 import type { FeedFieldValueDTO, FeedFileDTO, FeedItemDTO } from '../../types/feed';
 
@@ -78,7 +79,7 @@ function toReadableText(value: unknown): string {
     .trim();
 }
 
-function formatTimeDifference(createdOnUtc?: string): string {
+function formatTimeDifference(createdOnUtc: string | undefined, language: string): string {
   if (!createdOnUtc) return '';
   const inputDate = new Date(createdOnUtc);
   if (Number.isNaN(inputDate.getTime())) return '';
@@ -89,45 +90,43 @@ function formatTimeDifference(createdOnUtc?: string): string {
   const hours = Math.floor(minutes / 60);
   const days = Math.floor(hours / 24);
 
-  if (days >= 2) {
-    const day = inputDate.getDate();
-    const month = inputDate.toLocaleString('en-US', { month: 'long' });
-    const year = inputDate.getFullYear();
-    const hourText = String(inputDate.getHours()).padStart(2, '0');
-    const minuteText = String(inputDate.getMinutes()).padStart(2, '0');
-    return `${day} ${month} ${year}, ${hourText}:${minuteText}`;
-  }
+  try {
+    if (days >= 2) {
+      return new Intl.DateTimeFormat(language, {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(inputDate);
+    }
 
-  if (days > 0) {
-    const remainingHours = hours % 24;
-    return `${days} day${days === 1 ? '' : 's'} ${remainingHours} hour${remainingHours === 1 ? '' : 's'} ago`;
+    const rtf = new Intl.RelativeTimeFormat(language, { numeric: 'auto' });
+    if (days > 0) return rtf.format(-days, 'day');
+    if (hours > 0) return rtf.format(-hours, 'hour');
+    if (minutes > 0) return rtf.format(-minutes, 'minute');
+    return rtf.format(-seconds, 'second');
+  } catch {
+    return inputDate.toLocaleString();
   }
-
-  if (hours > 0) {
-    const remainingMinutes = minutes % 60;
-    return `${hours} hour${hours === 1 ? '' : 's'} ${remainingMinutes} minute${remainingMinutes === 1 ? '' : 's'} ago`;
-  }
-
-  if (minutes > 0) {
-    return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
-  }
-
-  return `${seconds} second${seconds === 1 ? '' : 's'} ago`;
 }
 
-function getReferenceItems(post: FeedItemDTO): Array<{ label: string; value: string }> {
+function getReferenceItems(
+  post: FeedItemDTO,
+  t: (key: string) => string
+): Array<{ label: string; value: string }> {
   const result: Array<{ label: string; value: string }> = [];
   if (post.workOrderNumber) {
-    result.push({ label: 'Work order: ', value: post.workOrderNumber });
+    result.push({ label: t('app.feed.workOrder'), value: post.workOrderNumber });
   }
   if (post.notificationNumber) {
-    result.push({ label: 'Notification Number: ', value: post.notificationNumber });
+    result.push({ label: t('app.feed.notificationNumber'), value: post.notificationNumber });
   }
   if (result.length === 0 && post.projectNumber) {
-    result.push({ label: 'Project Number: ', value: post.projectNumber });
+    result.push({ label: t('app.feed.projectNumber'), value: post.projectNumber });
   }
   if (result.length === 0 && (post.taskNo || post.taskId)) {
-    result.push({ label: 'Task ID: ', value: post.taskNo ?? post.taskId ?? '-' });
+    result.push({ label: t('app.feed.taskId'), value: post.taskNo ?? post.taskId ?? '-' });
   }
   return result;
 }
@@ -139,6 +138,7 @@ type FeedPostCardProps = {
 };
 
 export function FeedPostCard({ post, userCompanyId, onOpenTask }: FeedPostCardProps) {
+  const { t, i18n } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const [measuredHeight, setMeasuredHeight] = useState(0);
 
@@ -153,10 +153,10 @@ export function FeedPostCard({ post, userCompanyId, onOpenTask }: FeedPostCardPr
   const allFiles = useMemo(() => (Array.isArray(post.files) ? post.files : []), [post.files]);
   const visibleFiles = expanded ? allFiles : allFiles.slice(0, 4);
   const hiddenFilesCount = Math.max(0, allFiles.length - visibleFiles.length);
-  const references = useMemo(() => getReferenceItems(post), [post]);
+  const references = useMemo(() => getReferenceItems(post, t), [post, t]);
   const contentIsExpandable = measuredHeight > COLLAPSED_CONTENT_HEIGHT + 2;
 
-  const authorName = post.createdByName ? toReadableText(post.createdByName) : 'Unknown user';
+  const authorName = post.createdByName ? toReadableText(post.createdByName) : t('app.feed.unknownUser');
   const shouldShowCompany =
     Boolean(post.createdByCompanyId) &&
     Boolean(userCompanyId) &&
@@ -216,7 +216,11 @@ export function FeedPostCard({ post, userCompanyId, onOpenTask }: FeedPostCardPr
                 : styles.statusTextObservation,
             ]}
           >
-            {isDefect ? 'DEFECT' : isStepCompletion ? 'STEP COMPLETION' : 'OBSERVATION'}
+            {isDefect
+              ? t('app.feed.defect')
+              : isStepCompletion
+                ? t('app.feed.stepCompletion')
+                : t('app.feed.observation')}
           </Text>
         </View>
       </View>
@@ -230,7 +234,7 @@ export function FeedPostCard({ post, userCompanyId, onOpenTask }: FeedPostCardPr
             </Text>
             {post.createdOnUtc ? (
               <Text style={styles.timeLine} numberOfLines={1}>
-                {formatTimeDifference(post.createdOnUtc)}
+                {formatTimeDifference(post.createdOnUtc, i18n.language)}
               </Text>
             ) : null}
           </View>
@@ -242,7 +246,7 @@ export function FeedPostCard({ post, userCompanyId, onOpenTask }: FeedPostCardPr
             onPress={() => onOpenTask(post)}
             activeOpacity={0.85}
           >
-            <Text style={styles.openTaskButtonText}>Open task</Text>
+            <Text style={styles.openTaskButtonText}>{t('app.feed.openTask')}</Text>
           </TouchableOpacity>
         ) : null}
       </View>
@@ -251,7 +255,7 @@ export function FeedPostCard({ post, userCompanyId, onOpenTask }: FeedPostCardPr
         <View style={styles.taskBreadcrumb}>
           {post.taskTitle ? (
             <Text style={styles.taskLine} numberOfLines={1}>
-              <Text style={styles.taskLineLabel}>Task: </Text>
+              <Text style={styles.taskLineLabel}>{t('app.feed.taskLabel')}</Text>
               <Text style={styles.taskLineValue}>{taskTitle}</Text>
             </Text>
           ) : null}
@@ -260,7 +264,7 @@ export function FeedPostCard({ post, userCompanyId, onOpenTask }: FeedPostCardPr
           ) : null}
           {post.taskStepDescription ? (
             <Text style={styles.taskLine} numberOfLines={1}>
-              <Text style={styles.taskLineLabel}>Step: </Text>
+              <Text style={styles.taskLineLabel}>{t('app.feed.stepLabel')}</Text>
               <Text style={styles.taskLineValue}>{stepTitle}</Text>
             </Text>
           ) : null}
@@ -313,7 +317,7 @@ export function FeedPostCard({ post, userCompanyId, onOpenTask }: FeedPostCardPr
 
           {isDefect ? (
             <View style={styles.fieldBlock}>
-              <Text style={styles.fieldLabel}>Remediation details</Text>
+              <Text style={styles.fieldLabel}>{t('app.feed.remediationDetails')}</Text>
               <Text style={styles.fieldValue}>{remediationDetails}</Text>
             </View>
           ) : null}

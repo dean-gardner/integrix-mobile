@@ -40,9 +40,22 @@ export function setOnUnauthorized(callback: () => void) {
   onUnauthorized = callback;
 }
 
+function isNetworkError(error: AxiosError): boolean {
+  return (
+    error.code === 'ERR_NETWORK' ||
+    error.code === 'ERR_INTERNET_DISCONNECTED' ||
+    error.message === 'Network Error'
+  );
+}
+
 instance.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
+    if (isNetworkError(error)) {
+      // Suppress noisy per-screen "Network Error" banners.
+      // Offline state is already communicated via the global offline banner.
+      (error as AxiosError & { message?: string }).message = '';
+    }
     if (error.response?.status === 401) {
       onUnauthorized?.();
     }

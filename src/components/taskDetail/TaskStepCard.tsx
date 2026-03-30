@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
+import { useTranslation } from 'react-i18next';
 import type { TaskStepReadDTO } from '../../types/task';
 import {
   isImageFile,
@@ -36,16 +37,19 @@ export function TaskStepCard({
   onSkipPress,
   onDonePress,
 }: TaskStepCardProps) {
+  const { t } = useTranslation();
   const imageUrl = resolveImageUrl(taskStep);
   const isDone = status === TASK_STEP_COMPLETED_WITH_RECORD;
   const isSkipped = status === TASK_STEP_NOT_COMPLETED;
   const isPending = status === null || status === undefined;
   const postsCount = taskStep.postsCount ?? 0;
-  const description = stripHtmlToText(taskStep.taskDescription) || `Task step ${orderLabel}`;
+  const description =
+    stripHtmlToText(taskStep.taskDescription) ||
+    t('app.taskDetail.stepDescriptionFallback', { order: orderLabel });
 
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>TASK STEP {orderLabel}</Text>
+      <Text style={styles.title}>{t('app.taskDetail.taskStepHeading', { order: orderLabel })}</Text>
       <Text style={styles.description}>{description}</Text>
 
       {imageUrl ? <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="cover" /> : null}
@@ -53,7 +57,7 @@ export function TaskStepCard({
       <View style={styles.actionsRow}>
         {/* Post button — always shown, badge when postsCount > 0 */}
         <TouchableOpacity style={styles.postButton} onPress={onPostPress} activeOpacity={0.8}>
-          <Text style={styles.postButtonText}>Post</Text>
+          <Text style={styles.postButtonText}>{t('app.taskDetail.stepPost')}</Text>
           {postsCount > 0 ? (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{postsCount > 99 ? '99+' : postsCount}</Text>
@@ -73,7 +77,9 @@ export function TaskStepCard({
               <ActivityIndicator size="small" color="#fff" />
             ) : (
               <View style={styles.buttonContent}>
-                <Text style={styles.skipButtonText}>{isSkipped ? 'Skipped' : 'Skip'}</Text>
+                <Text style={styles.skipButtonText}>
+                  {isSkipped ? t('app.taskDetail.stepSkipped') : t('app.taskDetail.stepSkip')}
+                </Text>
                 {isSkipped ? <MaterialIcons name="close" size={18} color="#fff" /> : null}
               </View>
             )}
@@ -89,7 +95,7 @@ export function TaskStepCard({
             activeOpacity={0.8}
           >
             <View style={styles.buttonContent}>
-              <Text style={styles.doneButtonText}>Done</Text>
+              <Text style={styles.doneButtonText}>{t('app.taskDetail.stepDone')}</Text>
               {isDone ? <MaterialIcons name="check" size={18} color="#fff" /> : null}
             </View>
           </TouchableOpacity>

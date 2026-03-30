@@ -75,7 +75,7 @@ export function ShareDocumentModal({ visible, document, onClose }: ShareDocument
   const [usersToUnshare, setUsersToUnshare] = useState<FoundUserDTO[]>([]);
   const [saving, setSaving] = useState(false);
 
-  const ownerName = document?.createdByName ?? 'Owner';
+  const ownerName = document?.createdByName ?? t('app.document.ownerFallback');
   const ownerEmail =
     (typeof document?.createdByEmail === 'string' && document.createdByEmail) || null;
 
@@ -287,7 +287,7 @@ export function ShareDocumentModal({ visible, document, onClose }: ShareDocument
             contentContainerStyle={styles.body}
           >
             <Text style={styles.documentNoText}>
-              <Text style={styles.documentNoLabel}>Document No: </Text>
+              <Text style={styles.documentNoLabel}>{t('app.document.shareDocNo')} </Text>
               {document?.documentNumberStr ?? document?.documentNo ?? '-'}
             </Text>
 
@@ -298,7 +298,7 @@ export function ShareDocumentModal({ visible, document, onClose }: ShareDocument
                 value={query}
                 onChangeText={handleQueryChange}
                 onSubmitEditing={handleQuerySubmit}
-                placeholder="Enter users (for external users..."
+                placeholder={t('app.document.shareUsersPh')}
                 placeholderTextColor="#8a8f9c"
                 editable={!saving}
                 autoCapitalize="none"
@@ -309,7 +309,7 @@ export function ShareDocumentModal({ visible, document, onClose }: ShareDocument
                 onPress={handleQuerySubmit}
                 disabled={!query.trim() || !isValidEmail(query.trim()) || saving}
               >
-                <Text style={styles.addEmailButtonText}>Add</Text>
+                <Text style={styles.addEmailButtonText}>{t('app.document.addEmail')}</Text>
               </TouchableOpacity>
               {searchLoading ? (
                 <ActivityIndicator size="small" color={theme.colors.primary} style={styles.inputLoader} />
@@ -337,14 +337,14 @@ export function ShareDocumentModal({ visible, document, onClose }: ShareDocument
             ) : null}
 
             {/* Users list — label matches web: Shared with: */}
-            <Text style={styles.sharedWithTitle}>Shared with:</Text>
+            <Text style={styles.sharedWithTitle}>{t('app.task.sharedWith')}</Text>
             {/* Owner */}
             <View style={styles.userRow}>
               <View style={styles.userInfo}>
                 <Text style={styles.userName}>{ownerName}</Text>
                 {ownerEmail ? <Text style={styles.userEmail}>{ownerEmail}</Text> : null}
               </View>
-              <Text style={styles.ownerBadge}>Owner</Text>
+              <Text style={styles.ownerBadge}>{t('app.document.owner')}</Text>
             </View>
 
             {loadingSharedUsers ? (
@@ -381,7 +381,7 @@ export function ShareDocumentModal({ visible, document, onClose }: ShareDocument
           {/* Footer */}
           <View style={styles.footer}>
             <TouchableOpacity style={styles.cancelBtn} onPress={closeModal} disabled={saving}>
-              <Text style={styles.btnText}>Cancel</Text>
+              <Text style={styles.btnText}>{t('app.modal.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.saveBtn, (!canSave || saving) && styles.saveBtnDisabled]}
@@ -391,7 +391,7 @@ export function ShareDocumentModal({ visible, document, onClose }: ShareDocument
               {saving ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <Text style={styles.btnText}>Save changes</Text>
+                <Text style={styles.btnText}>{t('app.document.saveChanges')}</Text>
               )}
             </TouchableOpacity>
           </View>

@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import type { AxiosError } from 'axios';
 import i18n from '../i18n';
 import type {
   SubscriptionReadDTO,
@@ -13,6 +14,18 @@ import {
   revokeSubscription,
   createSubscription as apiCreateSubscription,
 } from '../api/subscriptions';
+
+function formatSubscriptionApiError(e: unknown, fallbackKey: string): string {
+  const err = e as AxiosError<{ message?: string; title?: string } | string>;
+  const data = err.response?.data;
+  if (typeof data === 'string' && data.trim()) return data;
+  if (data && typeof data === 'object') {
+    const msg = (data as { message?: string; title?: string }).message ?? (data as { title?: string }).title;
+    if (typeof msg === 'string' && msg.trim()) return msg;
+  }
+  if (typeof err.message === 'string' && err.message.trim()) return err.message;
+  return i18n.t(fallbackKey);
+}
 
 export const fetchUserSubscription = createAsyncThunk<
   SubscriptionReadDTO | null,
@@ -81,9 +94,7 @@ export const createSubscriptionEntry = createAsyncThunk<
     const res = await apiCreateSubscription(model);
     return res.data;
   } catch (e: unknown) {
-    return rejectWithValue(
-      (e as { message?: string })?.message ?? i18n.t('app.errors.createSubscription')
-    );
+    return rejectWithValue(formatSubscriptionApiError(e, 'app.errors.createSubscription'));
   }
 });
 

@@ -1,11 +1,13 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Linking,
   Modal,
+  Platform,
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -16,11 +18,16 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
   type BillingCycle,
   getCurrentPlanKey,
+  getDefaultMaxMembersForSubscriptionCheckout,
   getPlanFeatures,
+  getTariffPlanForPaidCheckoutApiRequest,
   subscriptionPlans,
   supportEmail,
+  tariffRequiresMemberCountForCheckout,
 } from '../config/subscriptionScreen';
 import type { AppDispatch, RootState } from '../store';
+import { getUserCompany } from '../api/companies';
+import type { CompanyReadDTO } from '../types/company';
 import { createSubscriptionEntry, fetchSubscriptionMemberPrices, fetchUserSubscription } from '../store/subscriptionSlice';
 import { theme } from '../theme';
 import { useTranslation } from 'react-i18next';
@@ -37,26 +44,44 @@ export default function SubscriptionScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
   const [contactInfoVisible, setContactInfoVisible] = useState(false);
+  const [userCompany, setUserCompany] = useState<CompanyReadDTO | null>(null);
   const currentPlan = useMemo(() => getCurrentPlanKey(subscription), [subscription]);
+
+  const loadUserCompany = useCallback(async () => {
+    try {
+      const res = await getUserCompany();
+      setUserCompany(res.data);
+    } catch {
+      setUserCompany(null);
+    }
+  }, []);
 
   useEffect(() => {
     dispatch(fetchSubscriptionMemberPrices());
     if (user?.id) {
       dispatch(fetchUserSubscription(user.id));
+      void loadUserCompany();
+    } else {
+      setUserCompany(null);
     }
-  }, [dispatch, user?.id]);
+  }, [dispatch, user?.id, loadUserCompany]);
 
   const onRefresh = async () => {
     setRefreshing(true);
     const tasks: Promise<unknown>[] = [dispatch(fetchSubscriptionMemberPrices()).unwrap().catch(() => {})];
     if (user?.id) {
       tasks.push(dispatch(fetchUserSubscription(user.id)).unwrap().catch(() => {}));
+      tasks.push(loadUserCompany().catch(() => {}));
     }
     await Promise.all(tasks);
     setRefreshing(false);
   };
 
   const openContactUs = async () => {
+    if (Platform.OS === 'ios') {
+      setContactInfoVisible(true);
+      return;
+    }
     const mailUrl = `mailto:${supportEmail}`;
     try {
       const canOpen = await Linking.canOpenURL(mailUrl);
@@ -70,6 +95,53 @@ export default function SubscriptionScreen() {
     setContactInfoVisible(true);
   };
 
+  const openMailClient = async () => {
+    const mailUrl = `mailto:${supportEmail}`;
+    try {
+      const canOpen = await Linking.canOpenURL(mailUrl);
+      if (canOpen) {
+        await Linking.openURL(mailUrl);
+        return;
+      }
+    } catch {
+      // ignore
+    }
+    Alert.alert(t('common.error'), t('subscription.noMailClient'));
+  };
+
+  const copySupportEmail = () => {
+    try {
+      // Lazy-load clipboard module so the app does not crash when the native
+      // binary hasn't been rebuilt yet after dependency installation.
+      const clipboardModule = require('@react-native-clipboard/clipboard') as {
+        default?: { setString?: (value: string) => void };
+        setString?: (value: string) => void;
+      };
+      const setString =
+        clipboardModule?.default?.setString ?? clipboardModule?.setString;
+
+      if (typeof setString === 'function') {
+        setString(supportEmail);
+        Alert.alert(t('common.info'), t('subscription.emailCopied'));
+        return;
+      }
+    } catch {
+      // ignore and fall back to visible/manual copy path
+    }
+
+    Alert.alert(
+      t('common.info'),
+      `${t('subscription.copyFallback')}\n${supportEmail}`
+    );
+  };
+
+  const shareSupportEmail = async () => {
+    await Share.share({
+      message: supportEmail,
+      title: t('subscription.contactUs'),
+    }).catch(() => {});
+  };
+
   const handlePlanPress = async (tariffPlan: number | null) => {
     if (tariffPlan == null) return;
     if (!user?.id) {
@@ -78,13 +150,33 @@ export default function SubscriptionScreen() {
     }
 
     try {
-      const paymentLink = await dispatch(
-        createSubscriptionEntry({
-          ownerUserId: user.id,
-          tariffPlan,
-          billingCycle,
-        })
-      ).unwrap();
+      let companyForCheckout = userCompany;
+      if (tariffRequiresMemberCountForCheckout(tariffPlan) && !companyForCheckout) {
+        try {
+          const res = await getUserCompany();
+          companyForCheckout = res.data;
+          setUserCompany(res.data);
+        } catch {
+          /* Fall back to config minimums for non-mining; avoids stale null if GET failed */
+        }
+      }
+
+      const tariffPlanForApi = getTariffPlanForPaidCheckoutApiRequest(tariffPlan);
+      const payload = {
+        ownerUserId: user.id,
+        tariffPlan: tariffPlanForApi,
+        billingCycle,
+        ...(tariffRequiresMemberCountForCheckout(tariffPlan)
+          ? {
+              maxMembersNumber: getDefaultMaxMembersForSubscriptionCheckout(
+                subscription,
+                companyForCheckout
+              ),
+            }
+          : {}),
+      };
+
+      const paymentLink = await dispatch(createSubscriptionEntry(payload)).unwrap();
 
       if (paymentLink && /^https?:\/\//i.test(paymentLink)) {
         const canOpen = await Linking.canOpenURL(paymentLink);
@@ -246,12 +338,53 @@ export default function SubscriptionScreen() {
             <Text style={styles.contactModalBody}>
               {t('subscription.contactPlease')}{' '}
               <Text
+                selectable
                 style={styles.contactModalEmail}
-                onPress={() => Linking.openURL(`mailto:${supportEmail}`).catch(() => {})}
               >
                 {supportEmail}
               </Text>
             </Text>
+            <View style={styles.contactModalActionsRow}>
+              <TouchableOpacity
+                style={styles.contactModalSecondaryBtn}
+                onPress={copySupportEmail}
+                activeOpacity={0.85}
+              >
+                <Text
+                  style={styles.contactModalSecondaryBtnText}
+                  numberOfLines={2}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.86}
+                >
+                  {t('subscription.copyEmail')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.contactModalSecondaryBtn}
+                onPress={() => {
+                  shareSupportEmail().catch(() => {});
+                }}
+                activeOpacity={0.85}
+              >
+                <Text
+                  style={styles.contactModalSecondaryBtnText}
+                  numberOfLines={2}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.86}
+                >
+                  {t('subscription.shareEmail')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              style={styles.contactModalPrimaryBtn}
+              onPress={() => {
+                openMailClient().catch(() => {});
+              }}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.contactModalPrimaryBtnText}>{t('subscription.openMailApp')}</Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={styles.contactModalCloseBtn}
               onPress={() => setContactInfoVisible(false)}
@@ -439,12 +572,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'center',
-    paddingHorizontal: 28,
+    paddingHorizontal: Platform.OS === 'android' ? 16 : 28,
   },
   contactModalCard: {
     backgroundColor: '#ffffff',
     borderRadius: 8,
-    paddingHorizontal: 20,
+    paddingHorizontal: Platform.OS === 'android' ? 16 : 20,
     paddingTop: 16,
     paddingBottom: 20,
     maxWidth: 400,
@@ -466,12 +599,54 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     color: '#2a2f3d',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   contactModalEmail: {
     color: theme.colors.primary,
     fontWeight: '600',
     textDecorationLine: 'underline',
+  },
+  contactModalActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'stretch',
+    marginBottom: 10,
+  },
+  contactModalSecondaryBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#cfd6e8',
+    borderRadius: 4,
+    minHeight: 50,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+  },
+  contactModalSecondaryBtnText: {
+    color: '#2d3550',
+    fontSize: Platform.OS === 'android' ? 13 : 14,
+    lineHeight: Platform.OS === 'android' ? 16 : 18,
+    fontWeight: '600',
+    textAlign: 'center',
+    includeFontPadding: false,
+    flexShrink: 1,
+  },
+  contactModalPrimaryBtn: {
+    backgroundColor: '#eef2ff',
+    borderRadius: 4,
+    minHeight: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#ccd5f5',
+  },
+  contactModalPrimaryBtnText: {
+    color: '#243aa8',
+    fontSize: 15,
+    fontWeight: '600',
   },
   contactModalCloseBtn: {
     backgroundColor: theme.colors.primary,

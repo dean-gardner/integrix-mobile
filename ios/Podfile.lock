@@ -1921,6 +1921,28 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - RNCClipboard (1.16.3):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - RNKeychain (10.0.0):
     - hermes-engine
     - RCTRequired
@@ -2071,6 +2093,7 @@ DEPENDENCIES:
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - ReactNativeDependencies (from `../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec`)
   - "RNCAsyncStorage (from `../node_modules/@react-native-async-storage/async-storage`)"
+  - "RNCClipboard (from `../node_modules/@react-native-clipboard/clipboard`)"
   - RNKeychain (from `../node_modules/react-native-keychain`)
   - RNScreens (from `../node_modules/react-native-screens`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
@@ -2231,6 +2254,8 @@ EXTERNAL SOURCES:
     :podspec: "../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec"
   RNCAsyncStorage:
     :path: "../node_modules/@react-native-async-storage/async-storage"
+  RNCClipboard:
+    :path: "../node_modules/@react-native-clipboard/clipboard"
   RNKeychain:
     :path: "../node_modules/react-native-keychain"
   RNScreens:
@@ -2316,6 +2341,7 @@ SPEC CHECKSUMS:
   ReactCommon: 92b53b0bd7f7d86154dc9f512c1ea5dee717cc72
   ReactNativeDependencies: 5ee0601545b4230c1d503520ef46e87ad7e1eeab
   RNCAsyncStorage: 3a4f5e2777dae1688b781a487923a08569e27fe4
+  RNCClipboard: 88d7eeb555d1183915f0885bdbc5c97eb6f7f3ba
   RNKeychain: 667b7bd224f14055ae4cb52b41a82ad0ad70574f
   RNScreens: 14243fa0d9842ffa7f8bb2d00b6c3cfd3ca817e8
   Yoga: 772166513f9cd2d61a6251d0dacbbfaa5b537479

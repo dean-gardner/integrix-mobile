@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   View,
@@ -9,11 +9,12 @@ import {
   ScrollView,
   RefreshControl,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import NetInfo from '@react-native-community/netinfo';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
 import type { AppDispatch, RootState } from '../store';
-import { fetchTasks, goToTasksPage, setTasksFilter } from '../store/tasksSlice';
+import { fetchTasks, setTasksFilter } from '../store/tasksSlice';
 import { screenStyles } from '../styles/screenStyles';
 import { theme } from '../theme';
 import { TaskTypeEnum } from '../types/task';
@@ -29,6 +30,7 @@ import {
   defaultTasksStatusValue,
   defaultTasksTypeValue,
   parseTaskReferenceFilter,
+  TASK_REFERENCE_SEPARATOR,
   TASK_STATUS_ALL_VALUE,
   toTaskReferenceFilterValue,
   type TasksFilterForm,
@@ -37,6 +39,8 @@ import {
 export default function TasksScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation();
+  const isFocused = useIsFocused();
+  const scrollRef = useRef<ScrollView>(null);
   const dispatch = useDispatch<AppDispatch>();
   const tasksState = useSelector((s: RootState) => s.tasks);
   const { items, isLoading, error, filteringModel, totalCount } = tasksState;
@@ -46,6 +50,8 @@ export default function TasksScreen() {
   const [sortModalVisible, setSortModalVisible] = useState(false);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [hasAppliedFilters, setHasAppliedFilters] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
+  const [pendingPage, setPendingPage] = useState<number | null>(null);
 
   const selectedStatusValue = useMemo(
     () =>
@@ -96,9 +102,35 @@ export default function TasksScreen() {
     ]
   );
 
+  const displayedItems = useMemo(() => {
+    const rawTaskReference = filteringModel.taskReference;
+    if (
+      !rawTaskReference ||
+      typeof rawTaskReference !== 'string' ||
+      !rawTaskReference.includes(TASK_REFERENCE_SEPARATOR)
+    ) {
+      return items;
+    }
+
+    const { taskReferenceField, taskReference } = parseTaskReferenceFilter(rawTaskReference);
+    const needle = taskReference.trim().toLowerCase();
+
+    return items.filter((task) => {
+      const refValue = String(task[taskReferenceField] ?? '')
+        .trim()
+        .toLowerCase();
+      if (!refValue) return false;
+      if (!needle) return true;
+      return refValue.includes(needle);
+    });
+  }, [filteringModel.taskReference, items]);
+
   const pageSize = filteringModel.pageSize || 10;
   const pageCount = Math.max(1, Math.ceil(totalCount / Math.max(1, pageSize)));
-  const currentPage = Math.min(pageCount, (filteringModel.pageNumber ?? 0) + 1);
+  const currentPage = Math.max(1, (filteringModel.pageNumber ?? 0) + 1);
+  const shouldShowPaginator = pageCount > 1 || currentPage > 1;
+  const isPageTransitionLoading = isLoading && pendingPage !== null;
+  const shouldShowListLoader = (isLoading && displayedItems.length === 0) || isPageTransitionLoading;
 
   const taskStatusOptionsT = useMemo(
     () => [
@@ -156,12 +188,28 @@ export default function TasksScreen() {
   }, [dispatch]);
 
   useEffect(() => {
-    if (!initialized) return;
+    if (!initialized || !isFocused) return;
     dispatch(fetchTasks());
-  }, [dispatch, filteringModel, initialized]);
+  }, [dispatch, filteringModel, initialized, isFocused]);
+
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      setIsOffline(state.isConnected === false || state.isInternetReachable === false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (pendingPage == null || isLoading) return;
+    if (!error) {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+    }
+    setPendingPage(null);
+  }, [error, isLoading, pendingPage]);
 
   const onRefresh = async () => {
     setRefreshing(true);
+    setPendingPage(null);
     dispatch(setTasksFilter({ pageNumber: 0 }));
     await dispatch(fetchTasks()).unwrap().catch(() => {});
     setRefreshing(false);
@@ -172,6 +220,7 @@ export default function TasksScreen() {
   };
 
   const handleStatusChange = (value: number) => {
+    setPendingPage(null);
     dispatch(
       setTasksFilter({
         pageNumber: 0,
@@ -181,6 +230,7 @@ export default function TasksScreen() {
   };
 
   const handleTypeChange = (value: number | null) => {
+    setPendingPage(null);
     dispatch(
       setTasksFilter({
         pageNumber: 0,
@@ -191,6 +241,7 @@ export default function TasksScreen() {
 
   const handleApplySorting = (next: { sortingField: string; sortingOrder: number }) => {
     setSortModalVisible(false);
+    setPendingPage(null);
     dispatch(
       setTasksFilter({
         pageNumber: 0,
@@ -200,14 +251,22 @@ export default function TasksScreen() {
     );
   };
 
-  const handleApplyFilter = (nextFilter: TasksFilterForm) => {
+  const handleApplyFilter = (
+    nextFilter: TasksFilterForm,
+    meta?: { taskReferenceFieldTouched: boolean }
+  ) => {
     setFilterModalVisible(false);
+    setPendingPage(null);
     const taskNumber = nextFilter.taskNumber.trim() || null;
     const description = nextFilter.description.trim() || null;
     const createdBy = nextFilter.createdBy.trim() || null;
+    const isFieldOnlyRequest = nextFilter.taskReference.trim() === '';
+    const currentFieldOnlyValue = `${nextFilter.taskReferenceField}${TASK_REFERENCE_SEPARATOR}`;
+    const keepCurrentFieldOnly = filteringModel.taskReference === currentFieldOnlyValue;
     const taskReference = toTaskReferenceFilterValue(
       nextFilter.taskReferenceField,
-      nextFilter.taskReference
+      nextFilter.taskReference,
+      { includeFieldOnly: isFieldOnlyRequest && (Boolean(meta?.taskReferenceFieldTouched) || keepCurrentFieldOnly) }
     );
     setHasAppliedFilters(Boolean(taskNumber || description || createdBy || taskReference));
     dispatch(
@@ -222,12 +281,20 @@ export default function TasksScreen() {
   };
 
   const handleGoToPage = (page: number) => {
-    dispatch(goToTasksPage(page));
+    if (pendingPage !== null || isLoading) return;
+    const normalizedPage = Math.max(1, Math.min(pageCount, page));
+    const nextPageIndex = normalizedPage - 1;
+    if (nextPageIndex === (filteringModel.pageNumber ?? 0)) return;
+    setPendingPage(normalizedPage);
+    dispatch(setTasksFilter({ pageNumber: nextPageIndex }));
   };
+
+  const shouldShowInlineError = Boolean(error) && !isOffline;
 
   return (
     <View style={styles.wrapper}>
       <ScrollView
+        ref={scrollRef}
         style={styles.container}
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -276,21 +343,21 @@ export default function TasksScreen() {
           </View>
         </View>
 
-        {error ? (
+        {shouldShowInlineError ? (
           <View style={screenStyles.errorBox}>
             <Text style={screenStyles.errorText}>{error}</Text>
           </View>
         ) : null}
 
-        {isLoading && items.length === 0 ? (
+        {shouldShowListLoader ? (
           <View style={styles.loader}>
-            <ActivityIndicator size="small" color={theme.colors.primary} />
+            <ActivityIndicator size="large" color={theme.colors.primary} />
           </View>
-        ) : items.length === 0 ? (
+        ) : displayedItems.length === 0 ? (
           <Text style={styles.emptyText}>{t('app.tasks.empty')}</Text>
         ) : (
           <View>
-            {items.map((task) => (
+            {displayedItems.map((task) => (
               <TasksListCard
                 key={task.id}
                 task={task}
@@ -301,7 +368,7 @@ export default function TasksScreen() {
           </View>
         )}
 
-        {items.length > 0 ? (
+        {shouldShowPaginator ? (
           <Paginator
             currentPage={currentPage}
             totalPages={pageCount}
@@ -405,8 +472,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#d9d9d9',
   },
   loader: {
-    paddingVertical: 30,
+    minHeight: 360,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyText: {
     marginTop: 20,

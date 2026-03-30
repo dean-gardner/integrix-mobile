@@ -41,7 +41,8 @@ export function Paginator({ currentPage, totalPages, onPageChange, isLoading }: 
       <TouchableOpacity
         style={[styles.arrowButton, currentPage <= 1 && styles.disabled]}
         onPress={() => onPageChange(currentPage - 1)}
-        disabled={currentPage <= 1 || isLoading}
+        disabled={currentPage <= 1}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
         <MaterialIcons name="chevron-left" size={22} color={currentPage <= 1 ? '#c8c8c8' : '#555e72'} />
       </TouchableOpacity>
@@ -56,8 +57,9 @@ export function Paginator({ currentPage, totalPages, onPageChange, isLoading }: 
             key={item}
             style={[styles.pageButton, item === currentPage && styles.pageButtonActive]}
             onPress={() => item !== currentPage && onPageChange(item)}
-            disabled={isLoading}
+            disabled={item === currentPage}
             activeOpacity={item === currentPage ? 1 : 0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             {isLoading && item === currentPage ? (
               <ActivityIndicator size="small" color={theme.colors.primary} />
@@ -73,7 +75,8 @@ export function Paginator({ currentPage, totalPages, onPageChange, isLoading }: 
       <TouchableOpacity
         style={[styles.arrowButton, currentPage >= totalPages && styles.disabled]}
         onPress={() => onPageChange(currentPage + 1)}
-        disabled={currentPage >= totalPages || isLoading}
+        disabled={currentPage >= totalPages}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
         <MaterialIcons name="chevron-right" size={22} color={currentPage >= totalPages ? '#c8c8c8' : '#555e72'} />
       </TouchableOpacity>
@@ -91,8 +94,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   arrowButton: {
-    width: 34,
-    height: 34,
+    width: 38,
+    height: 38,
     borderRadius: 6,
     borderWidth: 1,
     borderColor: '#d6dbe6',
@@ -101,8 +104,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pageButton: {
-    minWidth: 34,
-    height: 34,
+    minWidth: 38,
+    height: 38,
     borderRadius: 6,
     borderWidth: 1,
     borderColor: '#d6dbe6',
@@ -126,7 +129,7 @@ const styles = StyleSheet.create({
   },
   ellipsis: {
     width: 28,
-    height: 34,
+    height: 38,
     alignItems: 'center',
     justifyContent: 'center',
   },

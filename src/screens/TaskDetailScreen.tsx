@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  Keyboard,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
@@ -12,6 +13,7 @@ import {
   Linking,
   InteractionManager,
   Image,
+  Platform,
 } from 'react-native';
 import { launchCamera, launchImageLibrary, type Asset as ImagePickerAsset } from 'react-native-image-picker';
 import { useDispatch, useSelector } from 'react-redux';
@@ -69,6 +71,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { TaskStepCard } from '../components/taskDetail/TaskStepCard';
 import { TaskStepPostModal, type TaskStepPostPayload } from '../components/taskDetail/TaskStepPostModal';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type TaskDetailParams = { task: TaskReadDTO; taskStepId?: string | null; scrollToSteps?: boolean };
 
@@ -191,6 +194,7 @@ async function warmUrl(url: string, token: string | null): Promise<void> {
 
 export default function TaskDetailScreen() {
   const { t } = useTranslation();
+  const safeAreaInsets = useSafeAreaInsets();
   const route = useRoute<RouteProp<{ params: TaskDetailParams }, 'params'>>();
   const dispatch = useDispatch<AppDispatch>();
   const scrollRef = useRef<ScrollView>(null);
@@ -240,6 +244,8 @@ export default function TaskDetailScreen() {
     () => sections.flatMap((section) => section.taskSteps.map((taskStep) => taskStep.id)),
     [sections]
   );
+  const [panelOffsetY, setPanelOffsetY] = useState<number | null>(null);
+  const [taskStepsOffsetInPanel, setTaskStepsOffsetInPanel] = useState<number | null>(null);
 
   useEffect(() => {
     if (routeTask?.versionId && routeTask?.id) {
@@ -338,11 +344,7 @@ export default function TaskDetailScreen() {
       clearInterval(interval);
       clearTimeout(timeout);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetStepId, sectionsLoading, expandedSectionId, panelOffsetY, taskStepsOffsetInPanel]);
-
-  const [panelOffsetY, setPanelOffsetY] = useState<number | null>(null);
-  const [taskStepsOffsetInPanel, setTaskStepsOffsetInPanel] = useState<number | null>(null);
   // Use route.key — unique per navigation push — so the guard resets on every new open.
   const scrollGuardKey = useRef<string | null>(null);
   const didScrollToSteps = useRef(false);
@@ -362,7 +364,7 @@ export default function TaskDetailScreen() {
 
     const y = panelOffsetY + taskStepsOffsetInPanel;
     let interaction: { cancel?: () => void } | null = null;
-    const t = setTimeout(() => {
+    const timerId = setTimeout(() => {
       interaction = InteractionManager.runAfterInteractions(() => {
         didScrollToSteps.current = true;
         scrollRef.current?.scrollTo({ y, animated: true });
@@ -370,7 +372,7 @@ export default function TaskDetailScreen() {
     }, 150);
 
     return () => {
-      clearTimeout(t);
+      clearTimeout(timerId);
       interaction?.cancel?.();
     };
   }, [
@@ -406,6 +408,46 @@ export default function TaskDetailScreen() {
         setIsOfflineReady(false);
       });
   }, [task?.id]);
+
+  const sharedUserEmails = useMemo(
+    () => new Set((task?.usersSharedWith ?? []).map((u) => u.email.toLowerCase())),
+    [task?.usersSharedWith]
+  );
+
+  useEffect(() => {
+    const trimmed = shareQuery.trim();
+    if (trimmed.length < 2) {
+      setShareSearchResults([]);
+      setShareSearchLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setShareSearchLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await getUsersBySearch({
+          search: trimmed,
+          shouldFindTeams: false,
+          onlyRegisteredUsers: false,
+          onlyCompanyTeamUsers: true,
+          includeOwnPerson: true,
+        });
+        if (cancelled) return;
+        const list = (res.data ?? []).filter(
+          (u) => !sharedUserEmails.has((u.email ?? '').toLowerCase())
+        );
+        setShareSearchResults(list);
+      } catch {
+        if (!cancelled) setShareSearchResults([]);
+      } finally {
+        if (!cancelled) setShareSearchLoading(false);
+      }
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [shareQuery, sharedUserEmails]);
 
   if (!task) {
     return (
@@ -543,46 +585,6 @@ export default function TaskDetailScreen() {
     ]);
   };
 
-  const sharedUserEmails = useMemo(
-    () => new Set((task?.usersSharedWith ?? []).map((u) => u.email.toLowerCase())),
-    [task?.usersSharedWith]
-  );
-
-  useEffect(() => {
-    const trimmed = shareQuery.trim();
-    if (trimmed.length < 2) {
-      setShareSearchResults([]);
-      setShareSearchLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setShareSearchLoading(true);
-    const timer = setTimeout(async () => {
-      try {
-        const res = await getUsersBySearch({
-          search: trimmed,
-          shouldFindTeams: false,
-          onlyRegisteredUsers: false,
-          onlyCompanyTeamUsers: true,
-          includeOwnPerson: true,
-        });
-        if (cancelled) return;
-        const list = (res.data ?? []).filter(
-          (u) => !sharedUserEmails.has((u.email ?? '').toLowerCase())
-        );
-        setShareSearchResults(list);
-      } catch {
-        if (!cancelled) setShareSearchResults([]);
-      } finally {
-        if (!cancelled) setShareSearchLoading(false);
-      }
-    }, 300);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [shareQuery, sharedUserEmails]);
-
   const handleUserPick = async (user: FoundUserDTO) => {
     if (!task.documentId || !task.versionId || !task.id) return;
     try {
@@ -617,14 +619,14 @@ export default function TaskDetailScreen() {
     }
   };
 
-  const handleSharePress = useCallback(() => {
+  const handleSharePress = () => {
     const typed = shareQuery.trim().toLowerCase();
     if (isValidEmail(typed)) {
       handleUserPick({ fullName: null, email: typed, userId: null, companyTeam: null }).catch(() => {});
       return;
     }
     setPickerVisible(true);
-  }, [shareQuery, handleUserPick]);
+  };
 
   const openEdit = () => {
     setWorkOrderNumber(task.workOrderNumber ?? '');
@@ -662,6 +664,12 @@ export default function TaskDetailScreen() {
     }
   };
 
+  const handleSubmitEditPress = () => {
+    if (isActionLoading) return;
+    Keyboard.dismiss();
+    submitEdit().catch(() => {});
+  };
+
   const closePostModal = () => {
     setPostModalVisible(false);
     setPostTaskStep(null);
@@ -672,24 +680,24 @@ export default function TaskDetailScreen() {
     setPostModalVisible(true);
   };
 
-  const openDoneConfirmationModal = useCallback((taskStep: TaskStepReadDTO) => {
+  const openDoneConfirmationModal = (taskStep: TaskStepReadDTO) => {
     setDoneConfirmTaskStep(taskStep);
     setDoneConfirmDescription('');
     setDoneConfirmFiles([]);
     setDoneConfirmError(null);
     setDoneConfirmVisible(true);
-  }, []);
+  };
 
-  const closeDoneConfirmationModal = useCallback(() => {
+  const closeDoneConfirmationModal = () => {
     if (doneConfirmSubmitting) return;
     setDoneConfirmVisible(false);
     setDoneConfirmTaskStep(null);
     setDoneConfirmDescription('');
     setDoneConfirmFiles([]);
     setDoneConfirmError(null);
-  }, [doneConfirmSubmitting]);
+  };
 
-  const pickDoneConfirmationPhoto = useCallback(() => {
+  const pickDoneConfirmationPhoto = () => {
     if (doneConfirmSubmitting) return;
     const pickFromSource = (source: 'camera' | 'gallery') => {
       const picker = source === 'camera' ? launchCamera : launchImageLibrary;
@@ -728,7 +736,7 @@ export default function TaskDetailScreen() {
       { text: t('app.task.chooseLibrary'), onPress: () => pickFromSource('gallery') },
       { text: t('app.modal.cancel'), style: 'cancel' },
     ]);
-  }, [doneConfirmSubmitting]);
+  };
 
   const handleSubmitTaskStepPost = async (
     payload: TaskStepPostPayload,
@@ -830,7 +838,7 @@ export default function TaskDetailScreen() {
     }
   };
 
-  const handleConfirmDoneWithPhoto = useCallback(async () => {
+  const handleConfirmDoneWithPhoto = async () => {
     if (!doneConfirmTaskStep) return;
     if (doneConfirmFiles.length === 0) {
       setDoneConfirmError(t('app.taskDetail.photoRequired'));
@@ -858,14 +866,7 @@ export default function TaskDetailScreen() {
     } finally {
       setDoneConfirmSubmitting(false);
     }
-  }, [
-    doneConfirmDescription,
-    doneConfirmFiles,
-    doneConfirmTaskStep,
-    handleSubmitTaskStepPost,
-    handleToggleTaskStepStatus,
-    t,
-  ]);
+  };
 
   const handleToggleTaskStepDone = (taskStep: TaskStepReadDTO) => {
     const currentStatus = stepStatuses[taskStep.id] ?? null;
@@ -884,11 +885,22 @@ export default function TaskDetailScreen() {
     return handleToggleTaskStepStatus(taskStepId, nextStatus);
   };
 
+  // Keep the last task-step card clear of iOS safe-area overlays and the floating back-to-top button.
+  const bottomScrollPadding =
+    Platform.OS === 'ios' ? safeAreaInsets.bottom + 190 : 36;
+  const taskStepsTailPadding =
+    Platform.OS === 'ios' ? safeAreaInsets.bottom + 90 : 20;
+  const backToTopBottomOffset =
+    18 + (Platform.OS === 'ios' ? safeAreaInsets.bottom : 0);
+  const iosBottomInset = Platform.OS === 'ios' ? safeAreaInsets.bottom + 190 : 0;
+
   return (
     <ScrollView
       ref={scrollRef}
       style={styles.container}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingBottom: bottomScrollPadding }]}
+      contentInset={{ bottom: iosBottomInset }}
+      scrollIndicatorInsets={{ bottom: iosBottomInset }}
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.offlineBar}>
@@ -922,6 +934,28 @@ export default function TaskDetailScreen() {
         }}
       >
         <View style={styles.infoPanel}>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoText}>
+              {t('app.task.workOrderNumber')}:{' '}
+              {task.workOrderNumber != null && String(task.workOrderNumber).trim() !== ''
+                ? String(task.workOrderNumber)
+                : '-'}
+            </Text>
+            <TouchableOpacity onPress={openEdit} disabled={isActionLoading}>
+              <MaterialIcons name="edit" size={20} color="#6e7280" />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoText}>
+              {t('app.task.notificationNumber')}:{' '}
+              {task.notificationNumber != null && String(task.notificationNumber).trim() !== ''
+                ? String(task.notificationNumber)
+                : '-'}
+            </Text>
+            <TouchableOpacity onPress={openEdit} disabled={isActionLoading}>
+              <MaterialIcons name="edit" size={20} color="#6e7280" />
+            </TouchableOpacity>
+          </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoText}>
               {t('app.task.asset')}: {task.asset?.name ?? '-'}
@@ -1063,61 +1097,67 @@ export default function TaskDetailScreen() {
             <Text style={styles.taskStepsTabText}>{t('app.task.taskSteps')}</Text>
           </View>
 
-          {sectionsLoading || currentTaskLoading ? (
+          {/* Only swap steps for a full-screen loader on *initial* load. Refreshing the task
+              (e.g. after Skip/Done → fetchTaskById) sets currentTaskLoading and would unmount
+              all steps, collapse the ScrollView, and jump scroll to the top (Bug 17). */}
+          {sectionsLoading || (currentTaskLoading && sections.length === 0) ? (
             <View style={styles.loader}>
               <ActivityIndicator size="small" color={theme.colors.primary} />
             </View>
           ) : sections.length === 0 ? (
             <Text style={styles.mutedText}>{t('app.task.noSteps')}</Text>
           ) : (
-            sections.map((section, sectionIndex) => {
-              const isOpen = expandedSectionId === section.id;
-              return (
-                <View
-                  key={section.id}
-                  style={styles.sectionAccordion}
-                  onLayout={(e) => {
-                    stepLayoutMap.current[`__section_${section.id}`] = e.nativeEvent.layout.y;
-                  }}
-                >
-                  <TouchableOpacity
-                    style={styles.sectionHeader}
-                    onPress={() => {
-                      setExpandedSectionId((prev) => (prev === section.id ? null : section.id));
+            <>
+              {sections.map((section, sectionIndex) => {
+                const isOpen = expandedSectionId === section.id;
+                return (
+                  <View
+                    key={section.id}
+                    style={styles.sectionAccordion}
+                    onLayout={(e) => {
+                      stepLayoutMap.current[`__section_${section.id}`] = e.nativeEvent.layout.y;
                     }}
                   >
-                    <Text style={styles.sectionHeaderText}>
-                      {sectionIndex + 1}. {section.sectionTitle}
-                    </Text>
-                  </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.sectionHeader}
+                      onPress={() => {
+                        setExpandedSectionId((prev) => (prev === section.id ? null : section.id));
+                      }}
+                    >
+                      <Text style={styles.sectionHeaderText}>
+                        {sectionIndex + 1}. {section.sectionTitle}
+                      </Text>
+                    </TouchableOpacity>
 
-                  {isOpen ? (
-                    <View style={styles.sectionBody}>
-                      {section.taskSteps.map((taskStep, taskStepIndex) => (
-                        <View
-                          key={taskStep.id}
-                          onLayout={(e) => {
-                            stepLayoutMap.current[taskStep.id] = e.nativeEvent.layout.y +
-                              (stepLayoutMap.current[`__section_${section.id}`] ?? 0);
-                          }}
-                        >
-                          <TaskStepCard
-                            orderLabel={`${sectionIndex + 1}.${taskStepIndex + 1}`}
-                            taskStep={taskStep}
-                            status={stepStatuses[taskStep.id] ?? null}
-                            statusUpdating={statusUpdatingStepId === taskStep.id}
-                            statusUpdatingAction={statusUpdatingStepId === taskStep.id ? statusUpdatingAction : null}
-                          onPostPress={() => handlePostTaskStep(taskStep)}
-                          onSkipPress={() => handleToggleTaskStepSkip(taskStep.id)}
-                          onDonePress={() => handleToggleTaskStepDone(taskStep)}
-                          />
-                        </View>
-                      ))}
-                    </View>
-                  ) : null}
-                </View>
-              );
-            })
+                    {isOpen ? (
+                      <View style={styles.sectionBody}>
+                        {section.taskSteps.map((taskStep, taskStepIndex) => (
+                          <View
+                            key={taskStep.id}
+                            onLayout={(e) => {
+                              stepLayoutMap.current[taskStep.id] = e.nativeEvent.layout.y +
+                                (stepLayoutMap.current[`__section_${section.id}`] ?? 0);
+                            }}
+                          >
+                            <TaskStepCard
+                              orderLabel={`${sectionIndex + 1}.${taskStepIndex + 1}`}
+                              taskStep={taskStep}
+                              status={stepStatuses[taskStep.id] ?? null}
+                              statusUpdating={statusUpdatingStepId === taskStep.id}
+                              statusUpdatingAction={statusUpdatingStepId === taskStep.id ? statusUpdatingAction : null}
+                            onPostPress={() => handlePostTaskStep(taskStep)}
+                            onSkipPress={() => handleToggleTaskStepSkip(taskStep.id)}
+                            onDonePress={() => handleToggleTaskStepDone(taskStep)}
+                            />
+                          </View>
+                        ))}
+                      </View>
+                    ) : null}
+                  </View>
+                );
+              })}
+              <View style={[styles.taskStepsTailSpacer, { height: taskStepsTailPadding }]} />
+            </>
           )}
         </View>
 
@@ -1134,7 +1174,7 @@ export default function TaskDetailScreen() {
         <Text style={styles.footerText}>{t('app.common.copyright')}</Text>
       </View>
       <TouchableOpacity
-        style={styles.backToTopButton}
+        style={[styles.backToTopButton, { bottom: backToTopBottomOffset }]}
         onPress={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}
       >
         <MaterialIcons name="keyboard-double-arrow-up" size={30} color="#ffffff" />
@@ -1272,7 +1312,7 @@ export default function TaskDetailScreen() {
               <ScrollView
                 style={styles.editModalScroll}
                 contentContainerStyle={styles.editModalScrollContent}
-                keyboardShouldPersistTaps="handled"
+                keyboardShouldPersistTaps="always"
                 showsVerticalScrollIndicator
               >
               {editError ? (
@@ -1334,7 +1374,7 @@ export default function TaskDetailScreen() {
                   styles.modalSaveBtnInRow,
                   isActionLoading && styles.buttonDisabled,
                 ]}
-                onPress={submitEdit}
+                onPressIn={handleSubmitEditPress}
                 disabled={isActionLoading}
               >
                 {isActionLoading ? (
@@ -1599,7 +1639,10 @@ const styles = StyleSheet.create({
   },
   sectionBody: {
     backgroundColor: '#eceff7',
-    paddingBottom: 10,
+    paddingBottom: 16,
+  },
+  taskStepsTailSpacer: {
+    width: '100%',
   },
   loader: {
     paddingVertical: 18,

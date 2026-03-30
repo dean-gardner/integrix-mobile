@@ -94,9 +94,12 @@ export function parseTaskReferenceFilter(
 
 export function toTaskReferenceFilterValue(
   field: TaskReferenceField,
-  value: string
+  value: string,
+  options?: { includeFieldOnly?: boolean }
 ): string | null {
   const trimmed = value.trim();
-  if (!trimmed) return null;
+  if (!trimmed) {
+    return options?.includeFieldOnly ? `${field}${TASK_REFERENCE_SEPARATOR}` : null;
+  }
   return `${field}${TASK_REFERENCE_SEPARATOR}${trimmed}`;
 }

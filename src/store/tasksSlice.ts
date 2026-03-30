@@ -318,6 +318,7 @@ type TasksState = {
   totalCount: number;
   noMorePages: boolean;
   currentTask: TaskWithDetailsReadDTO | null;
+  activeFetchRequestId: string | null;
 };
 
 const initialState: TasksState = {
@@ -342,6 +343,7 @@ const initialState: TasksState = {
   totalCount: 0,
   noMorePages: false,
   currentTask: null,
+  activeFetchRequestId: null,
 };
 
 const tasksSlice = createSlice({
@@ -368,11 +370,15 @@ const tasksSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchTasks.pending, (state) => {
+      .addCase(fetchTasks.pending, (state, action) => {
+        state.activeFetchRequestId = action.meta.requestId;
         state.isLoading = true;
         state.error = null;
       })
-      .addCase(fetchTasks.fulfilled, (state, { payload }) => {
+      .addCase(fetchTasks.fulfilled, (state, action) => {
+        if (state.activeFetchRequestId !== action.meta.requestId) return;
+        const { payload } = action;
+        state.activeFetchRequestId = null;
         state.isLoading = false;
         state.items = payload.items;
         state.totalCount = payload.totalCount;
@@ -381,7 +387,10 @@ const tasksSlice = createSlice({
           state.filteringModel.pageNumber + 1;
         state.error = null;
       })
-      .addCase(fetchTasks.rejected, (state, { payload }) => {
+      .addCase(fetchTasks.rejected, (state, action) => {
+        if (state.activeFetchRequestId !== action.meta.requestId) return;
+        const { payload } = action;
+        state.activeFetchRequestId = null;
         state.isLoading = false;
         state.error = payload ?? i18n.t('app.errors.loadTasks');
       });

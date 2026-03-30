@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -14,10 +14,13 @@ import type { CompanyTeamNodeDTO } from '../../types/team';
 import type { UserInvitationCreateDTO } from '../../types/invitation';
 import { screenStyles } from '../../styles/screenStyles';
 import { theme } from '../../theme';
+import { useTranslation } from 'react-i18next';
 
 type InviteTeamMemberModalProps = {
   visible: boolean;
   isAdmin: boolean;
+  offlineMode: boolean;
+  rolesLoading: boolean;
   roles: RoleDTO[];
   teams: CompanyTeamNodeDTO[];
   currentTeamId: number | null;
@@ -34,6 +37,8 @@ function getDefaultRoleId(roles: RoleDTO[]): string {
 export function InviteTeamMemberModal({
   visible,
   isAdmin,
+  offlineMode,
+  rolesLoading,
   roles,
   teams,
   currentTeamId,
@@ -42,6 +47,7 @@ export function InviteTeamMemberModal({
   onClose,
   onSubmit,
 }: InviteTeamMemberModalProps) {
+  const { t } = useTranslation();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -49,6 +55,7 @@ export function InviteTeamMemberModal({
   const [roleId, setRoleId] = useState('');
   const [teamId, setTeamId] = useState<number | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  const wasVisibleRef = useRef(false);
 
   const defaultRoleId = useMemo(() => getDefaultRoleId(roles), [roles]);
   const defaultAdminRoleId = useMemo(() => roles[0]?.id ?? defaultRoleId, [roles, defaultRoleId]);
@@ -58,32 +65,60 @@ export function InviteTeamMemberModal({
   );
 
   useEffect(() => {
-    if (!visible) return;
-    setFirstName('');
-    setLastName('');
-    setEmail('');
-    setPhone('');
-    setRoleId(isAdmin ? defaultAdminRoleId : defaultRoleId);
-    setTeamId(defaultTeamId);
-    setLocalError(null);
+    if (visible && !wasVisibleRef.current) {
+      setFirstName('');
+      setLastName('');
+      setEmail('');
+      setPhone('');
+      setRoleId(isAdmin ? defaultAdminRoleId : defaultRoleId);
+      setTeamId(defaultTeamId);
+      setLocalError(null);
+    }
+    wasVisibleRef.current = visible;
   }, [visible, isAdmin, defaultRoleId, defaultAdminRoleId, defaultTeamId]);
 
+  useEffect(() => {
+    if (!visible) return;
+    if (!roleId) {
+      const nextRoleId = isAdmin ? defaultAdminRoleId : defaultRoleId;
+      if (nextRoleId) {
+        setRoleId(nextRoleId);
+      }
+    }
+    if (teamId == null && defaultTeamId != null) {
+      setTeamId(defaultTeamId);
+    }
+  }, [visible, roleId, teamId, isAdmin, defaultRoleId, defaultAdminRoleId, defaultTeamId]);
+
+  const effectiveRoleId = roleId || (isAdmin ? defaultAdminRoleId : defaultRoleId);
+  const selectedRoleName =
+    roles.find((role) => role.id === effectiveRoleId)?.name ?? roles[0]?.name ?? '';
+  const resolvedTeamId = isAdmin ? teamId : (teamId ?? currentTeamId ?? null);
+  const inviteDisabledReason = offlineMode ? t('app.users.inviteOfflineUnavailable') : null;
+  const submitDisabled =
+    loading ||
+    rolesLoading ||
+    Boolean(inviteDisabledReason) ||
+    !effectiveRoleId ||
+    resolvedTeamId == null;
+
   const submit = async () => {
+    if (submitDisabled) return;
     const cleanEmail = email.trim().toLowerCase();
     const cleanFirstName = firstName.trim();
     const cleanLastName = lastName.trim();
     const cleanPhone = phone.trim();
 
     if (!cleanEmail || !cleanFirstName || !cleanLastName) {
-      setLocalError('Email, first name and last name are required.');
+      setLocalError(t('app.inviteMember.requiredFields'));
       return;
     }
-    if (!roleId) {
-      setLocalError('Select a role.');
+    if (!effectiveRoleId) {
+      setLocalError(t('app.inviteMember.selectRole'));
       return;
     }
-    if (teamId == null) {
-      setLocalError('Select a team.');
+    if (resolvedTeamId == null) {
+      setLocalError(t('app.inviteMember.selectTeam'));
       return;
     }
 
@@ -94,8 +129,8 @@ export function InviteTeamMemberModal({
         firstName: cleanFirstName,
         lastName: cleanLastName,
         phoneNumber: cleanPhone,
-        userRoleId: roleId,
-        companyTeamId: teamId,
+        userRoleId: effectiveRoleId,
+        companyTeamId: resolvedTeamId,
       });
       onClose();
     } catch {
@@ -112,108 +147,142 @@ export function InviteTeamMemberModal({
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Invite team member</Text>
+            <Text style={styles.modalTitle}>{t('app.inviteMember.title')}</Text>
             {localError || error ? (
               <View style={screenStyles.errorBox}>
                 <Text style={screenStyles.errorText}>{localError || error}</Text>
               </View>
             ) : null}
+            {inviteDisabledReason ? (
+              <View style={styles.infoBox}>
+                <Text style={styles.infoText}>{inviteDisabledReason}</Text>
+              </View>
+            ) : null}
 
-            <Text style={screenStyles.formLabel}>Email *</Text>
+            <Text style={screenStyles.formLabel}>{t('app.inviteMember.emailPh')} *</Text>
             <TextInput
               style={screenStyles.formInput}
               value={email}
               onChangeText={setEmail}
-              placeholder="Email"
+              placeholder={t('app.inviteMember.emailPh')}
               placeholderTextColor="#6c757d"
               keyboardType="email-address"
               autoCapitalize="none"
               editable={!loading}
             />
 
-            <Text style={screenStyles.formLabel}>First name *</Text>
+            <Text style={screenStyles.formLabel}>{t('app.inviteMember.firstNamePh')} *</Text>
             <TextInput
               style={screenStyles.formInput}
               value={firstName}
               onChangeText={setFirstName}
-              placeholder="First name"
+              placeholder={t('app.inviteMember.firstNamePh')}
               placeholderTextColor="#6c757d"
               editable={!loading}
             />
 
-            <Text style={screenStyles.formLabel}>Last name *</Text>
+            <Text style={screenStyles.formLabel}>{t('app.inviteMember.lastNamePh')} *</Text>
             <TextInput
               style={screenStyles.formInput}
               value={lastName}
               onChangeText={setLastName}
-              placeholder="Last name"
+              placeholder={t('app.inviteMember.lastNamePh')}
               placeholderTextColor="#6c757d"
               editable={!loading}
             />
 
-            <Text style={screenStyles.formLabel}>Phone</Text>
+            <Text style={screenStyles.formLabel}>{t('app.acceptInvitation.phone')}</Text>
             <TextInput
               style={screenStyles.formInput}
               value={phone}
               onChangeText={setPhone}
-              placeholder="Phone"
+              placeholder={t('app.acceptInvitation.phonePh')}
               placeholderTextColor="#6c757d"
               keyboardType="phone-pad"
               editable={!loading}
             />
 
-            {isAdmin ? (
-              <>
-                <Text style={screenStyles.formLabel}>User role *</Text>
-                <View style={styles.chipRow}>
-                  {roles.map((role) => (
+            <Text style={screenStyles.formLabel}>{t('app.inviteMember.userRole')} *</Text>
+            {rolesLoading ? (
+              <View style={styles.loadingRow}>
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+              </View>
+            ) : roles.length > 0 ? (
+              <View style={styles.chipRow}>
+                {isAdmin ? (
+                  roles.map((role) => (
                     <TouchableOpacity
                       key={role.id}
-                      style={[styles.chip, roleId === role.id && styles.chipActive]}
+                      style={[styles.chip, effectiveRoleId === role.id && styles.chipActive]}
                       onPress={() => setRoleId(role.id)}
-                      disabled={loading}
+                      disabled={loading || offlineMode}
                     >
-                      <Text style={[styles.chipText, roleId === role.id && styles.chipTextActive]}>
+                      <Text
+                        style={[styles.chipText, effectiveRoleId === role.id && styles.chipTextActive]}
+                      >
                         {role.name}
                       </Text>
                     </TouchableOpacity>
-                  ))}
-                </View>
-                <Text style={screenStyles.formLabel}>Team *</Text>
-                <View style={styles.chipRow}>
-                  {teams.map((teamItem) => (
-                    <TouchableOpacity
-                      key={teamItem.id}
-                      style={[styles.chip, teamId === teamItem.id && styles.chipActive]}
-                      onPress={() => setTeamId(teamItem.id)}
-                      disabled={loading}
-                    >
-                      <Text
-                        style={[styles.chipText, teamId === teamItem.id && styles.chipTextActive]}
+                  ))
+                ) : (
+                  <View style={[styles.chip, styles.chipActive, styles.chipReadonly]}>
+                    <Text style={[styles.chipText, styles.chipTextActive]}>
+                      {selectedRoleName}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            ) : (
+              <View style={styles.disabledField}>
+                <Text style={styles.disabledFieldText}>
+                  {offlineMode ? t('app.users.rolesUnavailableOffline') : t('app.users.roleUnavailable')}
+                </Text>
+              </View>
+            )}
+
+            {isAdmin ? (
+              <>
+                <Text style={screenStyles.formLabel}>{t('app.inviteMember.team')} *</Text>
+                {teams.length > 0 ? (
+                  <View style={styles.chipRow}>
+                    {teams.map((teamItem) => (
+                      <TouchableOpacity
+                        key={teamItem.id}
+                        style={[styles.chip, teamId === teamItem.id && styles.chipActive]}
+                        onPress={() => setTeamId(teamItem.id)}
+                        disabled={loading || offlineMode}
                       >
-                        {teamItem.name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                        <Text
+                          style={[styles.chipText, teamId === teamItem.id && styles.chipTextActive]}
+                        >
+                          {teamItem.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                ) : (
+                  <View style={styles.disabledField}>
+                    <Text style={styles.disabledFieldText}>{t('app.users.teamUnavailable')}</Text>
+                  </View>
+                )}
               </>
             ) : (
-              <Text style={styles.teamHint}>Invitation will be sent to your current team.</Text>
+              <Text style={styles.teamHint}>{t('app.inviteMember.currentTeamHint')}</Text>
             )}
 
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.cancelBtn} onPress={onClose} disabled={loading}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text style={styles.cancelBtnText}>{t('app.modal.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[screenStyles.formButton, styles.inviteButton, loading && styles.buttonDisabled]}
+                style={[screenStyles.formButton, styles.inviteButton, submitDisabled && styles.buttonDisabled]}
                 onPress={submit}
-                disabled={loading}
+                disabled={submitDisabled}
               >
                 {loading ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={screenStyles.formButtonText}>Invite</Text>
+                  <Text style={screenStyles.formButtonText}>{t('app.inviteMember.send')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -239,10 +308,29 @@ const styles = StyleSheet.create({
     padding: theme.spacing.cardPadding,
   },
   modalTitle: { fontSize: 18, fontWeight: '600', color: theme.colors.text, marginBottom: 10 },
+  infoBox: {
+    marginTop: 2,
+    marginBottom: 8,
+    backgroundColor: '#edf4ff',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  infoText: {
+    color: '#395a96',
+    fontSize: 13,
+  },
   teamHint: {
     marginTop: 12,
     color: theme.colors.textMuted,
     fontSize: 13,
+  },
+  loadingRow: {
+    minHeight: 36,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    marginTop: 8,
+    marginBottom: 8,
   },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8, marginBottom: 8 },
   chip: {
@@ -257,8 +345,26 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.primary,
     backgroundColor: theme.colors.primaryLight,
   },
+  chipReadonly: {
+    opacity: 0.9,
+  },
   chipText: { fontSize: 13, color: theme.colors.text },
   chipTextActive: { color: theme.colors.primary, fontWeight: '600' },
+  disabledField: {
+    marginTop: 8,
+    marginBottom: 8,
+    minHeight: 38,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: '#f4f6fb',
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+  },
+  disabledFieldText: {
+    color: theme.colors.textMuted,
+    fontSize: 13,
+  },
   modalActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
   cancelBtn: {
     flex: 1,

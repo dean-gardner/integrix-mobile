@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
-import { View, ActivityIndicator, StyleSheet, Modal, TouchableWithoutFeedback, Animated, Easing } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Modal, TouchableWithoutFeedback, Animated, Easing, Platform } from 'react-native';
 import { AppHeader } from '../components/AppHeader';
 import { DrawerContent } from '../components/DrawerContent';
 import { DrawerProvider, useDrawer } from '../context/DrawerContext';
@@ -116,6 +116,8 @@ function MainStack() {
       <Stack.Navigator
         initialRouteName="Feed"
         screenOptions={{
+          gestureEnabled: Platform.OS === 'ios',
+          fullScreenGestureEnabled: Platform.OS === 'ios',
           header: ({ route }) => (
             <AppHeader
               title={getHeaderTitle(route.name, t)}

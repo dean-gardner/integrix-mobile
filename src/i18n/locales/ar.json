@@ -20,8 +20,8 @@
   },
   "language": {
     "title": "اللغة",
-    "english": "English",
-    "spanish": "Español",
+    "english": "الإنجليزية",
+    "spanish": "الإسبانية",
     "arabic": "العربية",
     "urdu": "اردو"
   },
@@ -85,6 +85,12 @@
     "signInToChange": "سجّل الدخول لتغيير الاشتراك.",
     "updateFailed": "تعذر تحديث الاشتراك.",
     "contactPlease": "يرجى التواصل مع",
+    "copyEmail": "نسخ عنوان البريد",
+    "shareEmail": "فتح في تطبيق آخر",
+    "openMailApp": "فتح تطبيق البريد",
+    "emailCopied": "تم نسخ عنوان البريد.",
+    "noMailClient": "لا يوجد تطبيق بريد متاح.",
+    "copyFallback": "انسخ هذا البريد يدويًا:",
     "invitationSent": "تم إرسال الدعوة",
     "invitationSentBody": "سيستلم العضو رسالة دعوة بالبريد.",
     "current": "الحالي",

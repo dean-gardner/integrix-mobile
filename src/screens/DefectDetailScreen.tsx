@@ -25,11 +25,12 @@ import { UserPickerModal } from '../components/UserPickerModal';
 import { screenStyles } from '../styles/screenStyles';
 import { useTranslation } from 'react-i18next';
 import { theme } from '../theme';
+import { formatLocaleDateTime } from '../utils/formatLocaleDateTime';
 
 type DefectDetailParams = { defect: DefectReadDTO };
 
 export default function DefectDetailScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation();
   const route = useRoute<RouteProp<{ params: DefectDetailParams }, 'params'>>();
   const dispatch = useDispatch<AppDispatch>();
@@ -181,13 +182,7 @@ export default function DefectDetailScreen() {
         <Text style={styles.value}>
           {defect.createdByName}
           {defect.createdOnUtc
-            ? ` · ${new Date(defect.createdOnUtc).toLocaleString(undefined, {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: 'numeric',
-                minute: '2-digit',
-              })}`
+            ? ` · ${formatLocaleDateTime(defect.createdOnUtc, i18n.language, 'listMeta')}`
             : ''}
         </Text>
         {defect.assetName ? (

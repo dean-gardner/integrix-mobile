@@ -615,6 +615,9 @@
       "readOnlyPostWarning": "المستند في وضع العرض (للقراءة فقط)، لذلك لا يمكنك نشر عيوب أو ملاحظات.",
       "readOnlyMarkWarning": "المستند في وضع العرض (للقراءة فقط)، لذلك لا يمكنك تعليم خطوات المهمة كـ تم أو تخطي."
     },
+    "defectDetail": {
+      "shareTitle": "مشاركة العيب"
+    },
     "taskStepPost": {
       "titleObservation": "ملاحظة جديدة",
       "titleDefect": "عيب جديد",
@@ -755,6 +758,10 @@
       "teamIdPh": "معرّف فريق الشركة"
     },
     "list": {
+      "loading": "جاري التحميل...",
+      "error": "حدث خطأ ما",
+      "loadMore": "تحميل المزيد",
+      "showing": "عرض العناصر",
       "loadMoreTotal": "تحميل المزيد (الإجمالي {{count}})"
     },
     "notificationsScreen": {

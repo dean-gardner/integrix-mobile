@@ -24,9 +24,10 @@ import { ListScreenLayout, LoadMoreButton } from '../components/ListScreenLayout
 import { screenStyles } from '../styles/screenStyles';
 import { useTranslation } from 'react-i18next';
 import { theme } from '../theme';
+import { formatLocaleDateTime } from '../utils/formatLocaleDateTime';
 
 export default function ObservationsScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const fetch = useCallback(() => dispatch(fetchObservations()), [dispatch]);
   const fetchMore = useCallback(() => dispatch(fetchMoreObservations()), [dispatch]);
@@ -135,15 +136,7 @@ export default function ObservationsScreen() {
                 </Text>
                 <Text style={screenStyles.muted}>
                   {o.createdByName}
-                  {o.createdOnUtc
-                    ? ` · ${new Date(o.createdOnUtc).toLocaleString(undefined, {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: 'numeric',
-                        minute: '2-digit',
-                      })}`
-                    : ''}
+                  {o.createdOnUtc ? ` · ${formatLocaleDateTime(o.createdOnUtc, i18n.language, 'listMeta')}` : ''}
                 </Text>
                 {o.assetName ? (
                   <Text style={styles.caption}>

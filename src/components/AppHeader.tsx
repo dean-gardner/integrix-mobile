@@ -30,6 +30,7 @@ import {
   notificationActionLabel,
   stripEmbeddedUrlsFromDisplay,
 } from '../utils/notificationDisplay';
+import { formatLocaleDateTime } from '../utils/formatLocaleDateTime';
 
 type AppHeaderProps = {
   title?: string;
@@ -38,7 +39,7 @@ type AppHeaderProps = {
 };
 
 export function AppHeader({ title, showMenu = true }: AppHeaderProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const displayTitle = title ?? t('appName');
   const navigation = useNavigation();
   const dispatch = useDispatch<AppDispatch>();
@@ -75,16 +76,8 @@ export function AppHeader({ title, showMenu = true }: AppHeaderProps) {
     dispatch(markAllNotificationsRead());
   };
 
-  const formatDate = (dateUtc?: string): string => {
-    if (!dateUtc) return '';
-    return new Date(dateUtc).toLocaleString(undefined, {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const formatDate = (dateUtc?: string): string =>
+    formatLocaleDateTime(dateUtc, i18n.language, 'notifications');
 
   const openNotificationLink = async (notification: NotificationDTO) => {
     if (!notification.link) return;

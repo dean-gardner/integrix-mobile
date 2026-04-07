@@ -611,6 +611,9 @@
       "readOnlyPostWarning": "El documento está en modo vista (solo lectura), por eso no puede publicar defectos u observaciones.",
       "readOnlyMarkWarning": "El documento está en modo vista (solo lectura), por eso no puede marcar pasos como Hecho u Omitido."
     },
+    "defectDetail": {
+      "shareTitle": "Compartir defecto"
+    },
     "taskStepPost": {
       "titleObservation": "Nueva observación",
       "titleDefect": "Nuevo defecto",
@@ -739,6 +742,10 @@
       "teamIdPh": "ID del equipo de la empresa"
     },
     "list": {
+      "loading": "Cargando...",
+      "error": "Algo salió mal",
+      "loadMore": "Cargar más",
+      "showing": "Mostrando elementos",
       "loadMoreTotal": "Cargar más ({{count}} en total)"
     },
     "notificationsScreen": {

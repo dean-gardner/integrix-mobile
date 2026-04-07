@@ -611,6 +611,9 @@
       "readOnlyPostWarning": "دستاویز ویو موڈ (صرف پڑھنے) میں ہے، اس لیے آپ عیب یا مشاہدہ پوسٹ نہیں کر سکتے۔",
       "readOnlyMarkWarning": "دستاویز ویو موڈ (صرف پڑھنے) میں ہے، اس لیے آپ اسٹیپس کو مکمل یا چھوڑا ہوا نشان نہیں کر سکتے۔"
     },
+    "defectDetail": {
+      "shareTitle": "عیب شیئر کریں"
+    },
     "taskStepPost": {
       "titleObservation": "نیا مشاہدہ",
       "titleDefect": "نیا عیب",
@@ -739,6 +742,10 @@
       "teamIdPh": "کمپنی ٹیم آئی ڈی"
     },
     "list": {
+      "loading": "لوڈ ہو رہا ہے...",
+      "error": "کچھ غلط ہو گیا",
+      "loadMore": "مزید لوڈ کریں",
+      "showing": "اشیاء دکھائی جا رہی ہیں",
       "loadMoreTotal": "مزید لوڈ کریں (کل {{count}})"
     },
     "notificationsScreen": {

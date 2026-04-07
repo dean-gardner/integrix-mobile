@@ -137,7 +137,7 @@ function formatPostDate(utcValue?: string): string {
       timeStyle: 'short',
     }).format(date);
   } catch {
-    return date.toLocaleString();
+    return date.toLocaleString(i18n.language || 'en');
   }
 }
 

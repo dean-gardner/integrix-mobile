@@ -25,7 +25,7 @@ function formatStartedOn(createdOnUtc: string | undefined, language: string, sta
     }).format(date);
     return `${startedLabel}${formatted}`;
   } catch {
-    return `${startedLabel}${date.toLocaleString()}`;
+    return `${startedLabel}${date.toLocaleString(language)}`;
   }
 }
 

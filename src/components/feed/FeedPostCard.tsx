@@ -107,7 +107,7 @@ function formatTimeDifference(createdOnUtc: string | undefined, language: string
     if (minutes > 0) return rtf.format(-minutes, 'minute');
     return rtf.format(-seconds, 'second');
   } catch {
-    return inputDate.toLocaleString();
+    return inputDate.toLocaleString(language);
   }
 }
 

@@ -47,9 +47,8 @@ type UsersTableRow = {
 };
 
 /** Fixed column widths so the table overflows horizontally and can scroll (web parity). */
-const CHECK_COL_W = 40;
-const COL_FULL_NAME_W = 168;
-const COL_EMAIL_W = 220;
+const COL_FULL_NAME_W = 190;
+const COL_EMAIL_W = 238;
 const COL_TEAM_W = 148;
 const COL_LICENSE_W = 96;
 const COL_ROLE_W = 104;
@@ -58,7 +57,6 @@ const COL_STATUS_W = 104;
 const COL_SEND_ON_W = 156;
 
 const MEMBERS_TABLE_MIN_WIDTH =
-  CHECK_COL_W +
   COL_FULL_NAME_W +
   COL_EMAIL_W +
   COL_TEAM_W +
@@ -67,7 +65,7 @@ const MEMBERS_TABLE_MIN_WIDTH =
   COL_LAST_ACCESS_W;
 
 const INVITATIONS_TABLE_MIN_WIDTH =
-  CHECK_COL_W + COL_FULL_NAME_W + COL_EMAIL_W + COL_TEAM_W + COL_STATUS_W + COL_SEND_ON_W;
+  COL_FULL_NAME_W + COL_EMAIL_W + COL_TEAM_W + COL_STATUS_W + COL_SEND_ON_W;
 
 const ADMIN_ROLE = 'Admin';
 const PAGE_SIZE_OPTIONS = [10, 25, 100];
@@ -123,8 +121,6 @@ export default function UsersScreen() {
   const [initialized, setInitialized] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<UsersTab>('members');
-  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
-  const [selectedInvitationIds, setSelectedInvitationIds] = useState<string[]>([]);
 
   const [inviteVisible, setInviteVisible] = useState(false);
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
@@ -154,10 +150,6 @@ export default function UsersScreen() {
   const pageCount = Math.max(1, Math.ceil(activeTotalCount / pageSize));
   const fromIndex = activeTotalCount === 0 ? 0 : pageNumber * pageSize + 1;
   const toIndex = activeTotalCount === 0 ? 0 : Math.min(activeTotalCount, (pageNumber + 1) * pageSize);
-
-  const selectedIds = activeTab === 'members' ? selectedMemberIds : selectedInvitationIds;
-  const allRowsSelected = rows.length > 0 && rows.every((row) => selectedIds.includes(row.id));
-  const someRowsSelected = !allRowsSelected && rows.some((row) => selectedIds.includes(row.id));
 
   useEffect(() => {
     dispatch(setUsersFilter({ pageNumber: 0, pageSize: 10 }));
@@ -221,31 +213,6 @@ export default function UsersScreen() {
       })),
       { text: t('app.modal.cancel'), style: 'cancel' },
     ]);
-  };
-
-  const toggleRowSelection = (id: string) => {
-    if (activeTab === 'members') {
-      setSelectedMemberIds((prev) =>
-        prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-      );
-      return;
-    }
-    setSelectedInvitationIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
-
-  const toggleSelectAllVisibleRows = () => {
-    const visibleIds = rows.map((row) => row.id);
-    if (activeTab === 'members') {
-      setSelectedMemberIds((prev) =>
-        allRowsSelected ? prev.filter((id) => !visibleIds.includes(id)) : [...new Set([...prev, ...visibleIds])]
-      );
-      return;
-    }
-    setSelectedInvitationIds((prev) =>
-      allRowsSelected ? prev.filter((id) => !visibleIds.includes(id)) : [...new Set([...prev, ...visibleIds])]
-    );
   };
 
   const openInviteModal = async () => {
@@ -396,23 +363,6 @@ export default function UsersScreen() {
           >
             <View style={[styles.tableSheet, { minWidth: tableMinWidth }]}>
               <View style={styles.tableHeader}>
-                <TouchableOpacity
-                  onPress={toggleSelectAllVisibleRows}
-                  hitSlop={8}
-                  style={styles.checkCell}
-                >
-                  <MaterialIcons
-                    name={
-                      allRowsSelected
-                        ? 'check-box'
-                        : someRowsSelected
-                          ? 'indeterminate-check-box'
-                          : 'check-box-outline-blank'
-                    }
-                    size={22}
-                    color="#7e8086"
-                  />
-                </TouchableOpacity>
                 <Text style={[styles.headerText, styles.colFullNameHeader]}>
                   {t('app.users.colFullName')}
                 </Text>
@@ -441,20 +391,8 @@ export default function UsersScreen() {
               </View>
 
               {rows.map((row) => {
-                const checked = selectedIds.includes(row.id);
                 return (
                   <View key={row.id} style={styles.dataRow}>
-                    <TouchableOpacity
-                      onPress={() => toggleRowSelection(row.id)}
-                      hitSlop={8}
-                      style={styles.checkCell}
-                    >
-                      <MaterialIcons
-                        name={checked ? 'check-box' : 'check-box-outline-blank'}
-                        size={22}
-                        color="#7e8086"
-                      />
-                    </TouchableOpacity>
                     <Text style={[styles.rowText, styles.colFullNameCell]} numberOfLines={1}>
                       {row.fullName}
                     </Text>
@@ -646,11 +584,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#d8dbe2',
     paddingHorizontal: 2,
-  },
-  checkCell: {
-    width: CHECK_COL_W,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   headerText: {
     color: '#2a2f38',

@@ -66,21 +66,4 @@ export const drawerMenuGroups: DrawerMenuGroup[] = [
       },
     ],
   },
-  {
-    titleKey: 'drawer.groupProfile',
-    items: [
-      {
-        key: 'EditProfile',
-        titleKey: 'drawer.editProfile',
-        route: 'EditProfile',
-        icon: 'manage-accounts',
-      },
-      {
-        key: 'Subscription',
-        titleKey: 'drawer.subscription',
-        route: 'Subscription',
-        icon: 'card-membership',
-      },
-    ],
-  },
 ];

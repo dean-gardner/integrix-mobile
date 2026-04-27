@@ -1,11 +1,11 @@
 {
   "app": {
     "feed": {
-      "tabActivity": "Activity Feed",
-      "tabTasks": "Tasks",
-      "startedByMe": "Started by me",
-      "startedByTeam": "Started by my team",
-      "sharedWithMe": "Shared with me",
+      "tabActivity": "سرگرمی فیڈ",
+      "tabTasks": "کام",
+      "startedByMe": "میرے شروع کردہ",
+      "startedByTeam": "میری ٹیم کے شروع کردہ",
+      "sharedWithMe": "میرے ساتھ شیئر شدہ",
       "emptyFeed": "There are no defects or observations yet...",
       "loadMore": "Load more",
       "tasksInProgress": "Tasks in progress",
@@ -113,7 +113,8 @@
       "project": "Project",
       "assetId": "Asset ID",
       "sharePh": "صارفین درج کریں (بیرونی صارفین...",
-      "usersToShare": "صارفین کے ساتھ شیئر"
+      "usersToShare": "صارفین کے ساتھ شیئر",
+      "finaliseSuccess": "کام کامیابی سے مکمل ہو گیا۔"
     },
     "users": {
       "inviteSentTitle": "Invitation sent",
@@ -389,7 +390,7 @@
       "loadMemberPrices": "قیمتیں لوڈ کرنے میں ناکامی",
       "assignSubscription": "تفویض میں ناکامی",
       "revokeSubscription": "منسوخی میں ناکامی",
-      "createSubscription": "بنانے میں ناکامی",
+      "createSubscription": "محفوظ چیک آؤٹ شروع نہیں ہو سکا۔ براہ کرم بعد میں دوبارہ کوشش کریں یا سپورٹ سے رابطہ کریں۔",
       "loadAssets": "اثاثے لوڈ کرنے میں ناکامی",
       "createAsset": "بنانے میں ناکامی",
       "editAsset": "ترمیم میں ناکامی",
@@ -609,7 +610,10 @@
       "editTitle": "دستاویز میں ترمیم",
       "warningTitle": "تنبیہ",
       "readOnlyPostWarning": "دستاویز ویو موڈ (صرف پڑھنے) میں ہے، اس لیے آپ عیب یا مشاہدہ پوسٹ نہیں کر سکتے۔",
-      "readOnlyMarkWarning": "دستاویز ویو موڈ (صرف پڑھنے) میں ہے، اس لیے آپ اسٹیپس کو مکمل یا چھوڑا ہوا نشان نہیں کر سکتے۔"
+      "readOnlyMarkWarning": "دستاویز ویو موڈ (صرف پڑھنے) میں ہے، اس لیے آپ اسٹیپس کو مکمل یا چھوڑا ہوا نشان نہیں کر سکتے۔",
+      "historyDate": "تاریخ",
+      "sectionPreWork": "ابتدائی کام",
+      "sectionMainWorks": "مرکزی کام"
     },
     "defectDetail": {
       "shareTitle": "عیب شیئر کریں"
@@ -648,7 +652,11 @@
       "isDefectToggle": "یہ ایک عیب ہے",
       "noDefects": "ابھی کوئی عیب نہیں...",
       "noPosts": "ابھی کوئی عیب یا مشاہدہ نہیں...",
-      "otherPosts": "دیگر پوسٹ آئٹمز"
+      "otherPosts": "دیگر پوسٹ آئٹمز",
+      "gpsUnavailable": "اس ڈیوائس پر GPS دستیاب نہیں۔ عیب خودکار مقام کے ساتھ پھر بھی پوسٹ کیا جا سکتا ہے۔",
+      "gpsCoordinatesUnavailable": "اس عیب کے لیے GPS نقاط ابھی دستیاب نہیں ہیں۔",
+      "gpsOpenFailed": "نقشہ ایپ کھولنے میں ناکامی۔",
+      "gpsPermissionDenied": "مقام کی اجازت مسترد کر دی گئی۔ اس عیب کے ساتھ GPS نقاط منسلک کرنے کے لیے مقام تک رسائی فعال کریں۔"
     },
     "documentCreate": {
       "taskDetails": "کام کی تفصیلات",
@@ -721,7 +729,8 @@
       "currentRequired": "اپنا موجودہ پاس ورڈ درج کریں۔",
       "newRequired": "نیا پاس ورڈ درج کریں۔",
       "mismatch": "نیا پاس ورڈ اور تصدیق میل نہیں کھاتے۔",
-      "failedChange": "پاس ورڈ تبدیل کرنے میں ناکامی"
+      "failedChange": "پاس ورڈ تبدیل کرنے میں ناکامی",
+      "validationFailed": "براہ کرم پاس ورڈ فیلڈز چیک کریں اور یقینی بنائیں کہ آپ کا موجودہ پاس ورڈ درست ہے۔"
     },
     "acceptInvitation": {
       "title": "دعوت قبول کریں",
@@ -753,7 +762,23 @@
       "emptyList": "کوئی اطلاع نہیں۔",
       "markAllReadBtn": "سب کو پڑھا ہوا نشان زد کریں",
       "viewReport": "رپورٹ دیکھیں",
-      "openActionHint": "اس نوٹیفکیشن کو کھولنے کے لیے نیچے دیا گیا بٹن دبائیں۔"
+      "openActionHint": "اس نوٹیفکیشن کو کھولنے کے لیے نیچے دیا گیا بٹن دبائیں۔",
+      "taskAccessGranted": "آپ کو {{user}} کی طرف سے '{{task}}' ٹاسک دیکھنے کی رسائی دی گئی ہے۔",
+      "newUserAlert": "نئے صارف کا الرٹ: صارف {{user}} ابھی ایپلیکیشن میں شامل ہوا ہے۔ اگر یہ غلطی ہے تو براہ کرم سپورٹ سے رابطہ کریں۔ شکریہ۔",
+      "clickHere": "یہاں کلک کریں",
+      "grantedAccess": "آپ کو رسائی دی گئی ہے",
+      "newUserAlertShort": "نئے صارف کا الرٹ"
+    },
+    "roles": {
+      "admin": "ایڈمن",
+      "user": "صارف"
+    },
+    "teamNames": {
+      "portTeam": "پورٹ ٹیم",
+      "assetIntegrityTeam": "اثاثہ سالمیت ٹیم",
+      "johnsTeam": "جان کی ٹیم",
+      "secondTeam": "دوسری ٹیم",
+      "newTeam": "نئی ٹیم"
     }
   }
 }

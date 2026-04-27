@@ -39,6 +39,9 @@ import { screenStyles } from '../styles/screenStyles';
 import { useTranslation } from 'react-i18next';
 import { theme } from '../theme';
 import { taskReferencingOptions } from '../config/documentCreate';
+import { formatLocaleDateTime } from '../utils/formatLocaleDateTime';
+import { translateKnownDocumentSectionTitle } from '../utils/systemDisplayText';
+import { RTL_LANGUAGES } from '../i18n';
 import {
   parseVerificationStatus,
   verificationStatusToApiString,
@@ -78,6 +81,26 @@ function parseHistoryDescription(value?: string): ParsedHistoryDescription {
   };
 }
 
+function formatCompactHistoryDate(dateUtc: string | undefined, locale: string): string {
+  if (!dateUtc) return '-';
+  const date = new Date(dateUtc);
+  if (Number.isNaN(date.getTime())) return '-';
+  try {
+    const day = new Intl.DateTimeFormat(locale, {
+      day: '2-digit',
+      month: '2-digit',
+      year: '2-digit',
+    }).format(date);
+    const time = new Intl.DateTimeFormat(locale, {
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date);
+    return `${day}\n${time}`;
+  } catch {
+    return formatLocaleDateTime(dateUtc, locale, 'listMeta') || '-';
+  }
+}
+
 function buildTaskStepStatuses(task: TaskWithDetailsReadDTO | null): Record<string, number | null> {
   const map: Record<string, number | null> = {};
   const verifications = Array.isArray(task?.taskStepsVerifications) ? task.taskStepsVerifications : [];
@@ -111,7 +134,7 @@ function mapTaskStepToDocumentTaskStep(taskStep: TaskStepReadDTO): DocumentTaskS
 }
 
 export default function DocumentDetailScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation();
   const route = useRoute<RouteProp<{ params: DocumentDetailParams }, 'params'>>();
   const dispatch = useDispatch<AppDispatch>();
@@ -161,6 +184,9 @@ export default function DocumentDetailScreen() {
   const [postTaskStep, setPostTaskStep] = useState<TaskStepReadDTO | null>(null);
   const [postingStepId, setPostingStepId] = useState<string | null>(null);
   const [readOnlyWarningVisible, setReadOnlyWarningVisible] = useState<'mark' | 'post' | null>(null);
+  const currentLanguage = (i18n.resolvedLanguage ?? i18n.language ?? 'en').toLowerCase();
+  const isRtl = RTL_LANGUAGES.some((code) => currentLanguage === code || currentLanguage.startsWith(`${code}-`));
+  const directionTextStyle = isRtl ? styles.textRtl : styles.textLtr;
 
   const documentTaskId = useMemo(() => {
     if (!doc || typeof doc.task !== 'object' || doc.task == null) return null;
@@ -689,11 +715,12 @@ export default function DocumentDetailScreen() {
           style={[
             styles.taskHeaderBase,
             isTaskDetailsExpanded ? styles.taskHeaderExpanded : styles.taskHeaderCollapsed,
+            isRtl && styles.rowRtl,
           ]}
           activeOpacity={0.85}
           onPress={() => setIsTaskDetailsExpanded((prev) => !prev)}
         >
-          <Text style={styles.taskHeaderText}>{t('app.documentCreate.taskDetails')}</Text>
+          <Text style={[styles.taskHeaderText, directionTextStyle]}>{t('app.documentCreate.taskDetails')}</Text>
           <MaterialIcons
             name={isTaskDetailsExpanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
             size={22}
@@ -746,6 +773,7 @@ export default function DocumentDetailScreen() {
                   style={[
                     styles.sectionRowBase,
                     isSectionOpen ? styles.sectionRowExpanded : styles.sectionRowCollapsed,
+                    isRtl && styles.rowRtl,
                   ]}
                   activeOpacity={0.85}
                   onPress={() => {
@@ -760,7 +788,9 @@ export default function DocumentDetailScreen() {
                     }
                   }}
                 >
-                  <Text style={styles.sectionTitle}>{(section.sectionTitle ?? '').toUpperCase()}</Text>
+                  <Text style={[styles.sectionTitle, directionTextStyle, isRtl && styles.sectionTitleRtl]}>
+                    {translateKnownDocumentSectionTitle(section.sectionTitle, t).toUpperCase()}
+                  </Text>
                   <MaterialIcons
                     name={isSectionOpen ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
                     size={22}
@@ -829,10 +859,14 @@ export default function DocumentDetailScreen() {
           <Text style={[styles.historyHeaderText, styles.historyUserCell]}>
             {t('app.documentDetail.historyUser')}
           </Text>
+          <Text style={[styles.historyHeaderText, styles.historyDateCell]}>
+            {t('app.documentDetail.historyDate')}
+          </Text>
         </View>
 
         {history.map((item, index) => {
           const parsedDescription = parseHistoryDescription(item.description);
+          const historyDate = formatCompactHistoryDate(item.utcDate, i18n.language);
           return (
             <View key={`${item.id}-${index}`} style={styles.historyRow}>
               <View style={styles.historyActionCell}>
@@ -847,6 +881,9 @@ export default function DocumentDetailScreen() {
               <Text style={styles.historyUserText} numberOfLines={1}>
                 {item.userName}
               </Text>
+              <Text style={styles.historyDateText} numberOfLines={2}>
+                {historyDate || '-'}
+              </Text>
             </View>
           );
         })}
@@ -857,24 +894,24 @@ export default function DocumentDetailScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.card}>
-        <Text style={styles.pageTitle}>{t('app.documentDetail.pageTitle')}</Text>
+        <Text style={[styles.pageTitle, directionTextStyle]}>{t('app.documentDetail.pageTitle')}</Text>
 
-        <View style={styles.actionsRow}>
+        <View style={[styles.actionsRow, isRtl && styles.actionsRowRtl]}>
           <TouchableOpacity style={styles.iconButton} onPress={() => setShareModalVisible(true)}>
             <MaterialIcons name="share" size={21} color="#111111" />
           </TouchableOpacity>
         </View>
 
         <View style={styles.documentMetaWrap}>
-          <Text style={styles.metaText}>
+          <Text style={[styles.metaText, directionTextStyle]}>
             <Text style={styles.metaLabel}>{t('app.documentDetail.documentNumberLabel')}</Text>
             {doc.documentNumberStr ?? doc.documentNo}
           </Text>
-          <Text style={styles.metaText}>
+          <Text style={[styles.metaText, directionTextStyle]}>
             <Text style={styles.metaLabel}>{t('app.documentDetail.documentTitleLabel')}</Text>
             {doc.description || '—'}
           </Text>
-          <Text style={styles.metaText}>
+          <Text style={[styles.metaText, directionTextStyle]}>
             <Text style={styles.metaLabel}>{t('app.documentDetail.documentVersionLabel')}</Text>
             {doc.versionNo ?? '—'}
           </Text>
@@ -1033,11 +1070,25 @@ const styles = StyleSheet.create({
     color: '#374569',
     marginBottom: 8,
   },
+  textLtr: {
+    textAlign: 'left',
+    writingDirection: 'ltr',
+  },
+  textRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  rowRtl: {
+    flexDirection: 'row-reverse',
+  },
   actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
     marginBottom: 10,
+  },
+  actionsRowRtl: {
+    justifyContent: 'flex-end',
   },
   iconButton: {
     minWidth: 26,
@@ -1227,6 +1278,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     paddingRight: 8,
   },
+  sectionTitleRtl: {
+    paddingRight: 0,
+    paddingLeft: 8,
+  },
   sectionBody: {
     marginTop: 0,
     marginHorizontal: 8,
@@ -1339,39 +1394,58 @@ const styles = StyleSheet.create({
     backgroundColor: '#f7f7f9',
   },
   historyRow: {
-    minHeight: 52,
+    minHeight: 56,
     borderTopWidth: 1,
     borderTopColor: '#d4d7df',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
   },
   historyHeaderRow: {
     borderTopWidth: 0,
   },
   historyHeaderText: {
     color: '#222222',
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '700',
   },
   historyActionCell: {
     flex: 1,
-    paddingRight: 8,
+    minWidth: 0,
+    flexShrink: 1,
+    paddingRight: 4,
   },
   historyUserCell: {
-    width: 110,
+    width: 66,
+    flexShrink: 0,
+    paddingRight: 4,
+  },
+  historyDateCell: {
+    width: 72,
+    flexShrink: 0,
+    textAlign: 'right',
   },
   historyActionText: {
     color: '#1f2431',
-    fontSize: 14,
+    fontSize: 11,
   },
   historyLinkText: {
     color: '#2d49b6',
   },
   historyUserText: {
-    width: 110,
+    width: 66,
+    flexShrink: 0,
     color: '#1f2431',
-    fontSize: 14,
+    fontSize: 11,
+    paddingRight: 4,
+  },
+  historyDateText: {
+    width: 72,
+    flexShrink: 0,
+    color: '#1f2431',
+    fontSize: 10,
+    lineHeight: 13,
+    textAlign: 'right',
   },
   modalBackdrop: {
     flex: 1,

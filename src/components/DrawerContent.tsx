@@ -1,27 +1,24 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
 import { useNavigation } from '@react-navigation/native';
-import { useDispatch } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import { theme } from '../theme';
 import { useSelector } from 'react-redux';
-import type { RootState, AppDispatch } from '../store';
-import { signOut } from '../store/authSlice';
+import type { RootState } from '../store';
 import { drawerMenuGroups, type DrawerMenuItem } from '../config/drawerMenu';
-import { setAppLanguage, SUPPORTED_LANGUAGES } from '../i18n';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type DrawerContentProps = { onClose: () => void };
 
 export function DrawerContent({ onClose }: DrawerContentProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const navigation = useNavigation();
-  const dispatch = useDispatch<AppDispatch>();
   const safeAreaInsets = useSafeAreaInsets();
   const user = useSelector((s: RootState) => s.auth.user);
-  const roles = user?.roles ?? [];
-
+  const roles = Array.isArray(user?.roles)
+    ? user.roles.filter((role): role is string => typeof role === 'string')
+    : [];
   const canSee = (item: DrawerMenuItem) => {
     if (item.isVisibleForMobile === false) return false;
     if (item.requiredRoles?.length) {
@@ -39,6 +36,13 @@ export function DrawerContent({ onClose }: DrawerContentProps) {
     navigation.navigate(screen as never);
   };
 
+  const visibleMenuGroups = drawerMenuGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(canSee),
+    }))
+    .filter((group) => group.items.length > 0);
+
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: Math.max(14, safeAreaInsets.top + 8) }]}>
@@ -50,17 +54,12 @@ export function DrawerContent({ onClose }: DrawerContentProps) {
           <MaterialIcons name="more-vert" size={20} color={theme.colors.sidebarText} />
         </View>
       </View>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: 32 + safeAreaInsets.bottom }]}
-      >
-        {drawerMenuGroups.map((group) => {
-          const visibleItems = group.items.filter(canSee);
-          if (visibleItems.length === 0) return null;
-          return (
+      <View style={[styles.body, { paddingBottom: 20 + safeAreaInsets.bottom }]}>
+        <View>
+          {visibleMenuGroups.map((group) => (
             <View key={group.titleKey} style={styles.group}>
               <Text style={styles.groupTitle}>{t(group.titleKey)}</Text>
-              {visibleItems.map((item) => {
+              {group.items.map((item) => {
                 const isActive = currentRouteName === item.route;
                 return (
                   <TouchableOpacity
@@ -80,51 +79,9 @@ export function DrawerContent({ onClose }: DrawerContentProps) {
                 );
               })}
             </View>
-          );
-        })}
-
-        <View style={styles.group}>
-          <Text style={styles.groupTitle}>{t('drawer.language')}</Text>
-          {SUPPORTED_LANGUAGES.map(({ code, nativeLabel }) => {
-            const active = i18n.language === code || i18n.language.startsWith(`${code}-`);
-            return (
-              <TouchableOpacity
-                key={code}
-                style={[styles.item, active && styles.itemActive]}
-                onPress={() => {
-                  void setAppLanguage(code);
-                }}
-                activeOpacity={0.7}
-              >
-                <MaterialIcons
-                  name="language"
-                  size={20}
-                  color={active ? theme.colors.primary : theme.colors.sidebarText}
-                  style={styles.itemIcon}
-                />
-                <Text style={[styles.itemText, active && styles.itemTextActive]}>{nativeLabel}</Text>
-              </TouchableOpacity>
-            );
-          })}
+          ))}
         </View>
-
-        <TouchableOpacity
-          style={styles.signOutItem}
-          onPress={() => {
-            onClose();
-            dispatch(signOut());
-          }}
-          activeOpacity={0.7}
-        >
-          <MaterialIcons
-            name="logout"
-            size={20}
-            color={theme.colors.sidebarText}
-            style={styles.itemIcon}
-          />
-          <Text style={styles.signOutText}>{t('drawer.signOut')}</Text>
-        </TouchableOpacity>
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -156,12 +113,13 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     color: theme.colors.sidebarHeading,
   },
-  scroll: {
+  body: {
     flex: 1,
-  },
-  scrollContent: {
-    paddingVertical: 16,
-    paddingBottom: 32,
+    ...Platform.select({
+      ios: {
+        paddingTop: 14,
+      },
+    }),
   },
   group: {
     marginBottom: 20,
@@ -197,17 +155,5 @@ const styles = StyleSheet.create({
   itemTextActive: {
     color: theme.colors.primary,
     fontWeight: '600',
-  },
-  signOutItem: {
-    marginTop: 8,
-    marginHorizontal: 20,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  signOutText: {
-    fontSize: 15,
-    color: theme.colors.sidebarHeading,
-    fontWeight: '700',
   },
 });

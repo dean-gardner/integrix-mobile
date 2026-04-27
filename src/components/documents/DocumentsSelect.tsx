@@ -9,6 +9,8 @@ type DocumentsSelectProps<T extends DocumentsSelectValue> = {
   options: DocumentsSelectOption<T>[];
   onChange: (value: T) => void;
   placeholder?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
 export function DocumentsSelect<T extends DocumentsSelectValue>({
@@ -16,8 +18,18 @@ export function DocumentsSelect<T extends DocumentsSelectValue>({
   options,
   onChange,
   placeholder = '',
+  open: controlledOpen,
+  onOpenChange,
 }: DocumentsSelectProps<T>) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+
+  const setOpen = (nextOpen: boolean) => {
+    if (controlledOpen === undefined) {
+      setInternalOpen(nextOpen);
+    }
+    onOpenChange?.(nextOpen);
+  };
 
   const selected = useMemo(
     () => options.find((option) => option.value === value) ?? null,
@@ -28,7 +40,7 @@ export function DocumentsSelect<T extends DocumentsSelectValue>({
     <View style={[styles.wrapper, open && styles.wrapperOpen]}>
       <TouchableOpacity
         style={[styles.trigger, open && styles.triggerOpen]}
-        onPress={() => setOpen((prev) => !prev)}
+        onPress={() => setOpen(!open)}
         activeOpacity={0.85}
       >
         <Text style={[styles.triggerText, !selected && styles.placeholderText]} numberOfLines={1}>

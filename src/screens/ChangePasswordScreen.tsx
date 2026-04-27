@@ -12,9 +12,14 @@ import {
 import { useTranslation } from 'react-i18next';
 import { apiChangePassword } from '../api/auth';
 import { screenStyles } from '../styles/screenStyles';
+import { RTL_LANGUAGES } from '../i18n';
+import { getHttpErrorMessage } from '../utils/httpErrorMessage';
 
 export default function ChangePasswordScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const currentLanguage = (i18n.resolvedLanguage ?? i18n.language ?? 'en').toLowerCase();
+  const isRtl = RTL_LANGUAGES.some((code) => currentLanguage === code || currentLanguage.startsWith(`${code}-`));
+  const directionTextStyle = isRtl ? styles.textRtl : styles.textLtr;
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [repeatPassword, setRepeatPassword] = useState('');
@@ -50,27 +55,34 @@ export default function ChangePasswordScreen() {
         } },
       ]);
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: string }; message?: string })?.message
-        ?? (e as { response?: { data?: string } })?.response?.data
-        ?? t('app.changePassword.failedChange');
-      setError(typeof msg === 'string' ? msg : t('app.changePassword.failedChange'));
+      const status = (e as { response?: { status?: number } })?.response?.status;
+      const fallback =
+        status === 400
+          ? t('app.changePassword.validationFailed')
+          : t('app.changePassword.failedChange');
+      const msg = getHttpErrorMessage(e, fallback);
+      setError(msg || fallback);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <ScrollView style={screenStyles.container} contentContainerStyle={screenStyles.content}>
-      <Text style={screenStyles.title}>{t('app.changePassword.title')}</Text>
+    <ScrollView
+      style={screenStyles.container}
+      contentContainerStyle={screenStyles.content}
+      keyboardShouldPersistTaps="handled"
+    >
+      <Text style={[screenStyles.title, directionTextStyle]}>{t('app.changePassword.title')}</Text>
       {error ? (
         <View style={screenStyles.errorBox}>
-          <Text style={screenStyles.errorText}>{error}</Text>
+          <Text style={[screenStyles.errorText, directionTextStyle]}>{error}</Text>
         </View>
       ) : null}
       <View style={screenStyles.card}>
-        <Text style={screenStyles.formLabel}>{t('app.changePassword.currentPh')}</Text>
+        <Text style={[screenStyles.formLabel, directionTextStyle]}>{t('app.changePassword.currentPh')}</Text>
         <TextInput
-          style={screenStyles.formInput}
+          style={[screenStyles.formInput, directionTextStyle]}
           value={currentPassword}
           onChangeText={setCurrentPassword}
           placeholder={t('app.changePassword.currentPh')}
@@ -78,9 +90,9 @@ export default function ChangePasswordScreen() {
           secureTextEntry
           editable={!loading}
         />
-        <Text style={screenStyles.formLabel}>{t('app.changePassword.newPh')}</Text>
+        <Text style={[screenStyles.formLabel, directionTextStyle]}>{t('app.changePassword.newPh')}</Text>
         <TextInput
-          style={screenStyles.formInput}
+          style={[screenStyles.formInput, directionTextStyle]}
           value={newPassword}
           onChangeText={setNewPassword}
           placeholder={t('app.changePassword.newPh')}
@@ -88,9 +100,9 @@ export default function ChangePasswordScreen() {
           secureTextEntry
           editable={!loading}
         />
-        <Text style={screenStyles.formLabel}>{t('app.changePassword.confirmPh')}</Text>
+        <Text style={[screenStyles.formLabel, directionTextStyle]}>{t('app.changePassword.confirmPh')}</Text>
         <TextInput
-          style={screenStyles.formInput}
+          style={[screenStyles.formInput, directionTextStyle]}
           value={repeatPassword}
           onChangeText={setRepeatPassword}
           placeholder={t('app.changePassword.confirmPh')}
@@ -116,4 +128,12 @@ export default function ChangePasswordScreen() {
 
 const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.7 },
+  textLtr: {
+    textAlign: 'left',
+    writingDirection: 'ltr',
+  },
+  textRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
 });

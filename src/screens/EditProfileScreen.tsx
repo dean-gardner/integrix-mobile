@@ -11,7 +11,7 @@ import {
   Image,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigation } from '@react-navigation/native';
+import { StackActions, useNavigation } from '@react-navigation/native';
 import { launchImageLibrary, type Asset } from 'react-native-image-picker';
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
 import type { AppDispatch, RootState } from '../store';
@@ -107,7 +107,7 @@ export default function EditProfileScreen() {
   };
 
   const openChangePassword = () => {
-    navigation.navigate('ChangePassword' as never);
+    navigation.dispatch(StackActions.push('ChangePassword'));
   };
 
   if (!user) {

@@ -154,6 +154,39 @@ export function stripEmbeddedUrlsFromDisplay(message: string): string {
   return fallback.length > 0 ? fallback : message;
 }
 
+export function translateNotificationMessage(
+  message: string,
+  translate: (key: string, options?: Record<string, unknown>) => string
+): string {
+  const trimmed = (message ?? '').trim();
+  if (!trimmed) return '';
+
+  const accessMatch = trimmed.match(
+    /^You've been granted access to view the task ['"]?(.+?)['"]? by (.+?)\.\s*Click here to view the task now\.?$/i
+  );
+  if (accessMatch) {
+    return translate('app.notificationsScreen.taskAccessGranted', {
+      task: accessMatch[1],
+      user: accessMatch[2],
+    });
+  }
+
+  const newUserMatch = trimmed.match(
+    /^New user alert:\s*A new user (.+?) has just joined the application\.\s*Please contact our support if it is a mistake\.\s*Thank you\.?$/i
+  );
+  if (newUserMatch) {
+    return translate('app.notificationsScreen.newUserAlert', {
+      user: newUserMatch[1],
+    });
+  }
+
+  return trimmed
+    .replace(/\byou(?:'|’)ve been granted access\b/gi, translate('app.notificationsScreen.grantedAccess'))
+    .replace(/\byou have been granted access\b/gi, translate('app.notificationsScreen.grantedAccess'))
+    .replace(/\bnew user alert\b/gi, translate('app.notificationsScreen.newUserAlertShort'))
+    .replace(/\bclick here\b/gi, translate('app.notificationsScreen.clickHere'));
+}
+
 /** Keep API-provided label (e.g. "here") to match web UI wording. */
 export function notificationActionLabel(
   linkText: string | undefined,
@@ -161,5 +194,8 @@ export function notificationActionLabel(
 ): string {
   const raw = (linkText ?? '').trim();
   if (!raw) return translate('app.notificationsScreen.viewLink');
+  if (/^here$/i.test(raw)) return translate('app.notificationsScreen.viewLink');
+  if (/^click here$/i.test(raw)) return translate('app.notificationsScreen.clickHere');
+  if (/^view report$/i.test(raw)) return translate('app.notificationsScreen.viewReport');
   return raw;
 }

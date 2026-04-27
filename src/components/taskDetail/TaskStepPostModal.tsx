@@ -6,6 +6,7 @@ import {
   Image,
   Linking,
   Modal,
+  PermissionsAndroid,
   Platform,
   ScrollView,
   StyleSheet,
@@ -14,6 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Geolocation, { type GeolocationError } from '@react-native-community/geolocation';
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
 import { launchCamera, launchImageLibrary, type Asset as ImagePickerAsset } from 'react-native-image-picker';
 import i18n from '../../i18n';
@@ -63,8 +65,23 @@ const TASK_STEP_DEFECTS_FILTERING_MODEL: DefectFilteringModel = {
   sharedUserEmail: null,
 };
 
+Geolocation.setRNConfiguration({
+  skipPermissionRequests: false,
+  authorizationLevel: 'whenInUse',
+  locationProvider: 'auto',
+});
+
 type ModalTab = 'posts' | 'defects';
 type DefectFieldValue = string | boolean;
+type GpsCoordinates = { lat: number; lng: number };
+type DefectFieldValueLike = {
+  id?: string;
+  name?: string;
+  type?: number | null;
+  value?: unknown;
+  valueId?: string | number | null;
+  defectFieldId?: string;
+};
 
 type UploadFile = {
   uri: string;
@@ -146,11 +163,18 @@ function formatRelativeTime(utcValue?: string | null): string {
   const value = new Date(utcValue).getTime();
   if (Number.isNaN(value)) return '';
   const diff = Date.now() - value;
-  const formatter = new Intl.RelativeTimeFormat(i18n.language || 'en', { numeric: 'auto' });
-  if (diff < 60_000) return formatter.format(0, 'second');
-  if (diff < 3_600_000) return formatter.format(-Math.floor(diff / 60_000), 'minute');
-  if (diff < 86_400_000) return formatter.format(-Math.floor(diff / 3_600_000), 'hour');
-  return formatter.format(-Math.floor(diff / 86_400_000), 'day');
+  try {
+    if (typeof Intl.RelativeTimeFormat !== 'function') {
+      return formatPostDate(utcValue);
+    }
+    const formatter = new Intl.RelativeTimeFormat(i18n.language || 'en', { numeric: 'auto' });
+    if (diff < 60_000) return formatter.format(0, 'second');
+    if (diff < 3_600_000) return formatter.format(-Math.floor(diff / 60_000), 'minute');
+    if (diff < 86_400_000) return formatter.format(-Math.floor(diff / 3_600_000), 'hour');
+    return formatter.format(-Math.floor(diff / 86_400_000), 'day');
+  } catch {
+    return formatPostDate(utcValue);
+  }
 }
 
 const IMAGE_MIME_TYPES = new Set([
@@ -160,6 +184,74 @@ const IMAGE_MIME_TYPES = new Set([
 
 function isImageFile(file: UploadFile): boolean {
   return IMAGE_MIME_TYPES.has((file.type ?? '').toLowerCase());
+}
+
+function parseGpsCoordinates(value: unknown): GpsCoordinates | null {
+  if (value == null) return null;
+  if (typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    const rawLat = record.lat ?? record.latitude;
+    const rawLng = record.lng ?? record.lon ?? record.long ?? record.longitude;
+    const lat = typeof rawLat === 'number' ? rawLat : Number(rawLat);
+    const lng = typeof rawLng === 'number' ? rawLng : Number(rawLng);
+    return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+  }
+
+  const text = String(value).trim();
+  if (!text || text.toLowerCase() === 'auto' || text === '-') return null;
+  try {
+    return parseGpsCoordinates(JSON.parse(text));
+  } catch {
+    const match = text.match(/(-?\d+(?:\.\d+)?)\s*[,;]\s*(-?\d+(?:\.\d+)?)/);
+    if (!match) return null;
+    const lat = Number(match[1]);
+    const lng = Number(match[2]);
+    return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+  }
+}
+
+function getDefectGpsCoordinates(defect: DefectReadDTO): GpsCoordinates | null {
+  const rawFieldValues =
+    ((defect as { fieldValues?: DefectFieldValueLike[] }).fieldValues ?? [])
+      .concat((defect as { defectFieldsValues?: DefectFieldValueLike[] }).defectFieldsValues ?? []);
+
+  for (const fieldValue of rawFieldValues) {
+    const name = (fieldValue.name ?? '').toLowerCase();
+    const type = typeof fieldValue.type === 'number' ? fieldValue.type : null;
+    if (type === DEFECT_FIELD_TYPES.Map || name.includes('gps')) {
+      const coords = parseGpsCoordinates(fieldValue.value);
+      if (coords) return coords;
+    }
+  }
+
+  return (
+    parseGpsCoordinates((defect as Record<string, unknown>).gpsPosition) ??
+    parseGpsCoordinates((defect as Record<string, unknown>).gpsCoordinates) ??
+    parseGpsCoordinates((defect as Record<string, unknown>).position)
+  );
+}
+
+async function requestAndroidLocationPermission(): Promise<boolean> {
+  if (Platform.OS !== 'android') return true;
+
+  const fineLocation = PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION;
+  const coarseLocation = PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION;
+  const hasFinePermission = await PermissionsAndroid.check(fineLocation);
+  const hasCoarsePermission = await PermissionsAndroid.check(coarseLocation);
+  if (hasFinePermission || hasCoarsePermission) return true;
+
+  const result = await PermissionsAndroid.request(fineLocation);
+  return result === PermissionsAndroid.RESULTS.GRANTED;
+}
+
+function requestIosLocationPermission(): Promise<boolean> {
+  if (Platform.OS !== 'ios') return Promise.resolve(true);
+  return new Promise((resolve) => {
+    Geolocation.requestAuthorization(
+      () => resolve(true),
+      () => resolve(false)
+    );
+  });
 }
 
 function mapPickerAsset(asset: ImagePickerAsset): UploadFile | null {
@@ -263,6 +355,8 @@ export function TaskStepPostModal({
     setRemediationDetails('');
     setFieldValues({});
     setFiles([]);
+    setGpsCoords(null);
+    setGpsLoading(false);
     setError(null);
   }, []);
 
@@ -557,37 +651,119 @@ export function TaskStepPostModal({
     }
   };
 
+  const openGpsInMaps = useCallback((coords: GpsCoordinates) => {
+    const { lat, lng } = coords;
+    const url =
+      Platform.OS === 'ios'
+        ? `maps://?ll=${lat},${lng}&q=GPS+Position`
+        : `geo:${lat},${lng}?q=${lat},${lng}(GPS+Position)`;
+    Linking.openURL(url).catch(() =>
+      Linking.openURL(`https://maps.google.com/?q=${lat},${lng}`).catch(() => {
+        Alert.alert(t('common.error'), t('app.taskStepPost.gpsOpenFailed'));
+      })
+    );
+  }, [t]);
+
+  const updateGpsFieldValues = useCallback(
+    (coords: GpsCoordinates) => {
+      const gpsFieldIds = selectedTemplate?.fields?.filter(isGpsField).map((field) => field.id) ?? [];
+      if (gpsFieldIds.length === 0) return;
+      const serializedCoords = JSON.stringify(coords);
+      setFieldValues((current) => {
+        const next = { ...current };
+        gpsFieldIds.forEach((fieldId) => {
+          next[fieldId] = serializedCoords;
+        });
+        return next;
+      });
+    },
+    [selectedTemplate?.fields]
+  );
+
+  useEffect(() => {
+    if (!gpsCoords) return;
+    updateGpsFieldValues(gpsCoords);
+  }, [gpsCoords, updateGpsFieldValues]);
+
+  const requestCurrentGpsPosition = useCallback(async (): Promise<GpsCoordinates | null> => {
+    setGpsLoading(true);
+    setError(null);
+    try {
+      const hasPermission =
+        Platform.OS === 'ios'
+          ? await requestIosLocationPermission()
+          : await requestAndroidLocationPermission();
+
+      if (!hasPermission) {
+        setGpsLoading(false);
+        setError(t('app.taskStepPost.gpsPermissionDenied'));
+        return null;
+      }
+
+      return await new Promise<GpsCoordinates | null>((resolve) => {
+        Geolocation.getCurrentPosition(
+          ({ coords }) => {
+            const nextCoords = { lat: coords.latitude, lng: coords.longitude };
+            setGpsCoords(nextCoords);
+            updateGpsFieldValues(nextCoords);
+            setGpsLoading(false);
+            resolve(nextCoords);
+          },
+          (positionError: GeolocationError) => {
+            setGpsLoading(false);
+            const permissionDenied = positionError.code === positionError.PERMISSION_DENIED;
+            setError(
+              permissionDenied
+                ? t('app.taskStepPost.gpsPermissionDenied')
+                : t('app.taskStepPost.gpsUnavailable')
+            );
+            resolve(null);
+          },
+          { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 }
+        );
+      });
+    } catch {
+      setGpsLoading(false);
+      setError(t('app.taskStepPost.gpsUnavailable'));
+      return null;
+    }
+  }, [t, updateGpsFieldValues]);
+
+  useEffect(() => {
+    if (!visible || !isDefect || gpsCoords || gpsLoading) return;
+    requestCurrentGpsPosition().catch(() => {
+        setGpsLoading(false);
+        setError(t('app.taskStepPost.gpsUnavailable'));
+      });
+  }, [gpsCoords, gpsLoading, isDefect, requestCurrentGpsPosition, t, visible]);
+
   const handleViewGps = useCallback(() => {
     if (gpsCoords) {
-      const { lat, lng } = gpsCoords;
-      const url =
-        Platform.OS === 'ios'
-          ? `maps://?ll=${lat},${lng}&q=GPS+Position`
-          : `geo:${lat},${lng}?q=${lat},${lng}(GPS+Position)`;
-      Linking.openURL(url).catch(() =>
-        Linking.openURL(`https://maps.google.com/?q=${lat},${lng}`)
-      );
+      openGpsInMaps(gpsCoords);
       return;
     }
 
-    setGpsLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        const { latitude, longitude } = coords;
-        setGpsCoords({ lat: latitude, lng: longitude });
+    requestCurrentGpsPosition()
+      .then((coords) => {
+        if (coords) openGpsInMaps(coords);
+      })
+      .catch(() => {
         setGpsLoading(false);
-        const url =
-          Platform.OS === 'ios'
-            ? `maps://?ll=${latitude},${longitude}&q=GPS+Position`
-            : `geo:${latitude},${longitude}?q=${latitude},${longitude}(GPS+Position)`;
-        Linking.openURL(url).catch(() =>
-          Linking.openURL(`https://maps.google.com/?q=${latitude},${longitude}`)
-        );
-      },
-      () => setGpsLoading(false),
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
-    );
-  }, [gpsCoords]);
+        setError(t('app.taskStepPost.gpsUnavailable'));
+      });
+  }, [gpsCoords, openGpsInMaps, requestCurrentGpsPosition, t]);
+
+  const handleViewDefectGps = useCallback(
+    (defect: DefectReadDTO) => {
+      const coords = getDefectGpsCoordinates(defect);
+      if (coords) {
+        openGpsInMaps(coords);
+        return;
+      }
+      Alert.alert(t('common.info'), t('app.taskStepPost.gpsCoordinatesUnavailable'));
+    },
+    [openGpsInMaps, t]
+  );
 
   const openUpdateDefect = useCallback(async (defect: DefectReadDTO) => {
     // Set with list data immediately so the form opens without delay.
@@ -640,15 +816,6 @@ export function TaskStepPostModal({
       formData.append('StatusCode', updateStatus);
       formData.append('RemediationDetails', updateRemediation.trim());
       formData.append('Mode', '2');
-
-      type DefectFieldValueLike = {
-        id?: string;
-        name?: string;
-        type?: number | null;
-        value?: unknown;
-        valueId?: string | number | null;
-        defectFieldId?: string;
-      };
 
       const templateFields =
         selectedTemplate?.fields ?? (updatingDefect as { fields?: DefectFieldReadDTO[] }).fields ?? [];
@@ -1018,6 +1185,7 @@ export function TaskStepPostModal({
     const showUpdateInHeader = canCreateDefect;
     const defectRemediationDetails =
       typeof defect.remediationDetails === 'string' ? defect.remediationDetails : '';
+    const defectGpsCoords = getDefectGpsCoordinates(defect);
     const modifiedOrCreatedOnUtc =
       (typeof defect.modifiedOnUtc === 'string' ? defect.modifiedOnUtc : null) ?? defect.createdOnUtc;
 
@@ -1164,25 +1332,18 @@ export function TaskStepPostModal({
                 {/* GPS */}
                 <View style={styles.readOnlyFieldRow}>
                   <Text style={styles.readOnlyLabel}>{t('app.taskStepPost.gpsPosition')}</Text>
-                  {gpsCoords ? (
+                  {defectGpsCoords ? (
                     <Text style={styles.readOnlyAutoText}>
-                      {`${gpsCoords.lat.toFixed(5)}, ${gpsCoords.lng.toFixed(5)}`}
+                      {`${defectGpsCoords.lat.toFixed(5)}, ${defectGpsCoords.lng.toFixed(5)}`}
                     </Text>
                   ) : (
                     <Text style={styles.readOnlyAutoText}>{t('app.taskStepPost.auto')}</Text>
                   )}
                   <TouchableOpacity
                     style={styles.readOnlyLinkButton}
-                    onPress={handleViewGps}
-                    disabled={gpsLoading}
+                    onPress={() => handleViewDefectGps(defect)}
                   >
-                    {gpsLoading ? (
-                      <ActivityIndicator size="small" color={theme.colors.primary} />
-                    ) : (
-                      <Text style={styles.readOnlyLinkText}>
-                        {gpsCoords ? t('app.taskStepPost.changePin') : t('app.common.view')}
-                      </Text>
-                    )}
+                    <Text style={styles.readOnlyLinkText}>{t('app.common.view')}</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -1219,7 +1380,7 @@ export function TaskStepPostModal({
                 {/* New image upload */}
                 <TouchableOpacity
                   style={[styles.uploadArea, styles.uploadAreaUpdate]}
-                  onPress={() => { addUpdateFiles().catch(() => {}); }}
+                  onPress={addUpdateFiles}
                   disabled={updateSubmitting}
                 >
                   <MaterialIcons name="add-photo-alternate" size={27} color="#595959" />

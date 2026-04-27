@@ -113,7 +113,8 @@
       "project": "Proyecto",
       "assetId": "ID de activo",
       "sharePh": "Usuarios (externos)...",
-      "usersToShare": "Usuarios a compartir"
+      "usersToShare": "Usuarios a compartir",
+      "finaliseSuccess": "La tarea se finalizó correctamente."
     },
     "users": {
       "inviteSentTitle": "Invitación enviada",
@@ -389,7 +390,7 @@
       "loadMemberPrices": "Error al cargar precios",
       "assignSubscription": "Error al asignar suscripción",
       "revokeSubscription": "Error al revocar suscripción",
-      "createSubscription": "Error al crear suscripción",
+      "createSubscription": "No pudimos iniciar el pago seguro. Inténtelo de nuevo más tarde o contacte con soporte.",
       "loadAssets": "Error al cargar activos",
       "createAsset": "Error al crear activo",
       "editAsset": "Error al editar activo",
@@ -609,7 +610,10 @@
       "editTitle": "Editar documento",
       "warningTitle": "Advertencia",
       "readOnlyPostWarning": "El documento está en modo vista (solo lectura), por eso no puede publicar defectos u observaciones.",
-      "readOnlyMarkWarning": "El documento está en modo vista (solo lectura), por eso no puede marcar pasos como Hecho u Omitido."
+      "readOnlyMarkWarning": "El documento está en modo vista (solo lectura), por eso no puede marcar pasos como Hecho u Omitido.",
+      "historyDate": "Fecha",
+      "sectionPreWork": "Pretrabajo",
+      "sectionMainWorks": "Trabajos principales"
     },
     "defectDetail": {
       "shareTitle": "Compartir defecto"
@@ -648,7 +652,11 @@
       "isDefectToggle": "Esto es un defecto",
       "noDefects": "No hay defectos todavía...",
       "noPosts": "No hay defectos ni observaciones todavía...",
-      "otherPosts": "Otros elementos de publicación"
+      "otherPosts": "Otros elementos de publicación",
+      "gpsUnavailable": "El GPS no está disponible en este dispositivo. El defecto aún puede publicarse con posicionamiento automático.",
+      "gpsCoordinatesUnavailable": "Las coordenadas GPS aún no están disponibles para este defecto.",
+      "gpsOpenFailed": "No se pudo abrir la aplicación de mapas.",
+      "gpsPermissionDenied": "Se denegó el permiso de ubicación. Active el acceso a la ubicación para adjuntar coordenadas GPS a este defecto."
     },
     "documentCreate": {
       "taskDetails": "DETALLES DE TAREA",
@@ -721,7 +729,8 @@
       "currentRequired": "Ingrese su contraseña actual.",
       "newRequired": "Ingrese una nueva contraseña.",
       "mismatch": "La nueva contraseña y la repetición no coinciden.",
-      "failedChange": "Error al cambiar la contraseña"
+      "failedChange": "Error al cambiar la contraseña",
+      "validationFailed": "Revise los campos de contraseña y asegúrese de que su contraseña actual sea correcta."
     },
     "acceptInvitation": {
       "title": "Aceptar invitación",
@@ -753,7 +762,23 @@
       "emptyList": "No hay notificaciones.",
       "markAllReadBtn": "Marcar todo como leído",
       "viewReport": "Ver informe",
-      "openActionHint": "Toque el botón de abajo para abrir esta notificación."
+      "openActionHint": "Toque el botón de abajo para abrir esta notificación.",
+      "taskAccessGranted": "Se le ha concedido acceso para ver la tarea '{{task}}' por {{user}}.",
+      "newUserAlert": "Alerta de nuevo usuario: el usuario {{user}} acaba de unirse a la aplicación. Contacte con soporte si se trata de un error. Gracias.",
+      "clickHere": "Haga clic aquí",
+      "grantedAccess": "Se le ha concedido acceso",
+      "newUserAlertShort": "Alerta de nuevo usuario"
+    },
+    "roles": {
+      "admin": "Administrador",
+      "user": "Usuario"
+    },
+    "teamNames": {
+      "portTeam": "Equipo del puerto",
+      "assetIntegrityTeam": "Equipo de integridad de activos",
+      "johnsTeam": "Equipo de John",
+      "secondTeam": "segundo equipo",
+      "newTeam": "Nuevo equipo"
     }
   }
 }

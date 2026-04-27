@@ -19,6 +19,7 @@ import { useTranslation } from 'react-i18next';
 import { ListScreenLayout } from '../components/ListScreenLayout';
 import { screenStyles } from '../styles/screenStyles';
 import { theme } from '../theme';
+import { translateKnownTeamName } from '../utils/systemDisplayText';
 
 export default function TeamsScreen() {
   const { t } = useTranslation();
@@ -256,7 +257,7 @@ export default function TeamsScreen() {
             <View key={teamItem.id} style={screenStyles.card}>
               <View style={styles.teamRow}>
                 <View style={styles.teamInfo}>
-                  <Text style={styles.teamName}>{teamItem.name}</Text>
+                  <Text style={styles.teamName}>{translateKnownTeamName(teamItem.name, t)}</Text>
                   {teamItem.parentId != null ? (
                     <Text style={styles.caption}>
                       {t('app.teams.parentIdCaption', { id: teamItem.parentId })}
@@ -446,7 +447,7 @@ export default function TeamsScreen() {
                 {teamsToJoin.map((row) => (
                   <View key={row.id} style={styles.joinRow}>
                     <Text style={styles.teamName} numberOfLines={1}>
-                      {row.name}
+                      {translateKnownTeamName(row.name, t)}
                     </Text>
                     <TouchableOpacity
                       style={[styles.joinTeamBtn, joiningId === row.id && styles.joinTeamBtnDisabled]}

@@ -14,17 +14,15 @@ import {
   revokeSubscription,
   createSubscription as apiCreateSubscription,
 } from '../api/subscriptions';
+import { getHttpErrorMessage } from '../utils/httpErrorMessage';
 
 function formatSubscriptionApiError(e: unknown, fallbackKey: string): string {
-  const err = e as AxiosError<{ message?: string; title?: string } | string>;
-  const data = err.response?.data;
-  if (typeof data === 'string' && data.trim()) return data;
-  if (data && typeof data === 'object') {
-    const msg = (data as { message?: string; title?: string }).message ?? (data as { title?: string }).title;
-    if (typeof msg === 'string' && msg.trim()) return msg;
+  const err = e as AxiosError<unknown>;
+  const fallback = i18n.t(fallbackKey);
+  if (typeof err.response?.status === 'number' && err.response.status >= 500) {
+    return fallback;
   }
-  if (typeof err.message === 'string' && err.message.trim()) return err.message;
-  return i18n.t(fallbackKey);
+  return getHttpErrorMessage(e, fallback) || fallback;
 }
 
 export const fetchUserSubscription = createAsyncThunk<

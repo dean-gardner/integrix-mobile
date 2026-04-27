@@ -47,7 +47,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Allow access to camera to capture profile photos.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string></string>
+	<string>Allow Integrix to use your location to attach GPS coordinates to defect posts.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Allow saving images from the app to your photo library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

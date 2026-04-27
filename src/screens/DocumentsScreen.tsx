@@ -36,6 +36,8 @@ import { IntegrixLoader } from '../components/IntegrixLoader';
 import { Paginator } from '../components/Paginator';
 import { useTranslation } from 'react-i18next';
 
+type TopSelectKey = 'status' | 'type' | null;
+
 export default function DocumentsScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation();
@@ -54,6 +56,7 @@ export default function DocumentsScreen() {
   const [startTaskSubmitting, setStartTaskSubmitting] = useState(false);
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [shareModalDocument, setShareModalDocument] = useState<DocumentVersionReadDTO | null>(null);
+  const [openTopSelect, setOpenTopSelect] = useState<TopSelectKey>(null);
 
   const selectedStatusValue = useMemo(
     () =>
@@ -230,6 +233,7 @@ export default function DocumentsScreen() {
   };
 
   const handleStatusChange = (value: number) => {
+    setOpenTopSelect(null);
     dispatch(
       setDocumentsFilter({
         pageNumber: 0,
@@ -239,6 +243,7 @@ export default function DocumentsScreen() {
   };
 
   const handleTypeChange = (value: number | null) => {
+    setOpenTopSelect(null);
     dispatch(
       setDocumentsFilter({
         pageNumber: 0,
@@ -288,21 +293,25 @@ export default function DocumentsScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.panel}>
-        <View style={styles.topFilterRow}>
+        <View style={[styles.topFilterRow, styles.topFilterRowStatus]}>
           <Text style={styles.topFilterLabel}>{t('app.documentsScreen.status')}</Text>
           <DocumentsSelect
             value={selectedStatusValue}
             options={documentStatusOptionsT}
             onChange={handleStatusChange}
+            open={openTopSelect === 'status'}
+            onOpenChange={(nextOpen) => setOpenTopSelect(nextOpen ? 'status' : null)}
           />
         </View>
 
-        <View style={styles.topFilterRow}>
+        <View style={[styles.topFilterRow, styles.topFilterRowType]}>
           <Text style={styles.topFilterLabel}>{t('app.documentsScreen.type')}</Text>
           <DocumentsSelect
             value={selectedTypeValue}
             options={documentTypeOptionsT}
             onChange={handleTypeChange}
+            open={openTopSelect === 'type'}
+            onOpenChange={(nextOpen) => setOpenTopSelect(nextOpen ? 'type' : null)}
           />
         </View>
 
@@ -441,6 +450,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     marginBottom: 8,
+  },
+  topFilterRowStatus: {
+    zIndex: 30,
+    elevation: 30,
+  },
+  topFilterRowType: {
+    zIndex: 20,
+    elevation: 20,
   },
   topFilterLabel: {
     width: 58,

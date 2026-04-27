@@ -26,6 +26,7 @@ import {
   findLinkRangeInMessage,
   notificationActionLabel,
   stripEmbeddedUrlsFromDisplay,
+  translateNotificationMessage,
 } from '../utils/notificationDisplay';
 import { formatLocaleDateTime } from '../utils/formatLocaleDateTime';
 
@@ -163,15 +164,16 @@ export default function NotificationsScreen() {
             {items.map((notification) => {
               const link = notification.link?.trim();
               const hasLink = Boolean(link);
+              const displayMessage = translateNotificationMessage(notification.message, t);
               const actionLabel = hasLink ? notificationActionLabel(notification.linkText, t) : '';
-              const inlineRange = hasLink
+              const inlineRange = hasLink && displayMessage === notification.message
                 ? findLinkRangeInMessage(notification.message, link) ??
                   findFirstUrlRangeInMessage(notification.message)
                 : null;
               const hasInlineLink = Boolean(hasLink && inlineRange);
               const fallbackMessage = hasLink
-                ? stripEmbeddedUrlsFromDisplay(notification.message)
-                : notification.message;
+                ? stripEmbeddedUrlsFromDisplay(displayMessage)
+                : displayMessage;
 
               return (
                 <TouchableOpacity

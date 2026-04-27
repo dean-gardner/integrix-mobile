@@ -113,7 +113,8 @@
       "project": "Project",
       "assetId": "Asset ID",
       "sharePh": "Enter users (for external users...",
-      "usersToShare": "Users to share"
+      "usersToShare": "Users to share",
+      "finaliseSuccess": "Task finalised successfully."
     },
     "users": {
       "tabUsers": "Users",
@@ -403,7 +404,7 @@
       "loadMemberPrices": "Failed to load member prices",
       "assignSubscription": "Failed to assign subscription",
       "revokeSubscription": "Failed to revoke subscription",
-      "createSubscription": "Failed to create subscription",
+      "createSubscription": "We couldn't start secure checkout. Please try again later or contact support.",
       "loadAssets": "Failed to load assets",
       "createAsset": "Failed to create asset",
       "editAsset": "Failed to edit asset",
@@ -539,7 +540,10 @@
       "editTitle": "Edit document",
       "warningTitle": "Warning",
       "readOnlyPostWarning": "The document is in view mode (read-only), so you cannot post defects or observations.",
-      "readOnlyMarkWarning": "The document is in view mode (read-only), so you cannot mark task steps as Done or Skip."
+      "readOnlyMarkWarning": "The document is in view mode (read-only), so you cannot mark task steps as Done or Skip.",
+      "historyDate": "Date",
+      "sectionPreWork": "Pre-work",
+      "sectionMainWorks": "Main works"
     },
     "notificationsScreen": {
       "empty": "No notifications",
@@ -551,7 +555,12 @@
       "viewLink": "View",
       "viewReport": "View report",
       "openActionHint": "Tap the button below to open this notification.",
-      "markAllReadBtn": "Mark all read"
+      "markAllReadBtn": "Mark all read",
+      "taskAccessGranted": "You've been granted access to view the task '{{task}}' by {{user}}.",
+      "newUserAlert": "New user alert: A new user {{user}} has just joined the application. Please contact our support if it is a mistake. Thank you.",
+      "clickHere": "Click here",
+      "grantedAccess": "You've been granted access",
+      "newUserAlertShort": "New user alert"
     },
     "userSearch": {
       "placeholder": "Name or email...",
@@ -627,7 +636,8 @@
       "currentRequired": "Enter your current password.",
       "newRequired": "Enter a new password.",
       "mismatch": "New password and repeat do not match.",
-      "failedChange": "Failed to change password"
+      "failedChange": "Failed to change password",
+      "validationFailed": "Please check the password fields and make sure your current password is correct."
     },
     "acceptInvitation": {
       "title": "Accept invitation",
@@ -767,7 +777,11 @@
       "isDefectToggle": "This is a defect",
       "noDefects": "There are no defects yet...",
       "noPosts": "There are no defects or observations yet...",
-      "otherPosts": "Other Post Items"
+      "otherPosts": "Other Post Items",
+      "gpsUnavailable": "GPS is unavailable on this device. The defect can still be posted with automatic positioning.",
+      "gpsCoordinatesUnavailable": "GPS coordinates are not available for this defect yet.",
+      "gpsOpenFailed": "Unable to open the map application.",
+      "gpsPermissionDenied": "Location permission was denied. Enable location access to attach GPS coordinates to this defect."
     },
     "list": {
       "loading": "Loading...",
@@ -775,6 +789,17 @@
       "loadMore": "Load more",
       "showing": "Showing items",
       "loadMoreTotal": "Load more ({{count}} total)"
+    },
+    "roles": {
+      "admin": "Admin",
+      "user": "User"
+    },
+    "teamNames": {
+      "portTeam": "Port Team",
+      "assetIntegrityTeam": "Asset Integrity Team",
+      "johnsTeam": "John's Team",
+      "secondTeam": "second team",
+      "newTeam": "New team"
     }
   }
 }

@@ -17,12 +17,13 @@ import {
 } from 'react-native';
 import { launchCamera, launchImageLibrary, type Asset as ImagePickerAsset } from 'react-native-image-picker';
 import { useDispatch, useSelector } from 'react-redux';
-import { useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
 import NetInfo from '@react-native-community/netinfo';
 import type { AppDispatch, RootState } from '../store';
 import {
   fetchTaskById,
+  fetchTasks,
   clearCurrentTask,
   changeCurrentTaskStatus,
   shareCurrentTaskWithUser,
@@ -196,6 +197,7 @@ export default function TaskDetailScreen() {
   const { t } = useTranslation();
   const safeAreaInsets = useSafeAreaInsets();
   const route = useRoute<RouteProp<{ params: TaskDetailParams }, 'params'>>();
+  const navigation = useNavigation();
   const dispatch = useDispatch<AppDispatch>();
   const scrollRef = useRef<ScrollView>(null);
   const stepLayoutMap = useRef<Record<string, number>>({});
@@ -540,8 +542,8 @@ export default function TaskDetailScreen() {
     }
   };
 
-  const changeStatus = async (status: number) => {
-    if (!task.documentId || !task.versionId || !task.id) return;
+  const changeStatus = async (status: number): Promise<boolean> => {
+    if (!task.documentId || !task.versionId || !task.id) return false;
     try {
       await dispatch(
         changeCurrentTaskStatus({
@@ -551,8 +553,10 @@ export default function TaskDetailScreen() {
           status,
         })
       ).unwrap();
+      return true;
     } catch (e) {
       Alert.alert(t('app.alerts.task'), (e as string) || t('app.task.statusFailed'));
+      return false;
     }
   };
 
@@ -563,10 +567,23 @@ export default function TaskDetailScreen() {
       {
         text: t('app.common.yes'),
         onPress: () => {
-          changeStatus(statusAction.nextStatus!);
+          changeStatus(statusAction.nextStatus!).catch(() => {});
         },
       },
     ]);
+  };
+
+  const finaliseTask = async () => {
+    const didFinalise = await changeStatus(TASK_STATUS_COMPLETE);
+    if (!didFinalise) return;
+
+    if (task.id && task.versionId) {
+      dispatch(fetchTaskById({ versionId: task.versionId, taskId: task.id })).catch(() => {});
+    }
+    dispatch(fetchTasks()).catch(() => {});
+
+    Alert.alert(t('app.alerts.success'), t('app.task.finaliseSuccess'));
+    navigation.navigate('Tasks' as never);
   };
 
   const handleFinaliseTask = () => {
@@ -579,7 +596,7 @@ export default function TaskDetailScreen() {
       {
         text: t('app.taskDetail.finaliseBtn'),
         onPress: () => {
-          changeStatus(TASK_STATUS_COMPLETE);
+          finaliseTask().catch(() => {});
         },
       },
     ]);

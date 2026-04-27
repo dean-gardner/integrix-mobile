@@ -1,8 +1,19 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import React from 'react';
+import {
+  createNativeStackNavigator,
+  type NativeStackHeaderProps,
+  type NativeStackNavigationOptions,
+} from '@react-navigation/native-stack';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
-import { View, ActivityIndicator, StyleSheet, Modal, TouchableWithoutFeedback, Animated, Easing, Platform } from 'react-native';
+import {
+  View,
+  ActivityIndicator,
+  StyleSheet,
+  TouchableWithoutFeedback,
+  Platform,
+  I18nManager,
+} from 'react-native';
 import { AppHeader } from '../components/AppHeader';
 import { DrawerContent } from '../components/DrawerContent';
 import { DrawerProvider, useDrawer } from '../context/DrawerContext';
@@ -32,10 +43,10 @@ import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
+import { RTL_LANGUAGES } from '../i18n';
 
 const Stack = createNativeStackNavigator();
 const DRAWER_WIDTH = 240;
-const DRAWER_ANIMATION_DURATION = 220;
 
 function getHeaderTitle(routeName: string, t: TFunction): string {
   const keys: Record<string, string> = {
@@ -63,53 +74,34 @@ function getHeaderTitle(routeName: string, t: TFunction): string {
 }
 
 function MainStack() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const user = useSelector((s: RootState) => s.auth.user);
   const displayName = user?.firstName || user?.fullName || user?.userName || '';
   const { isOpen, closeDrawer } = useDrawer();
-  const [isModalVisible, setIsModalVisible] = useState(isOpen);
-  const drawerTranslateX = useRef(new Animated.Value(isOpen ? 0 : -DRAWER_WIDTH)).current;
-  const backdropOpacity = useRef(new Animated.Value(isOpen ? 1 : 0)).current;
-
-  useEffect(() => {
-    if (isOpen) {
-      setIsModalVisible(true);
-      Animated.parallel([
-        Animated.timing(drawerTranslateX, {
-          toValue: 0,
-          duration: DRAWER_ANIMATION_DURATION,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(backdropOpacity, {
-          toValue: 1,
-          duration: DRAWER_ANIMATION_DURATION,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]).start();
-      return;
-    }
-
-    Animated.parallel([
-      Animated.timing(drawerTranslateX, {
-        toValue: -DRAWER_WIDTH,
-        duration: DRAWER_ANIMATION_DURATION,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(backdropOpacity, {
-        toValue: 0,
-        duration: DRAWER_ANIMATION_DURATION,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start(({ finished }) => {
-      if (finished) {
-        setIsModalVisible(false);
-      }
-    });
-  }, [isOpen, drawerTranslateX, backdropOpacity]);
+  const currentLanguage = (i18n.resolvedLanguage ?? i18n.language ?? 'en').toLowerCase();
+  const wantsRightSide = RTL_LANGUAGES.some(
+    (code) => currentLanguage === code || currentLanguage.startsWith(`${code}-`)
+  );
+  const isRtlLanguage = wantsRightSide;
+  const swapsLeftRight = Boolean(I18nManager.isRTL && I18nManager.doLeftAndRightSwapInRTL);
+  const useRightProp = wantsRightSide !== swapsLeftRight;
+  const panelSideStyle = useRightProp ? styles.drawerPanelRight : styles.drawerPanelLeft;
+  const renderHeader = React.useCallback(
+    ({ route }: NativeStackHeaderProps) => (
+      <AppHeader
+        title={getHeaderTitle(route.name, t)}
+        userDisplayName={displayName}
+      />
+    ),
+    [displayName, t]
+  );
+  const profileTransitionOptions = React.useMemo<NativeStackNavigationOptions>(
+    () => ({
+      fullScreenGestureEnabled: Platform.OS === 'ios' && !isRtlLanguage,
+      animation: Platform.OS === 'ios' && isRtlLanguage ? 'none' : 'default',
+    }),
+    [isRtlLanguage]
+  );
 
   return (
     <>
@@ -118,12 +110,7 @@ function MainStack() {
         screenOptions={{
           gestureEnabled: Platform.OS === 'ios',
           fullScreenGestureEnabled: Platform.OS === 'ios',
-          header: ({ route }) => (
-            <AppHeader
-              title={getHeaderTitle(route.name, t)}
-              userDisplayName={displayName}
-            />
-          ),
+          header: renderHeader,
         }}
       >
         <Stack.Screen name="Feed" component={FeedScreen} />
@@ -140,41 +127,22 @@ function MainStack() {
         <Stack.Screen name="UserSearch" component={UserSearchScreen} />
         <Stack.Screen name="Teams" component={TeamsScreen} />
         <Stack.Screen name="CompanyAssets" component={CompanyAssetsScreen} />
-        <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+        <Stack.Screen name="EditProfile" component={EditProfileScreen} options={profileTransitionOptions} />
         <Stack.Screen name="Subscription" component={SubscriptionScreen} />
         <Stack.Screen name="Notifications" component={NotificationsScreen} />
-        <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+        <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={profileTransitionOptions} />
       </Stack.Navigator>
 
-      <Modal
-        visible={isModalVisible}
-        transparent
-        animationType="none"
-        onRequestClose={closeDrawer}
-      >
-        <View style={styles.drawerBackdrop}>
-          <Animated.View
-            style={[
-              styles.drawerPanel,
-              {
-                transform: [{ translateX: drawerTranslateX }],
-              },
-            ]}
-          >
-            <DrawerContent onClose={closeDrawer} />
-          </Animated.View>
+      {isOpen ? (
+        <View style={styles.drawerOverlay} pointerEvents="box-none">
           <TouchableWithoutFeedback onPress={closeDrawer}>
-            <Animated.View
-              style={[
-                styles.drawerBackdropArea,
-                {
-                  opacity: backdropOpacity,
-                },
-              ]}
-            />
+            <View style={styles.drawerBackdropArea} />
           </TouchableWithoutFeedback>
+          <View style={[styles.drawerPanel, panelSideStyle]}>
+            <DrawerContent onClose={closeDrawer} />
+          </View>
         </View>
-      </Modal>
+      ) : null}
     </>
   );
 }
@@ -220,15 +188,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#f0f2f5',
   },
-  drawerBackdrop: {
-    flex: 1,
-    flexDirection: 'row',
+  drawerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1000,
+    elevation: 1000,
   },
   drawerBackdropArea: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.3)',
   },
   drawerPanel: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
     width: DRAWER_WIDTH,
+  },
+  drawerPanelLeft: {
+    left: 0,
+  },
+  drawerPanelRight: {
+    right: 0,
   },
 });

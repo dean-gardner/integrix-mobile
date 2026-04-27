@@ -15,6 +15,8 @@ import type { UserInvitationCreateDTO } from '../../types/invitation';
 import { screenStyles } from '../../styles/screenStyles';
 import { theme } from '../../theme';
 import { useTranslation } from 'react-i18next';
+import { RTL_LANGUAGES } from '../../i18n';
+import { translateKnownRoleName, translateKnownTeamName } from '../../utils/systemDisplayText';
 
 type InviteTeamMemberModalProps = {
   visible: boolean;
@@ -47,7 +49,9 @@ export function InviteTeamMemberModal({
   onClose,
   onSubmit,
 }: InviteTeamMemberModalProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const currentLanguage = (i18n.resolvedLanguage ?? i18n.language ?? 'en').toLowerCase();
+  const isRtl = RTL_LANGUAGES.some((code) => currentLanguage === code || currentLanguage.startsWith(`${code}-`));
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -93,6 +97,7 @@ export function InviteTeamMemberModal({
   const effectiveRoleId = roleId || (isAdmin ? defaultAdminRoleId : defaultRoleId);
   const selectedRoleName =
     roles.find((role) => role.id === effectiveRoleId)?.name ?? roles[0]?.name ?? '';
+  const selectedRoleLabel = translateKnownRoleName(selectedRoleName, t);
   const resolvedTeamId = isAdmin ? teamId : (teamId ?? currentTeamId ?? null);
   const inviteDisabledReason = offlineMode ? t('app.users.inviteOfflineUnavailable') : null;
   const submitDisabled =
@@ -208,7 +213,7 @@ export function InviteTeamMemberModal({
                 <ActivityIndicator size="small" color={theme.colors.primary} />
               </View>
             ) : roles.length > 0 ? (
-              <View style={styles.chipRow}>
+              <View style={[styles.chipRow, isRtl && styles.chipRowRtl]}>
                 {isAdmin ? (
                   roles.map((role) => (
                     <TouchableOpacity
@@ -220,14 +225,14 @@ export function InviteTeamMemberModal({
                       <Text
                         style={[styles.chipText, effectiveRoleId === role.id && styles.chipTextActive]}
                       >
-                        {role.name}
+                        {translateKnownRoleName(role.name, t)}
                       </Text>
                     </TouchableOpacity>
                   ))
                 ) : (
                   <View style={[styles.chip, styles.chipActive, styles.chipReadonly]}>
                     <Text style={[styles.chipText, styles.chipTextActive]}>
-                      {selectedRoleName}
+                      {selectedRoleLabel}
                     </Text>
                   </View>
                 )}
@@ -244,7 +249,7 @@ export function InviteTeamMemberModal({
               <>
                 <Text style={screenStyles.formLabel}>{t('app.inviteMember.team')} *</Text>
                 {teams.length > 0 ? (
-                  <View style={styles.chipRow}>
+                  <View style={[styles.chipRow, isRtl && styles.chipRowRtl]}>
                     {teams.map((teamItem) => (
                       <TouchableOpacity
                         key={teamItem.id}
@@ -255,7 +260,7 @@ export function InviteTeamMemberModal({
                         <Text
                           style={[styles.chipText, teamId === teamItem.id && styles.chipTextActive]}
                         >
-                          {teamItem.name}
+                          {translateKnownTeamName(teamItem.name, t)}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -270,7 +275,7 @@ export function InviteTeamMemberModal({
               <Text style={styles.teamHint}>{t('app.inviteMember.currentTeamHint')}</Text>
             )}
 
-            <View style={styles.modalActions}>
+            <View style={[styles.modalActions, isRtl && styles.modalActionsRtl]}>
               <TouchableOpacity style={styles.cancelBtn} onPress={onClose} disabled={loading}>
                 <Text style={styles.cancelBtnText}>{t('app.modal.cancel')}</Text>
               </TouchableOpacity>
@@ -333,6 +338,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8, marginBottom: 8 },
+  chipRowRtl: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'flex-start',
+  },
   chip: {
     paddingVertical: 8,
     paddingHorizontal: 12,
@@ -366,6 +375,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   modalActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  modalActionsRtl: {
+    flexDirection: 'row-reverse',
+  },
   cancelBtn: {
     flex: 1,
     paddingVertical: 12,

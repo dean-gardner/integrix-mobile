@@ -80,10 +80,14 @@ export default function SignInScreen() {
     >
       <ScrollView
         ref={scrollViewRef}
-        contentContainerStyle={[styles.formWrapper, { paddingTop: topSpacing }]}
+        contentContainerStyle={[
+          styles.formWrapper,
+          isRtl && styles.formWrapperRtl,
+          { paddingTop: topSpacing },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.card}>
+        <View style={[styles.card, isRtl && styles.cardRtl]}>
           <Text style={[styles.title, isRtl ? styles.textRtl : styles.textLtr]}>{t('signIn.title')}</Text>
 
           {error ? (
@@ -92,39 +96,52 @@ export default function SignInScreen() {
             </View>
           ) : null}
 
-          <Text style={[styles.label, isRtl ? styles.textRtl : styles.textLtr]}>{t('signIn.email')}</Text>
-          <TextInput
-            style={[styles.input, isRtl ? styles.inputRtl : styles.inputLtr]}
-            textAlign={isRtl ? 'right' : 'left'}
-            placeholder={t('signIn.email')}
-            placeholderTextColor="#6c757d"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            editable={!isLoading}
-            textContentType="username"
-          />
+          <View style={[styles.fieldGroup, isRtl && styles.fieldGroupRtl]}>
+            <Text style={[styles.label, isRtl ? styles.textRtl : styles.textLtr]}>{t('signIn.email')}</Text>
+            <TextInput
+              style={[
+                styles.input,
+                isRtl
+                  ? email.trim()
+                    ? styles.inputRtlValue
+                    : styles.inputRtl
+                  : styles.inputLtr,
+              ]}
+              textAlign={isRtl ? 'right' : 'left'}
+              textAlignVertical="center"
+              placeholder={t('signIn.email')}
+              placeholderTextColor="#6c757d"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              editable={!isLoading}
+              textContentType="username"
+            />
+          </View>
 
-          <Text style={[styles.label, isRtl ? styles.textRtl : styles.textLtr]}>{t('signIn.password')}</Text>
-          <TextInput
-            style={[styles.input, isRtl ? styles.inputRtl : styles.inputLtr]}
-            textAlign={isRtl ? 'right' : 'left'}
-            placeholder={t('signIn.password')}
-            placeholderTextColor="#6c757d"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            editable={!isLoading}
-            textContentType="password"
-            onFocus={() =>
-              setTimeout(
-                () =>
-                  scrollViewRef.current?.scrollToEnd({ animated: true }),
-                100
-              )
-            }
-          />
+          <View style={[styles.fieldGroup, isRtl && styles.fieldGroupRtl]}>
+            <Text style={[styles.label, isRtl ? styles.textRtl : styles.textLtr]}>{t('signIn.password')}</Text>
+            <TextInput
+              style={[styles.input, isRtl ? styles.inputRtl : styles.inputLtr]}
+              textAlign={isRtl ? 'right' : 'left'}
+              textAlignVertical="center"
+              placeholder={t('signIn.password')}
+              placeholderTextColor="#6c757d"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              editable={!isLoading}
+              textContentType="password"
+              onFocus={() =>
+                setTimeout(
+                  () =>
+                    scrollViewRef.current?.scrollToEnd({ animated: true }),
+                  100
+                )
+              }
+            />
+          </View>
 
           <TouchableOpacity
             style={[styles.button, isLoading && styles.buttonDisabled]}
@@ -139,32 +156,34 @@ export default function SignInScreen() {
             )}
           </TouchableOpacity>
 
-          <Text style={[styles.termsText, isRtl ? styles.textRtl : styles.textLtr]}>
+          <Text style={[styles.termsText, isRtl ? styles.termsTextRtl : styles.textLtr]}>
             {t('signIn.termsPrefix')}{' '}
-            <Text style={styles.termsLink} onPress={() => openURL(TERMS_URL)}>
+            <Text style={[styles.termsLink, isRtl && styles.termsLinkRtl]} onPress={() => openURL(TERMS_URL)}>
               {t('signIn.termsLink')}
             </Text>
           </Text>
 
-          <TouchableOpacity
-            style={[styles.forgotLink, isRtl && styles.linkRtl]}
-            onPress={() => openURL(FORGOT_PASSWORD_URL)}
-            disabled={isLoading}
-          >
-            <Text style={[styles.forgotLinkText, isRtl ? styles.textRtl : styles.textLtr]}>
-              {t('signIn.forgotPassword')}
-            </Text>
-          </TouchableOpacity>
+          <View style={[styles.linksBlock, isRtl && styles.linksBlockRtl]}>
+            <TouchableOpacity
+              style={styles.linkButton}
+              onPress={() => openURL(FORGOT_PASSWORD_URL)}
+              disabled={isLoading}
+            >
+              <Text style={[styles.forgotLinkText, isRtl ? styles.textRtl : styles.textLtr]}>
+                {t('signIn.forgotPassword')}
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.secondaryLink, isRtl && styles.linkRtl]}
-            onPress={() => openURL(CREATE_ACCOUNT_URL)}
-            disabled={isLoading}
-          >
-            <Text style={[styles.secondaryLinkText, isRtl ? styles.textRtl : styles.textLtr]}>
-              {t('signIn.createAccount')}
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.linkButton}
+              onPress={() => openURL(CREATE_ACCOUNT_URL)}
+              disabled={isLoading}
+            >
+              <Text style={[styles.secondaryLinkText, isRtl ? styles.textRtl : styles.textLtr]}>
+                {t('signIn.createAccount')}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -180,6 +199,10 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 10,
     paddingBottom: 24,
+    alignItems: 'stretch',
+  },
+  formWrapperRtl: {
+    direction: 'rtl',
   },
   card: {
     width: '100%',
@@ -188,6 +211,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#d5dbe8',
     padding: 24,
+    alignSelf: 'stretch',
+    alignItems: 'stretch',
+  },
+  cardRtl: {
+    direction: 'rtl',
   },
   title: {
     fontSize: 24,
@@ -201,6 +229,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginTop: 10,
   },
+  fieldGroup: {
+    width: '100%',
+    alignSelf: 'stretch',
+    alignItems: 'stretch',
+  },
+  fieldGroupRtl: {
+    alignItems: 'flex-end',
+  },
   textLtr: {
     textAlign: 'left',
     writingDirection: 'ltr',
@@ -211,15 +247,19 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
   },
   input: {
+    width: '100%',
+    alignSelf: 'stretch',
     borderWidth: 1,
     borderColor: '#d2d7e5',
     borderRadius: 3,
     paddingHorizontal: 12,
+    paddingVertical: 0,
     minHeight: 36,
     fontSize: 15,
     marginBottom: 16,
     backgroundColor: '#d2d7e5',
     color: '#151a22',
+    includeFontPadding: false,
   },
   inputLtr: {
     textAlign: 'left',
@@ -228,6 +268,12 @@ const styles = StyleSheet.create({
   inputRtl: {
     textAlign: 'right',
     writingDirection: 'rtl',
+    direction: 'rtl',
+  },
+  inputRtlValue: {
+    textAlign: 'right',
+    writingDirection: 'ltr',
+    direction: 'ltr',
   },
   errorBox: {
     backgroundColor: '#fee',
@@ -262,30 +308,39 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     fontWeight: '600',
   },
+  termsTextRtl: {
+    alignSelf: 'stretch',
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
   termsLink: {
     color: theme.colors.primary,
     fontWeight: '700',
   },
-  forgotLink: {
-    alignSelf: 'flex-start',
+  termsLinkRtl: {
+    writingDirection: 'rtl',
+  },
+  linksBlock: {
+    width: '100%',
+    alignSelf: 'stretch',
+    alignItems: 'flex-start',
     marginTop: 36,
+    gap: 8,
+  },
+  linksBlockRtl: {
+    alignItems: 'flex-end',
+  },
+  linkButton: {
+    alignSelf: 'auto',
   },
   forgotLinkText: {
     fontSize: 14,
     color: theme.colors.primary,
     fontWeight: '700',
   },
-  secondaryLink: {
-    alignSelf: 'flex-start',
-    marginTop: 8,
-  },
   secondaryLinkText: {
     fontSize: 14,
     color: theme.colors.primary,
     fontWeight: '700',
-  },
-  /** In RTL, flex-start is the physical right; keep link row full width so text aligns with form. */
-  linkRtl: {
-    alignSelf: 'stretch',
   },
 });

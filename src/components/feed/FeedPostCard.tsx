@@ -101,6 +101,15 @@ function formatTimeDifference(createdOnUtc: string | undefined, language: string
       }).format(inputDate);
     }
 
+    if (typeof Intl.RelativeTimeFormat !== 'function') {
+      return new Intl.DateTimeFormat(language, {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(inputDate);
+    }
     const rtf = new Intl.RelativeTimeFormat(language, { numeric: 'auto' });
     if (days > 0) return rtf.format(-days, 'day');
     if (hours > 0) return rtf.format(-hours, 'hour');

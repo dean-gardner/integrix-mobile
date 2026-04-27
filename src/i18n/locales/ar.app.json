@@ -113,7 +113,8 @@
       "project": "المشروع",
       "assetId": "معرف الأصل",
       "sharePh": "أدخل المستخدمين (لمستخدمين خارجيين...",
-      "usersToShare": "مشاركة مع المستخدمين"
+      "usersToShare": "مشاركة مع المستخدمين",
+      "finaliseSuccess": "تم إنهاء المهمة بنجاح."
     },
     "users": {
       "inviteSentTitle": "تم إرسال الدعوة",
@@ -393,7 +394,7 @@
       "loadMemberPrices": "فشل تحميل الأسعار",
       "assignSubscription": "فشل تعيين الاشتراك",
       "revokeSubscription": "فشل إلغاء الاشتراك",
-      "createSubscription": "فشل إنشاء الاشتراك",
+      "createSubscription": "تعذر بدء الدفع الآمن. يرجى المحاولة لاحقاً أو التواصل مع الدعم.",
       "loadAssets": "فشل تحميل الأصول",
       "createAsset": "فشل إنشاء الأصل",
       "editAsset": "فشل تعديل الأصل",
@@ -613,7 +614,10 @@
       "editTitle": "تعديل المستند",
       "warningTitle": "تحذير",
       "readOnlyPostWarning": "المستند في وضع العرض (للقراءة فقط)، لذلك لا يمكنك نشر عيوب أو ملاحظات.",
-      "readOnlyMarkWarning": "المستند في وضع العرض (للقراءة فقط)، لذلك لا يمكنك تعليم خطوات المهمة كـ تم أو تخطي."
+      "readOnlyMarkWarning": "المستند في وضع العرض (للقراءة فقط)، لذلك لا يمكنك تعليم خطوات المهمة كـ تم أو تخطي.",
+      "historyDate": "التاريخ",
+      "sectionPreWork": "الأعمال التمهيدية",
+      "sectionMainWorks": "الأعمال الرئيسية"
     },
     "defectDetail": {
       "shareTitle": "مشاركة العيب"
@@ -652,7 +656,11 @@
       "isDefectToggle": "هذا عيب",
       "noDefects": "لا توجد عيوب بعد...",
       "noPosts": "لا توجد عيوب أو ملاحظات بعد...",
-      "otherPosts": "عناصر منشورات أخرى"
+      "otherPosts": "عناصر منشورات أخرى",
+      "gpsUnavailable": "موقع GPS غير متاح على هذا الجهاز. لا يزال بإمكانك نشر العيب مع تحديد الموقع تلقائياً.",
+      "gpsCoordinatesUnavailable": "إحداثيات GPS غير متاحة لهذا العيب بعد.",
+      "gpsOpenFailed": "تعذر فتح تطبيق الخريطة.",
+      "gpsPermissionDenied": "تم رفض إذن الموقع. فعّل الوصول إلى الموقع لإرفاق إحداثيات GPS بهذا العيب."
     },
     "documentCreate": {
       "taskDetails": "تفاصيل المهمة",
@@ -735,7 +743,8 @@
       "currentRequired": "أدخل كلمة المرور الحالية.",
       "newRequired": "أدخل كلمة مرور جديدة.",
       "mismatch": "كلمة المرور الجديدة وتأكيدها غير متطابقين.",
-      "failedChange": "فشل تغيير كلمة المرور"
+      "failedChange": "فشل تغيير كلمة المرور",
+      "validationFailed": "يرجى التحقق من حقول كلمة المرور والتأكد من صحة كلمة المرور الحالية."
     },
     "acceptInvitation": {
       "title": "قبول الدعوة",
@@ -778,7 +787,23 @@
       "viewLink": "عرض",
       "viewReport": "عرض التقرير",
       "openActionHint": "اضغط الزر أدناه لفتح هذا الإشعار.",
-      "markAllReadBtn": "تعليم الكل كمقروء"
+      "markAllReadBtn": "تعليم الكل كمقروء",
+      "taskAccessGranted": "تم منحك صلاحية عرض المهمة '{{task}}' بواسطة {{user}}.",
+      "newUserAlert": "تنبيه مستخدم جديد: انضم المستخدم {{user}} للتطبيق للتو. يرجى التواصل مع الدعم إذا كان ذلك بالخطأ. شكراً لك.",
+      "clickHere": "اضغط هنا",
+      "grantedAccess": "تم منحك صلاحية الوصول",
+      "newUserAlertShort": "تنبيه مستخدم جديد"
+    },
+    "roles": {
+      "admin": "مسؤول",
+      "user": "مستخدم"
+    },
+    "teamNames": {
+      "portTeam": "فريق الميناء",
+      "assetIntegrityTeam": "فريق نزاهة الأصول",
+      "johnsTeam": "فريق جون",
+      "secondTeam": "الفريق الثاني",
+      "newTeam": "فريق جديد"
     }
   }
 }

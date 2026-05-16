@@ -10,6 +10,7 @@ import {
   TouchableWithoutFeedback,
   ActivityIndicator,
   Linking,
+  type ViewStyle,
 } from 'react-native';
 import { theme } from '../theme';
 import { useDrawer } from '../context/DrawerContext';
@@ -25,15 +26,11 @@ import {
 } from '../store/notificationsSlice';
 import type { NotificationDTO } from '../types/notification';
 import { useTranslation } from 'react-i18next';
-import {
-  findFirstUrlRangeInMessage,
-  findLinkRangeInMessage,
-  notificationActionLabel,
-  stripEmbeddedUrlsFromDisplay,
-  translateNotificationMessage,
-} from '../utils/notificationDisplay';
+import { buildNotificationDisplay } from '../utils/notificationDisplay';
 import { formatLocaleDateTime } from '../utils/formatLocaleDateTime';
+import { openNotificationLinkInApp } from '../utils/notificationLinking';
 import { setAppLanguage, SUPPORTED_LANGUAGES } from '../i18n';
+import { isRtlLayout, rtlAwareTextStyle, rtlRowStyle } from '../utils/rtlLayout';
 
 type AppHeaderProps = {
   title?: string;
@@ -59,6 +56,11 @@ export function AppHeader({ title, showMenu = true }: AppHeaderProps) {
     if (unread.length > 0) return unread.slice(0, 4);
     return items.slice(0, 4);
   }, [items]);
+  const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
+  const rtlRow = useMemo(() => rtlRowStyle(i18n), [i18n]);
+  const previewCardDirStyle = useMemo((): ViewStyle | undefined => {
+    return isRtlLayout(i18n) ? { direction: 'rtl' } : undefined;
+  }, [i18n]);
   const currentLanguage = (i18n.resolvedLanguage ?? i18n.language ?? 'en').split('-')[0];
   const currentLanguageOption =
     SUPPORTED_LANGUAGES.find((language) => language.code === currentLanguage) ?? SUPPORTED_LANGUAGES[0];
@@ -135,54 +137,14 @@ export function AppHeader({ title, showMenu = true }: AppHeaderProps) {
   const formatDate = (dateUtc?: string): string =>
     formatLocaleDateTime(dateUtc, i18n.language, 'notifications');
 
-  const openNotificationLink = async (notification: NotificationDTO) => {
-    if (!notification.link) return;
-
-    const rawLink = notification.link.trim();
-    if (!rawLink) return;
-
-    if (/^https?:\/\//i.test(rawLink)) {
-      try {
-        await Linking.openURL(rawLink);
-        return;
-      } catch {
-        // Try HTTPS when backend sends HTTP URL.
-        if (rawLink.startsWith('http://')) {
-          const httpsLink = `https://${rawLink.slice('http://'.length)}`;
-          try {
-            await Linking.openURL(httpsLink);
-            return;
-          } catch {
-            // fall through to route-keyword fallback below
-          }
-        }
-      }
-    }
-
-    const lower = rawLink.toLowerCase();
-    let pathLower = '';
-    try {
-      if (/^https?:\/\//i.test(rawLink)) {
-        const parsed = new URL(rawLink);
-        pathLower = `${parsed.pathname}${parsed.search}`.toLowerCase();
-      }
-    } catch {
-      // ignore parse error and fallback to raw string matching
-    }
-
-    const target = `${lower} ${pathLower}`;
-    if (target.includes('subscription')) {
-      (navigation.navigate as (name: string) => void)('Subscription');
-    } else if (target.includes('task')) {
-      (navigation.navigate as (name: string) => void)('Tasks');
-    } else if (target.includes('document')) {
-      (navigation.navigate as (name: string) => void)('Documents');
-    }
-  };
-
   const onOpenFromNotification = (notification: NotificationDTO) => {
     if (notification.link?.trim()) {
-      openNotificationLink(notification).catch(() => {});
+      closeNotificationsPreview();
+      openNotificationLinkInApp(
+        notification,
+        dispatch,
+        navigation as unknown as { navigate: (name: string, params?: object) => void }
+      ).catch(() => {});
     }
   };
 
@@ -327,11 +289,11 @@ export function AppHeader({ title, showMenu = true }: AppHeaderProps) {
         <TouchableWithoutFeedback onPress={closeNotificationsPreview}>
           <View style={styles.previewBackdrop}>
             <TouchableWithoutFeedback onPress={() => {}}>
-              <View style={styles.previewCard}>
-                <View style={styles.previewHeader}>
+              <View style={[styles.previewCard, previewCardDirStyle]}>
+                <View style={[styles.previewHeader, rtlRow]}>
                   <View style={styles.previewHeaderTexts}>
-                    <Text style={styles.previewTitle}>{t('header.notificationsPreview')}</Text>
-                    <Text style={styles.previewSubtitle}>
+                    <Text style={[styles.previewTitle, rtlText]}>{t('header.notificationsPreview')}</Text>
+                    <Text style={[styles.previewSubtitle, rtlText]}>
                       {t('header.unreadCount', { count: unreadCount })}
                     </Text>
                   </View>
@@ -351,28 +313,24 @@ export function AppHeader({ title, showMenu = true }: AppHeaderProps) {
                   </View>
                 ) : previewItems.length === 0 ? (
                   <View style={styles.previewEmpty}>
-                    <Text style={styles.previewEmptyText}>{t('header.noNotificationsShort')}</Text>
+                    <Text style={[styles.previewEmptyText, rtlText]}>{t('header.noNotificationsShort')}</Text>
                   </View>
                 ) : (
                   <ScrollView style={styles.previewList} nestedScrollEnabled>
                     {previewItems.map((notification) => {
-                      const link = notification.link?.trim();
-                      const hasLink = Boolean(link);
-                      const displayMessage = translateNotificationMessage(notification.message, t);
-                      const actionLabel = hasLink ? notificationActionLabel(notification.linkText, t) : '';
-                      const inlineRange = hasLink && displayMessage === notification.message
-                        ? findLinkRangeInMessage(notification.message, link) ??
-                          findFirstUrlRangeInMessage(notification.message)
-                        : null;
-                      const hasInlineLink = Boolean(hasLink && inlineRange);
-                      const fallbackMessage = hasLink
-                        ? stripEmbeddedUrlsFromDisplay(displayMessage)
-                        : displayMessage;
+                      const { bodyText, actionLabel, showActionLink } = buildNotificationDisplay(
+                        notification,
+                        t
+                      );
 
                       return (
                         <TouchableOpacity
                           key={notification.id}
-                          style={[styles.previewItem, !notification.isRead && styles.previewItemUnread]}
+                          style={[
+                            styles.previewItem,
+                            rtlRow,
+                            !notification.isRead && styles.previewItemUnread,
+                          ]}
                           onPress={() => onPressPreviewItem(notification)}
                           activeOpacity={0.85}
                         >
@@ -380,27 +338,12 @@ export function AppHeader({ title, showMenu = true }: AppHeaderProps) {
                             <MaterialIcons name="mail-outline" size={22} color="#2f3b57" />
                           </View>
                           <View style={styles.previewItemBody}>
-                            {hasInlineLink && inlineRange ? (
-                              <Text style={styles.previewItemMessage}>
-                                {notification.message.slice(0, inlineRange.start)}
-                                <Text
-                                  style={styles.previewItemLinkInline}
-                                  onPress={() => {
-                                    onPressPreviewLink(notification);
-                                  }}
-                                >
-                                  {actionLabel}
-                                </Text>
-                                {notification.message.slice(inlineRange.end)}
-                              </Text>
-                            ) : (
-                              <Text style={styles.previewItemMessage}>
-                                {fallbackMessage.trim() || t('app.notificationsScreen.openActionHint')}
-                              </Text>
-                            )}
-                            {hasLink && !hasInlineLink ? (
+                            <Text style={[styles.previewItemMessage, rtlText]}>
+                              {bodyText.trim() || t('app.notificationsScreen.openActionHint')}
+                            </Text>
+                            {showActionLink ? (
                               <Text
-                                style={styles.previewItemLink}
+                                style={[styles.previewItemLink, rtlText]}
                                 onPress={() => {
                                   onPressPreviewLink(notification);
                                 }}
@@ -408,7 +351,9 @@ export function AppHeader({ title, showMenu = true }: AppHeaderProps) {
                                 {actionLabel}
                               </Text>
                             ) : null}
-                            <Text style={styles.previewItemDate}>{formatDate(notification.createdOnUtc)}</Text>
+                            <Text style={[styles.previewItemDate, rtlText]}>
+                              {formatDate(notification.createdOnUtc)}
+                            </Text>
                           </View>
                         </TouchableOpacity>
                       );

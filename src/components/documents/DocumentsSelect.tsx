@@ -11,6 +11,7 @@ type DocumentsSelectProps<T extends DocumentsSelectValue> = {
   placeholder?: string;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  showMenu?: boolean;
 };
 
 export function DocumentsSelect<T extends DocumentsSelectValue>({
@@ -20,6 +21,7 @@ export function DocumentsSelect<T extends DocumentsSelectValue>({
   placeholder = '',
   open: controlledOpen,
   onOpenChange,
+  showMenu = true,
 }: DocumentsSelectProps<T>) {
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
@@ -55,7 +57,7 @@ export function DocumentsSelect<T extends DocumentsSelectValue>({
         </View>
       </TouchableOpacity>
 
-      {open ? (
+      {open && showMenu ? (
         <View style={styles.menu}>
           {options.map((option) => {
             const active = option.value === value;

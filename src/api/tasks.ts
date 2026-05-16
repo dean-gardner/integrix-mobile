@@ -10,6 +10,7 @@ import type {
   TaskStepVerificationDTO,
 } from '../types/task';
 import type { FoundUserDTO } from '../types/user';
+import type { FinaliseTaskDTO } from '../types/finaliseTask';
 
 export type ShareTasksWithUsersDTO = {
   tasksIds: string[];
@@ -149,6 +150,17 @@ export function getTaskSectionsWithTaskSteps(
   taskId: string
 ): Promise<AxiosResponse<TaskSectionWithStepsDTO[]>> {
   return axios.get<TaskSectionWithStepsDTO[]>(`api/tasks/${taskId}/sections-task-steps`);
+}
+
+export function finaliseTask(
+  versionId: string,
+  taskId: string,
+  model: FinaliseTaskDTO
+): Promise<AxiosResponse<TaskWithDetailsReadDTO>> {
+  return axios.post<TaskWithDetailsReadDTO>(
+    `api/versions/${versionId}/tasks/${taskId}/finalise`,
+    model
+  );
 }
 
 export function changeTaskStepStatus(

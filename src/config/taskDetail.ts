@@ -1,4 +1,5 @@
 import type { TFunction } from 'i18next';
+import type { TaskReadDTO, TaskWithDetailsReadDTO } from '../types/task';
 
 export const TASK_STATUS_IN_PROGRESS = 0;
 export const TASK_STATUS_COMPLETE = 1;
@@ -119,4 +120,36 @@ export function isImageFile(name?: string, url?: string): boolean {
     source.includes('.webp') ||
     source.includes('.gif')
   );
+}
+
+/** Keep document context from navigation when the task-details API omits document fields. */
+export function mergeTaskWithRoute(
+  current: TaskWithDetailsReadDTO | null | undefined,
+  route: TaskReadDTO | undefined
+): TaskReadDTO | null | undefined {
+  if (!route && !current) return null;
+  if (!route) return current ?? null;
+  if (!current || current.id !== route.id) return route;
+
+  const pickString = (primary: unknown, fallback: unknown): string | undefined => {
+    const p = primary != null ? String(primary).trim() : '';
+    if (p) return p;
+    const f = fallback != null ? String(fallback).trim() : '';
+    return f || undefined;
+  };
+
+  return {
+    ...route,
+    ...current,
+    documentId: pickString(current.documentId, route.documentId),
+    versionId: pickString(current.versionId, route.versionId),
+    description: pickString(current.description, route.description),
+    documentNumberStr:
+      current.documentNumberStr ?? route.documentNumberStr ?? null,
+    documentNo: current.documentNo ?? route.documentNo ?? null,
+    workOrderNumber: current.workOrderNumber ?? route.workOrderNumber,
+    notificationNumber: current.notificationNumber ?? route.notificationNumber,
+    projectNumber: current.projectNumber ?? route.projectNumber,
+    asset: current.asset ?? route.asset,
+  };
 }

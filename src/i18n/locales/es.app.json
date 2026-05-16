@@ -114,7 +114,24 @@
       "assetId": "ID de activo",
       "sharePh": "Usuarios (externos)...",
       "usersToShare": "Usuarios a compartir",
-      "finaliseSuccess": "La tarea se finalizó correctamente."
+      "finaliseSuccess": "La tarea se finalizó correctamente.",
+      "documentTitle": "Título del documento",
+      "documentNumber": "Número de documento"
+    },
+    "taskFinalise": {
+      "signatureLabel": "Firma",
+      "drawTab": "Dibujar",
+      "typeTab": "Escribir",
+      "typeSignaturePh": "Escriba su firma",
+      "clearSignature": "Borrar firma",
+      "fullNameLabel": "Nombre completo",
+      "fullNamePh": "Introduzca su nombre completo",
+      "fullNameRequired": "El nombre completo es obligatorio.",
+      "signatureRequired": "Se requiere una firma para finalizar esta tarea.",
+      "positionLabel": "Cargo (opcional)",
+      "positionPh": "Introduzca su cargo",
+      "shareDescription": "Recibirá un informe de finalización. Añada usuarios para compartir el informe:",
+      "attachToCrm": "Adjuntar a {{crmName}}"
     },
     "users": {
       "inviteSentTitle": "Invitación enviada",
@@ -374,6 +391,8 @@
       "deleteTask": "Error al eliminar tarea",
       "unableCancelTask": "No se puede cancelar la tarea. Inténtelo más tarde.",
       "unableUpdateTaskStatus": "No se puede actualizar el estado. Inténtelo más tarde.",
+      "unableFinaliseTask": "No se puede finalizar la tarea en este momento. Inténtelo más tarde.",
+      "finaliseTask": "Error al finalizar la tarea",
       "unableSaveTask": "No se puede guardar la tarea. Inténtelo más tarde.",
       "changeTaskStatus": "Error al cambiar el estado de la tarea",
       "loadFeed": "Error al cargar el feed",
@@ -521,7 +540,8 @@
       "noUsers": "Sin usuarios",
       "user": "usuario",
       "users": "usuarios",
-      "fillWorkOrderOrNotification": "Complete el Número de orden de trabajo o el Número de notificación.",
+      "fillWorkOrderOrNotification": "El número de orden de trabajo y el número de notificación son obligatorios.",
+      "fillWorkOrderAndNotification": "El número de orden de trabajo y el número de notificación son obligatorios.",
       "projectRequired": "El número de proyecto es obligatorio.",
       "assetRequired": "Seleccione un activo.",
       "tagAsset": "Asignar activo",
@@ -645,6 +665,11 @@
       "gpsPosition": "Posición GPS:",
       "auto": "auto",
       "changePin": "Cambiar pin",
+      "gpsPinPickerTitle": "Establecer ubicación GPS",
+      "gpsPinPickerHint": "Arrastre el pin o pulse el mapa para elegir la ubicación. Pulse Usar esta ubicación cuando termine.",
+      "gpsPinPickerApply": "Usar esta ubicación",
+      "gpsPinPickerOpenMaps": "Abrir en Mapas (opcional)",
+      "gpsPinPickerMapError": "No se pudo cargar el mapa. Compruebe la conexión e inténtelo de nuevo.",
       "postsTitle": "Publicaciones",
       "postsTab": "PUBLICACIONES",
       "viewDefectsTab": "VER DEFECTOS ({{asset}})",
@@ -767,7 +792,9 @@
       "newUserAlert": "Alerta de nuevo usuario: el usuario {{user}} acaba de unirse a la aplicación. Contacte con soporte si se trata de un error. Gracias.",
       "clickHere": "Haga clic aquí",
       "grantedAccess": "Se le ha concedido acceso",
-      "newUserAlertShort": "Alerta de nuevo usuario"
+      "newUserAlertShort": "Alerta de nuevo usuario",
+      "documentPdfReady": "El documento \"{{title}}\" (PDF) está listo para descargar. Use la acción de abajo para abrir el informe.",
+      "taskCompletionReportReady": "El informe de finalización de la tarea \"{{title}}\" está listo. Use la acción de abajo para abrir el informe."
     },
     "roles": {
       "admin": "Administrador",

@@ -114,7 +114,24 @@
       "assetId": "معرف الأصل",
       "sharePh": "أدخل المستخدمين (لمستخدمين خارجيين...",
       "usersToShare": "مشاركة مع المستخدمين",
-      "finaliseSuccess": "تم إنهاء المهمة بنجاح."
+      "finaliseSuccess": "تم إنهاء المهمة بنجاح.",
+      "documentTitle": "عنوان المستند",
+      "documentNumber": "رقم المستند"
+    },
+    "taskFinalise": {
+      "signatureLabel": "التوقيع",
+      "drawTab": "رسم",
+      "typeTab": "كتابة",
+      "typeSignaturePh": "اكتب توقيعك",
+      "clearSignature": "مسح التوقيع",
+      "fullNameLabel": "الاسم الكامل",
+      "fullNamePh": "أدخل اسمك الكامل",
+      "fullNameRequired": "الاسم الكامل مطلوب.",
+      "signatureRequired": "التوقيع مطلوب لإنهاء هذه المهمة.",
+      "positionLabel": "المنصب (اختياري)",
+      "positionPh": "أدخل منصبك",
+      "shareDescription": "ستتلقى تقرير إتمام المهمة. أضف مستخدمين لمشاركة التقرير معهم:",
+      "attachToCrm": "إرفاق بـ {{crmName}}"
     },
     "users": {
       "inviteSentTitle": "تم إرسال الدعوة",
@@ -378,6 +395,8 @@
       "deleteTask": "فشل حذف المهمة",
       "unableCancelTask": "تعذر إلغاء المهمة. حاول لاحقاً.",
       "unableUpdateTaskStatus": "تعذر تحديث الحالة. حاول لاحقاً.",
+      "unableFinaliseTask": "تعذر إنهاء المهمة حالياً. حاول لاحقاً.",
+      "finaliseTask": "فشل إنهاء المهمة",
       "unableSaveTask": "تعذر حفظ المهمة. حاول لاحقاً.",
       "changeTaskStatus": "فشل تغيير حالة المهمة",
       "loadFeed": "فشل تحميل الخلاصة",
@@ -525,7 +544,8 @@
       "noUsers": "لا يوجد مستخدمون",
       "user": "مستخدم",
       "users": "مستخدمون",
-      "fillWorkOrderOrNotification": "يرجى إدخال رقم أمر العمل أو رقم الإشعار.",
+      "fillWorkOrderOrNotification": "رقم أمر العمل ورقم الإشعار مطلوبان.",
+      "fillWorkOrderAndNotification": "رقم أمر العمل ورقم الإشعار مطلوبان.",
       "projectRequired": "رقم المشروع مطلوب.",
       "assetRequired": "يرجى ربط أصل.",
       "tagAsset": "ربط أصل",
@@ -649,6 +669,11 @@
       "gpsPosition": "موقع GPS:",
       "auto": "تلقائي",
       "changePin": "تغيير النقطة",
+      "gpsPinPickerTitle": "تعيين موقع GPS",
+      "gpsPinPickerHint": "اسحب الدبوس أو اضغط على الخريطة لاختيار الموقع، ثم اضغط استخدام هذا الموقع عند الانتهاء.",
+      "gpsPinPickerApply": "استخدام هذا الموقع",
+      "gpsPinPickerOpenMaps": "فتح في الخرائط (اختياري)",
+      "gpsPinPickerMapError": "تعذر تحميل الخريطة. تحقق من الاتصال بالشبكة وحاول مرة أخرى.",
       "postsTitle": "المنشورات",
       "postsTab": "المنشورات",
       "viewDefectsTab": "عرض العيوب ({{asset}})",
@@ -792,7 +817,9 @@
       "newUserAlert": "تنبيه مستخدم جديد: انضم المستخدم {{user}} للتطبيق للتو. يرجى التواصل مع الدعم إذا كان ذلك بالخطأ. شكراً لك.",
       "clickHere": "اضغط هنا",
       "grantedAccess": "تم منحك صلاحية الوصول",
-      "newUserAlertShort": "تنبيه مستخدم جديد"
+      "newUserAlertShort": "تنبيه مستخدم جديد",
+      "documentPdfReady": "المستند \"{{title}}\" (PDF) جاهز للتنزيل. استخدم الإجراء أدناه لفتح التقرير.",
+      "taskCompletionReportReady": "تقرير إتمام المهمة \"{{title}}\" جاهز. استخدم الإجراء أدناه لفتح التقرير."
     },
     "roles": {
       "admin": "مسؤول",

@@ -1,7 +1,9 @@
 import {
+  buildNotificationDisplay,
   findLinkRangeInMessage,
   notificationActionLabel,
   stripEmbeddedUrlsFromDisplay,
+  translateNotificationMessage,
 } from '../src/utils/notificationDisplay';
 
 describe('findLinkRangeInMessage', () => {
@@ -40,11 +42,58 @@ describe('findLinkRangeInMessage', () => {
     );
   });
 
-  it('notificationActionLabel keeps linkText and falls back to viewLink', () => {
+  it('notificationActionLabel maps known labels and falls back to viewLink', () => {
     const t = (k: string) => (k === 'app.notificationsScreen.viewLink' ? 'VIEW' : k);
-    expect(notificationActionLabel('here', t)).toBe('here');
+    expect(notificationActionLabel('here', t)).toBe('VIEW');
+    expect(notificationActionLabel('View', t)).toBe('VIEW');
+    expect(notificationActionLabel('عرض', t)).toBe('VIEW');
     expect(notificationActionLabel('Open PDF', t)).toBe('Open PDF');
     expect(notificationActionLabel('', t)).toBe('VIEW');
+  });
+
+  it('translateNotificationMessage maps document PDF and task completion templates', () => {
+    const t = (key: string, opts?: Record<string, unknown>) => {
+      if (key === 'app.notificationsScreen.documentPdfReady') return `DOC:${opts?.title}`;
+      if (key === 'app.notificationsScreen.taskCompletionReportReady') return `TASK:${opts?.title}`;
+      if (key === 'app.notificationsScreen.viewLink') return 'VIEW';
+      return key;
+    };
+    expect(
+      translateNotificationMessage(
+        "A document 'Letourneau Chassis Inspection' PDF is ready for download. Click عرض to open the report.",
+        t
+      )
+    ).toBe('DOC:Letourneau Chassis Inspection');
+    expect(
+      translateNotificationMessage(
+        "A document 'Letourneau Chassis Inspection' PDF is ready. Click عرض to open the report.",
+        t
+      )
+    ).toBe('DOC:Letourneau Chassis Inspection');
+    const taskMsg =
+      "The task completion report for 'inspection washroom (clone)' is ready. Click http://integrix.s3-eu-central-1.amazonaws.com//TASK_COMPLETION_REPORT_16_03_2026_09_25.pdf.pdf to open the report.";
+    expect(translateNotificationMessage(taskMsg, t)).toBe('TASK:inspection washroom (clone)');
+  });
+
+  it('buildNotificationDisplay returns localized body without English slices', () => {
+    const t = (key: string, opts?: Record<string, unknown>) => {
+      if (key === 'app.notificationsScreen.documentPdfReady') return `DOC:${opts?.title}`;
+      if (key === 'app.notificationsScreen.viewLink') return 'عرض';
+      return key;
+    };
+    const parts = buildNotificationDisplay(
+      {
+        message:
+          "A document 'Test Doc' PDF is ready. Click عرض to open the report.",
+        link: 'https://example.com/report.pdf',
+        linkText: 'عرض',
+      },
+      t
+    );
+    expect(parts.bodyText).toBe('DOC:Test Doc');
+    expect(parts.showActionLink).toBe(true);
+    expect(parts.actionLabel).toBe('عرض');
+    expect(parts.bodyText).not.toContain('Click');
   });
 
   it('matches S3-style URL in message when API link differs (http vs https, // path)', () => {

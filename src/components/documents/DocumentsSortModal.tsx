@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
 import { useTranslation } from 'react-i18next';
 import { DocumentsSelect } from './DocumentsSelect';
@@ -17,6 +17,10 @@ type DocumentsSortModalProps = {
   headerTitle?: string;
 };
 
+type SortSelectKey = 'field' | 'order' | null;
+const SORT_OPTION_ROW_HEIGHT = 38;
+const SORT_VISIBLE_OPTION_COUNT = 4;
+
 export function DocumentsSortModal({
   visible,
   sortingField,
@@ -30,12 +34,26 @@ export function DocumentsSortModal({
   const { t } = useTranslation();
   const [localField, setLocalField] = useState(sortingField);
   const [localOrder, setLocalOrder] = useState(sortingOrder);
+  const [openSelect, setOpenSelect] = useState<SortSelectKey>(null);
 
   useEffect(() => {
     if (!visible) return;
     setLocalField(sortingField);
     setLocalOrder(sortingOrder);
+    setOpenSelect(null);
   }, [visible, sortingField, sortingOrder]);
+
+  const activeOptions = openSelect === 'field' ? sortingFieldOptions : openSelect === 'order' ? sortingOrderOptions : [];
+  const dropdownSlotHeight = SORT_VISIBLE_OPTION_COUNT * SORT_OPTION_ROW_HEIGHT + 2;
+
+  const onSelectOption = (option: DocumentsSelectOption<string> | DocumentsSelectOption<number>) => {
+    if (openSelect === 'field') {
+      setLocalField(option.value as string);
+    } else if (openSelect === 'order') {
+      setLocalOrder(option.value as number);
+    }
+    setOpenSelect(null);
+  };
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -53,7 +71,13 @@ export function DocumentsSortModal({
             <DocumentsSelect
               value={localField}
               options={sortingFieldOptions}
-              onChange={setLocalField}
+              onChange={(value) => {
+                setLocalField(value);
+                setOpenSelect(null);
+              }}
+              open={openSelect === 'field'}
+              onOpenChange={(nextOpen) => setOpenSelect(nextOpen ? 'field' : null)}
+              showMenu={false}
             />
           </View>
 
@@ -62,8 +86,45 @@ export function DocumentsSortModal({
             <DocumentsSelect
               value={localOrder}
               options={sortingOrderOptions}
-              onChange={setLocalOrder}
+              onChange={(value) => {
+                setLocalOrder(value);
+                setOpenSelect(null);
+              }}
+              open={openSelect === 'order'}
+              onOpenChange={(nextOpen) => setOpenSelect(nextOpen ? 'order' : null)}
+              showMenu={false}
             />
+          </View>
+
+          <View style={[styles.dropdownSlot, { height: dropdownSlotHeight }]}>
+            {openSelect ? (
+              <View style={styles.dropdownMenu}>
+                <ScrollView
+                  style={styles.dropdownScroll}
+                  nestedScrollEnabled
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {activeOptions.map((option) => {
+                    const active =
+                      openSelect === 'field'
+                        ? option.value === localField
+                        : option.value === localOrder;
+                    return (
+                      <TouchableOpacity
+                        key={`${option.value}-${option.label}`}
+                        style={[styles.optionRow, active && styles.optionRowActive]}
+                        onPress={() => onSelectOption(option)}
+                        activeOpacity={0.82}
+                      >
+                        <Text style={[styles.optionText, active && styles.optionTextActive]}>
+                          {option.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            ) : null}
           </View>
 
           <View style={styles.actionsRow}>
@@ -72,7 +133,10 @@ export function DocumentsSortModal({
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.applyButton}
-              onPress={() => onApply({ sortingField: localField, sortingOrder: localOrder })}
+              onPress={() => {
+                setOpenSelect(null);
+                onApply({ sortingField: localField, sortingOrder: localOrder });
+              }}
             >
               <Text style={styles.applyText}>{t('app.tasksScreen.apply')}</Text>
             </TouchableOpacity>
@@ -95,6 +159,9 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     paddingHorizontal: 20,
     paddingVertical: 18,
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 420,
   },
   headerRow: {
     flexDirection: 'row',
@@ -110,8 +177,8 @@ const styles = StyleSheet.create({
   fieldRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 14,
     gap: 14,
+    marginBottom: 14,
   },
   label: {
     width: 70,
@@ -120,9 +187,37 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   actionsRow: {
-    marginTop: 8,
     flexDirection: 'row',
     gap: 8,
+  },
+  dropdownSlot: {
+    marginBottom: 14,
+  },
+  dropdownMenu: {
+    maxHeight: SORT_VISIBLE_OPTION_COUNT * SORT_OPTION_ROW_HEIGHT + 2,
+    borderWidth: 1,
+    borderColor: '#d9dfeb',
+    borderRadius: 4,
+    backgroundColor: '#ffffff',
+    overflow: 'hidden',
+  },
+  dropdownScroll: {
+    maxHeight: SORT_VISIBLE_OPTION_COUNT * SORT_OPTION_ROW_HEIGHT,
+  },
+  optionRow: {
+    minHeight: SORT_OPTION_ROW_HEIGHT,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  optionRowActive: {
+    backgroundColor: '#2f80ed',
+  },
+  optionText: {
+    color: '#1e1f23',
+    fontSize: 14,
+  },
+  optionTextActive: {
+    color: '#ffffff',
   },
   cancelButton: {
     flex: 1,

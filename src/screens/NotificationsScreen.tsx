@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
-  Linking,
+  type ViewStyle,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
@@ -21,14 +21,15 @@ import {
 import { useTranslation } from 'react-i18next';
 import { theme } from '../theme';
 import type { NotificationDTO } from '../types/notification';
-import {
-  findFirstUrlRangeInMessage,
-  findLinkRangeInMessage,
-  notificationActionLabel,
-  stripEmbeddedUrlsFromDisplay,
-  translateNotificationMessage,
-} from '../utils/notificationDisplay';
+import { buildNotificationDisplay } from '../utils/notificationDisplay';
 import { formatLocaleDateTime } from '../utils/formatLocaleDateTime';
+import { openNotificationLinkInApp } from '../utils/notificationLinking';
+import {
+  isRtlLayout,
+  rtlAwareTextStyle,
+  rtlBlockAlignStyle,
+  rtlRowStyle,
+} from '../utils/rtlLayout';
 
 export default function NotificationsScreen() {
   const { t, i18n } = useTranslation();
@@ -55,54 +56,13 @@ export default function NotificationsScreen() {
   const formatDate = (dateUtc?: string): string =>
     formatLocaleDateTime(dateUtc, i18n.language, 'notifications');
 
-  const openNotificationLink = async (notification: NotificationDTO) => {
-    if (!notification.link) return;
-
-    const rawLink = notification.link.trim();
-    if (!rawLink) return;
-
-    if (/^https?:\/\//i.test(rawLink)) {
-      try {
-        await Linking.openURL(rawLink);
-        return;
-      } catch {
-        // Try HTTPS when backend sends HTTP URL.
-        if (rawLink.startsWith('http://')) {
-          const httpsLink = `https://${rawLink.slice('http://'.length)}`;
-          try {
-            await Linking.openURL(httpsLink);
-            return;
-          } catch {
-            // fall through to route-keyword fallback below
-          }
-        }
-      }
-    }
-
-    const lower = rawLink.toLowerCase();
-    let pathLower = '';
-    try {
-      if (/^https?:\/\//i.test(rawLink)) {
-        const parsed = new URL(rawLink);
-        pathLower = `${parsed.pathname}${parsed.search}`.toLowerCase();
-      }
-    } catch {
-      // ignore parse error and fallback to raw string matching
-    }
-
-    const target = `${lower} ${pathLower}`;
-    if (target.includes('subscription')) {
-      (navigation.navigate as (name: string) => void)('Subscription');
-    } else if (target.includes('task')) {
-      (navigation.navigate as (name: string) => void)('Tasks');
-    } else if (target.includes('document')) {
-      (navigation.navigate as (name: string) => void)('Documents');
-    }
-  };
-
   const onOpenFromNotification = (notification: NotificationDTO) => {
     if (notification.link?.trim()) {
-      openNotificationLink(notification).catch(() => {});
+      openNotificationLinkInApp(
+        notification,
+        dispatch,
+        navigation as unknown as { navigate: (name: string, params?: object) => void }
+      ).catch(() => {});
     }
   };
 
@@ -120,19 +80,28 @@ export default function NotificationsScreen() {
     onOpenFromNotification(notification);
   };
 
+  const rtlText = rtlAwareTextStyle(i18n);
+  const rtlRow = rtlRowStyle(i18n);
+  const rtlBlock = rtlBlockAlignStyle(i18n);
+  const contentDirStyle: ViewStyle | undefined = isRtlLayout(i18n)
+    ? { direction: 'rtl' }
+    : undefined;
+
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, contentDirStyle]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
-      <Text style={styles.pageTitle}>{t('app.notifications.title')}</Text>
+      <View style={rtlBlock}>
+        <Text style={[styles.pageTitle, rtlText]}>{t('app.notifications.title')}</Text>
+      </View>
 
       <View style={styles.panel}>
-        <View style={styles.panelHeader}>
+        <View style={[styles.panelHeader, rtlRow]}>
           <View style={styles.panelHeaderTexts}>
-            <Text style={styles.panelHeaderTitle}>{t('app.notifications.title')}</Text>
-            <Text style={styles.panelHeaderSubtitle}>
+            <Text style={[styles.panelHeaderTitle, rtlText]}>{t('app.notifications.title')}</Text>
+            <Text style={[styles.panelHeaderSubtitle, rtlText]}>
               {t('app.notificationsScreen.unreadCount', { count: unreadCount })}
             </Text>
           </View>
@@ -147,7 +116,7 @@ export default function NotificationsScreen() {
 
         {error ? (
           <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={[styles.errorText, rtlText]}>{error}</Text>
           </View>
         ) : null}
 
@@ -157,28 +126,24 @@ export default function NotificationsScreen() {
           </View>
         ) : items.length === 0 ? (
           <View style={styles.emptyWrap}>
-            <Text style={styles.emptyText}>{t('app.notificationsScreen.emptyList')}</Text>
+            <Text style={[styles.emptyText, rtlText]}>{t('app.notificationsScreen.emptyList')}</Text>
           </View>
         ) : (
           <View>
             {items.map((notification) => {
-              const link = notification.link?.trim();
-              const hasLink = Boolean(link);
-              const displayMessage = translateNotificationMessage(notification.message, t);
-              const actionLabel = hasLink ? notificationActionLabel(notification.linkText, t) : '';
-              const inlineRange = hasLink && displayMessage === notification.message
-                ? findLinkRangeInMessage(notification.message, link) ??
-                  findFirstUrlRangeInMessage(notification.message)
-                : null;
-              const hasInlineLink = Boolean(hasLink && inlineRange);
-              const fallbackMessage = hasLink
-                ? stripEmbeddedUrlsFromDisplay(displayMessage)
-                : displayMessage;
+              const { bodyText, actionLabel, showActionLink } = buildNotificationDisplay(
+                notification,
+                t
+              );
 
               return (
                 <TouchableOpacity
                   key={notification.id}
-                  style={[styles.itemRow, !notification.isRead && styles.itemRowUnread]}
+                  style={[
+                    styles.itemRow,
+                    rtlRow,
+                    !notification.isRead && styles.itemRowUnread,
+                  ]}
                   onPress={() => onPressNotification(notification)}
                   activeOpacity={0.85}
                 >
@@ -186,25 +151,12 @@ export default function NotificationsScreen() {
                     <MaterialIcons name="mail-outline" size={22} color="#2f3b57" />
                   </View>
                   <View style={styles.itemBody}>
-                    {hasInlineLink && inlineRange ? (
-                      <Text style={styles.itemMessage}>
-                        {notification.message.slice(0, inlineRange.start)}
-                        <Text
-                          style={styles.itemLinkInline}
-                          onPress={() => {
-                            onPressLinkText(notification);
-                          }}
-                        >
-                          {actionLabel}
-                        </Text>
-                        {notification.message.slice(inlineRange.end)}
-                      </Text>
-                    ) : (
-                      <Text style={styles.itemMessage}>{fallbackMessage}</Text>
-                    )}
-                    {hasLink && !hasInlineLink ? (
+                    <Text style={[styles.itemMessage, rtlText]}>
+                      {bodyText.trim() || t('app.notificationsScreen.openActionHint')}
+                    </Text>
+                    {showActionLink ? (
                       <Text
-                        style={styles.itemLinkInline}
+                        style={[styles.itemLinkInline, rtlText]}
                         onPress={() => {
                           onPressLinkText(notification);
                         }}
@@ -212,7 +164,9 @@ export default function NotificationsScreen() {
                         {actionLabel}
                       </Text>
                     ) : null}
-                    <Text style={styles.itemDate}>{formatDate(notification.createdOnUtc)}</Text>
+                    <Text style={[styles.itemDate, rtlText]}>
+                      {formatDate(notification.createdOnUtc)}
+                    </Text>
                   </View>
                 </TouchableOpacity>
               );

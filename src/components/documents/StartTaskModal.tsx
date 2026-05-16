@@ -22,6 +22,7 @@ import type { TaskCreateDTO } from '../../types/task';
 import type { FoundUserDTO } from '../../types/user';
 import { theme } from '../../theme';
 import { useTranslation } from 'react-i18next';
+import { RTL_LANGUAGES } from '../../i18n';
 
 const DocumentTaskReferencing = {
   WorkOrderAndNotificationNo: 0,
@@ -160,7 +161,9 @@ export function StartTaskModal({
   onSubmit,
   onOpenAssetsPage,
 }: StartTaskModalProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const currentLanguage = (i18n.resolvedLanguage ?? i18n.language ?? 'en').toLowerCase();
+  const isRtl = RTL_LANGUAGES.some((code) => currentLanguage === code || currentLanguage.startsWith(`${code}-`));
   const [workOrderNumber, setWorkOrderNumber] = useState('');
   const [notificationNumber, setNotificationNumber] = useState('');
   const [projectNumber, setProjectNumber] = useState('');
@@ -421,10 +424,9 @@ export function StartTaskModal({
 
     if (
       taskReferencingType === DocumentTaskReferencing.WorkOrderAndNotificationNo &&
-      !workOrder &&
-      !notification
+      (!workOrder || !notification)
     ) {
-      setError(t('app.startTask.fillWorkOrderOrNotification'));
+      setError(t('app.startTask.fillWorkOrderAndNotification'));
       return;
     }
 
@@ -648,7 +650,7 @@ export function StartTaskModal({
                   </View>
                 ) : null}
 
-                {error ? <Text style={styles.errorText}>{error}</Text> : null}
+                {error ? <Text style={[styles.errorText, isRtl && styles.errorTextRtl]}>{error}</Text> : null}
               </>
             )}
           </ScrollView>
@@ -831,6 +833,10 @@ const styles = StyleSheet.create({
     marginTop: 8,
     color: theme.colors.error,
     fontSize: 13,
+  },
+  errorTextRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   footerActions: {
     borderTopWidth: 1,

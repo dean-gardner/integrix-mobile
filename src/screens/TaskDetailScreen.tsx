@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   Keyboard,
+  KeyboardAvoidingView,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
@@ -26,11 +27,13 @@ import {
   fetchTasks,
   clearCurrentTask,
   changeCurrentTaskStatus,
+  finaliseCurrentTask,
   shareCurrentTaskWithUser,
   unshareCurrentTaskWithUser,
   editTaskEntry,
 } from '../store/tasksSlice';
 import { changeTaskStepStatus, getTaskSectionsWithTaskSteps } from '../api/tasks';
+import { getDocumentById } from '../api/documents';
 import { createDefect as apiCreateDefect, getTaskStepDefects } from '../api/defects';
 import { createObservation as apiCreateObservation } from '../api/observations';
 import { getUsersBySearch } from '../api/users';
@@ -68,10 +71,15 @@ import {
   TASK_STATUS_COMPLETE,
   TASK_STEP_COMPLETED_WITH_RECORD,
   TASK_STEP_NOT_COMPLETED,
+  mergeTaskWithRoute,
 } from '../config/taskDetail';
 import { useTranslation } from 'react-i18next';
 import { TaskStepCard } from '../components/taskDetail/TaskStepCard';
 import { TaskStepPostModal, type TaskStepPostPayload } from '../components/taskDetail/TaskStepPostModal';
+import { FinaliseTaskModal } from '../components/taskDetail/FinaliseTaskModal';
+import type { FinaliseTaskDTO } from '../types/finaliseTask';
+import { isSignatureRequiredOnTaskCompletion } from '../utils/taskCompletionRequirements';
+import { translateKnownDocumentSectionTitle } from '../utils/systemDisplayText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type TaskDetailParams = { task: TaskReadDTO; taskStepId?: string | null; scrollToSteps?: boolean };
@@ -200,6 +208,9 @@ export default function TaskDetailScreen() {
   const navigation = useNavigation();
   const dispatch = useDispatch<AppDispatch>();
   const scrollRef = useRef<ScrollView>(null);
+  const shareSectionRef = useRef<View>(null);
+  const shareInputFocusedRef = useRef(false);
+  const scrollOffsetYRef = useRef(0);
   const stepLayoutMap = useRef<Record<string, number>>({});
   const targetStepId = route.params?.taskStepId ?? null;
   const scrollToSteps = route.params?.scrollToSteps ?? !targetStepId;
@@ -207,9 +218,11 @@ export default function TaskDetailScreen() {
     (s: RootState) => s.tasks
   );
   const routeTask = route.params?.task;
-  const task = currentTask?.id === routeTask?.id ? currentTask : routeTask;
+  const task = mergeTaskWithRoute(currentTask, routeTask);
 
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [finaliseModalVisible, setFinaliseModalVisible] = useState(false);
+  const [docRequiresSignature, setDocRequiresSignature] = useState(false);
   const [shareQuery, setShareQuery] = useState('');
   const [shareSearchResults, setShareSearchResults] = useState<FoundUserDTO[]>([]);
   const [shareSearchLoading, setShareSearchLoading] = useState(false);
@@ -257,6 +270,89 @@ export default function TaskDetailScreen() {
       dispatch(clearCurrentTask());
     };
   }, [dispatch, routeTask?.id, routeTask?.versionId]);
+
+  const documentNumberFromTask = useMemo(() => {
+    const n = task?.documentNumberStr ?? task?.documentNo;
+    if (n == null) return '';
+    return String(n).trim();
+  }, [task?.documentNumberStr, task?.documentNo]);
+
+  const taskDescriptionTrimmed = useMemo(() => {
+    if (!task?.description) return '';
+    return String(task.description).trim();
+  }, [task?.description]);
+
+  const [fetchedDocMeta, setFetchedDocMeta] = useState<{
+    description?: string;
+    documentNumberStr?: string;
+    documentNo?: string;
+  } | null>(null);
+
+  const signatureRequiredOnCompletion = useMemo(
+    () =>
+      isSignatureRequiredOnTaskCompletion(task as Record<string, unknown> | undefined) ||
+      docRequiresSignature,
+    [task, docRequiresSignature]
+  );
+
+  useEffect(() => {
+    const docId = task?.documentId;
+    const verId = task?.versionId;
+    if (!docId || !verId) {
+      setFetchedDocMeta(null);
+      setDocRequiresSignature(false);
+      return;
+    }
+    const needNumber = !documentNumberFromTask;
+    const needTitle = !taskDescriptionTrimmed;
+    const needSignatureFlag = !isSignatureRequiredOnTaskCompletion(
+      task as Record<string, unknown> | undefined
+    );
+    if (!needNumber && !needTitle && !needSignatureFlag) {
+      setFetchedDocMeta(null);
+      return;
+    }
+    let cancelled = false;
+    getDocumentById(docId, verId)
+      .then((res) => {
+        if (cancelled) return;
+        const d = res.data;
+        const desc = d.description != null ? String(d.description).trim() : '';
+        const numStr = d.documentNumberStr != null ? String(d.documentNumberStr).trim() : '';
+        const numNo = d.documentNo != null ? String(d.documentNo).trim() : '';
+        setFetchedDocMeta({
+          description: desc || undefined,
+          documentNumberStr: numStr || undefined,
+          documentNo: numNo || undefined,
+        });
+        setDocRequiresSignature(
+          isSignatureRequiredOnTaskCompletion(undefined, d as Record<string, unknown>)
+        );
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setFetchedDocMeta(null);
+          setDocRequiresSignature(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [task, documentNumberFromTask, taskDescriptionTrimmed]);
+
+  const documentTitleDisplay = useMemo(() => {
+    if (taskDescriptionTrimmed) return taskDescriptionTrimmed;
+    const fromDoc = (fetchedDocMeta?.description ?? '').trim();
+    return fromDoc || '-';
+  }, [taskDescriptionTrimmed, fetchedDocMeta]);
+
+  const documentNumberDisplay = useMemo(() => {
+    if (documentNumberFromTask) return documentNumberFromTask;
+    const fromDoc = (fetchedDocMeta?.documentNumberStr ?? fetchedDocMeta?.documentNo ?? '').trim();
+    return fromDoc || '-';
+  }, [documentNumberFromTask, fetchedDocMeta]);
+
+  const showTaskDocumentMeta = Boolean(task?.documentId && task?.versionId);
 
   const resolveSectionToExpand = useCallback(
     (ordered: TaskSectionWithStepsDTO[]): string | null => {
@@ -451,6 +547,38 @@ export default function TaskDetailScreen() {
     };
   }, [shareQuery, sharedUserEmails]);
 
+  const scrollShareInputIntoView = useCallback(() => {
+    const scroll = scrollRef.current;
+    const section = shareSectionRef.current;
+    if (!scroll || !section) return;
+
+    section.measureInWindow((_x, sectionWindowY) => {
+      scroll.measureInWindow((_sx, scrollWindowY) => {
+        const sectionTopInContent = scrollOffsetYRef.current + (sectionWindowY - scrollWindowY);
+        const targetY = Math.max(0, sectionTopInContent - 12);
+        scroll.scrollTo({ y: targetY, animated: true });
+      });
+    });
+  }, []);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, () => {
+      if (!shareInputFocusedRef.current) return;
+      requestAnimationFrame(() => {
+        scrollShareInputIntoView();
+      });
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      shareInputFocusedRef.current = false;
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [scrollShareInputIntoView]);
+
   if (!task) {
     return (
       <View style={screenStyles.container}>
@@ -573,17 +701,26 @@ export default function TaskDetailScreen() {
     ]);
   };
 
-  const finaliseTask = async () => {
-    const didFinalise = await changeStatus(TASK_STATUS_COMPLETE);
-    if (!didFinalise) return;
-
-    if (task.id && task.versionId) {
-      dispatch(fetchTaskById({ versionId: task.versionId, taskId: task.id })).catch(() => {});
+  const handleFinaliseSubmit = async (model: FinaliseTaskDTO) => {
+    if (!task.versionId || !task.id) return;
+    try {
+      await dispatch(
+        finaliseCurrentTask({
+          versionId: task.versionId,
+          taskId: task.id,
+          model,
+        })
+      ).unwrap();
+      setFinaliseModalVisible(false);
+      if (task.versionId && task.id) {
+        dispatch(fetchTaskById({ versionId: task.versionId, taskId: task.id })).catch(() => {});
+      }
+      dispatch(fetchTasks()).catch(() => {});
+      Alert.alert(t('app.alerts.success'), t('app.task.finaliseSuccess'));
+      navigation.navigate('Tasks' as never);
+    } catch (e) {
+      Alert.alert(t('app.alerts.task'), (e as string) || t('app.errors.finaliseTask'));
     }
-    dispatch(fetchTasks()).catch(() => {});
-
-    Alert.alert(t('app.alerts.success'), t('app.task.finaliseSuccess'));
-    navigation.navigate('Tasks' as never);
   };
 
   const handleFinaliseTask = () => {
@@ -591,15 +728,7 @@ export default function TaskDetailScreen() {
       Alert.alert(t('app.alerts.task'), t('app.task.stepsNotRecorded'));
       return;
     }
-    Alert.alert(t('app.task.finaliseTitle'), t('app.task.finaliseConfirm'), [
-      { text: t('app.modal.cancel'), style: 'cancel' },
-      {
-        text: t('app.taskDetail.finaliseBtn'),
-        onPress: () => {
-          finaliseTask().catch(() => {});
-        },
-      },
-    ]);
+    setFinaliseModalVisible(true);
   };
 
   const handleUserPick = async (user: FoundUserDTO) => {
@@ -909,17 +1038,27 @@ export default function TaskDetailScreen() {
     Platform.OS === 'ios' ? safeAreaInsets.bottom + 90 : 20;
   const backToTopBottomOffset =
     18 + (Platform.OS === 'ios' ? safeAreaInsets.bottom : 0);
-  const iosBottomInset = Platform.OS === 'ios' ? safeAreaInsets.bottom + 190 : 0;
 
   return (
-    <ScrollView
-      ref={scrollRef}
-      style={styles.container}
-      contentContainerStyle={[styles.content, { paddingBottom: bottomScrollPadding }]}
-      contentInset={{ bottom: iosBottomInset }}
-      scrollIndicatorInsets={{ bottom: iosBottomInset }}
-      showsVerticalScrollIndicator={false}
-    >
+    <>
+    <View style={styles.screenRoot}>
+      <KeyboardAvoidingView
+        style={styles.screenRoot}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          ref={scrollRef}
+          style={styles.container}
+          contentContainerStyle={[styles.content, { paddingBottom: bottomScrollPadding }]}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          automaticallyAdjustKeyboardInsets={false}
+          showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onScroll={(e) => {
+            scrollOffsetYRef.current = e.nativeEvent.contentOffset.y;
+          }}
+        >
       <View style={styles.offlineBar}>
         {isOfflineReady ? (
           <View style={styles.offlineReadyRow}>
@@ -951,6 +1090,16 @@ export default function TaskDetailScreen() {
         }}
       >
         <View style={styles.infoPanel}>
+          {showTaskDocumentMeta ? (
+            <>
+              <Text style={styles.infoText}>
+                {t('app.task.documentTitle')}: {documentTitleDisplay}
+              </Text>
+              <Text style={styles.infoText}>
+                {t('app.task.documentNumber')}: {documentNumberDisplay}
+              </Text>
+            </>
+          ) : null}
           <View style={styles.infoRow}>
             <Text style={styles.infoText}>
               {t('app.task.workOrderNumber')}:{' '}
@@ -1032,13 +1181,22 @@ export default function TaskDetailScreen() {
           )}
         </View>
 
-        <View style={styles.card}>
+        <View ref={shareSectionRef} collapsable={false} style={styles.card}>
           <View style={styles.shareRow}>
             <TextInput
               style={styles.shareInput}
               value={shareQuery}
               onChangeText={setShareQuery}
               onSubmitEditing={handleSharePress}
+              onFocus={() => {
+                shareInputFocusedRef.current = true;
+                requestAnimationFrame(() => {
+                  scrollShareInputIntoView();
+                });
+              }}
+              onBlur={() => {
+                shareInputFocusedRef.current = false;
+              }}
               returnKeyType="done"
               placeholder={t('app.task.sharePh')}
               placeholderTextColor="#7e7e85"
@@ -1142,7 +1300,8 @@ export default function TaskDetailScreen() {
                       }}
                     >
                       <Text style={styles.sectionHeaderText}>
-                        {sectionIndex + 1}. {section.sectionTitle}
+                        {sectionIndex + 1}.{' '}
+                        {translateKnownDocumentSectionTitle(section.sectionTitle, t)}
                       </Text>
                     </TouchableOpacity>
 
@@ -1190,12 +1349,15 @@ export default function TaskDetailScreen() {
       <View style={styles.footerRow}>
         <Text style={styles.footerText}>{t('app.common.copyright')}</Text>
       </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
       <TouchableOpacity
         style={[styles.backToTopButton, { bottom: backToTopBottomOffset }]}
         onPress={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}
       >
         <MaterialIcons name="keyboard-double-arrow-up" size={30} color="#ffffff" />
       </TouchableOpacity>
+    </View>
 
       <Modal
         visible={doneConfirmVisible}
@@ -1312,6 +1474,17 @@ export default function TaskDetailScreen() {
         initialQuery={pickerVisible ? shareQuery : undefined}
       />
 
+      <FinaliseTaskModal
+        visible={finaliseModalVisible}
+        task={task}
+        requireSignature={signatureRequiredOnCompletion}
+        submitting={isActionLoading}
+        onClose={() => setFinaliseModalVisible(false)}
+        onSubmit={(model) => {
+          handleFinaliseSubmit(model).catch(() => {});
+        }}
+      />
+
       <TaskStepPostModal
         visible={postModalVisible}
         taskStep={postTaskStep}
@@ -1404,11 +1577,14 @@ export default function TaskDetailScreen() {
           </View>
         </View>
       </Modal>
-    </ScrollView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
+  screenRoot: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -1694,7 +1870,8 @@ const styles = StyleSheet.create({
   backToTopButton: {
     position: 'absolute',
     right: 22,
-    bottom: 18,
+    zIndex: 20,
+    elevation: 20,
     width: 50,
     height: 50,
     borderRadius: 6,

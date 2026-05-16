@@ -215,6 +215,17 @@ export default function DocumentsScreen() {
         documentId:
           (typeof createdTask.documentId === 'string' ? createdTask.documentId : null) ??
           document.documentId,
+        documentNumberStr:
+          (typeof createdTask.documentNumberStr === 'string'
+            ? createdTask.documentNumberStr
+            : null) ??
+          document.documentNumberStr ??
+          document.documentNo ??
+          null,
+        documentNo:
+          (typeof createdTask.documentNo === 'string' ? createdTask.documentNo : null) ??
+          document.documentNo ??
+          null,
         createdOnUtc: createdTask.createdOnUtc,
         createdById: createdTask.createdById,
         taskStepsCount: createdTask.taskStepsCount,

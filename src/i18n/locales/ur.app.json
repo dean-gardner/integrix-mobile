@@ -114,7 +114,24 @@
       "assetId": "Asset ID",
       "sharePh": "صارفین درج کریں (بیرونی صارفین...",
       "usersToShare": "صارفین کے ساتھ شیئر",
-      "finaliseSuccess": "کام کامیابی سے مکمل ہو گیا۔"
+      "finaliseSuccess": "کام کامیابی سے مکمل ہو گیا۔",
+      "documentTitle": "دستاویز کا عنوان",
+      "documentNumber": "دستاویز نمبر"
+    },
+    "taskFinalise": {
+      "signatureLabel": "دستخط",
+      "drawTab": "بنائیں",
+      "typeTab": "لکھیں",
+      "typeSignaturePh": "اپنا دستخط لکھیں",
+      "clearSignature": "دستخط صاف کریں",
+      "fullNameLabel": "مکمل نام",
+      "fullNamePh": "اپنا مکمل نام درج کریں",
+      "fullNameRequired": "مکمل نام ضروری ہے۔",
+      "signatureRequired": "اس ٹاسک کو ختم کرنے کے لیے دستخط ضروری ہے۔",
+      "positionLabel": "عہدہ (اختیاری)",
+      "positionPh": "اپنا عہدہ درج کریں",
+      "shareDescription": "آپ کو ٹاسک تکمیل کی رپورٹ ملے گی۔ رپورٹ شیئر کرنے کے لیے صارفین شامل کریں:",
+      "attachToCrm": "{{crmName}} سے منسلک کریں"
     },
     "users": {
       "inviteSentTitle": "Invitation sent",
@@ -374,6 +391,8 @@
       "deleteTask": "حذف میں ناکامی",
       "unableCancelTask": "ابھی منسوخ نہیں ہو سکتا۔ بعد میں کوشش کریں۔",
       "unableUpdateTaskStatus": "حالت اپڈیٹ نہیں ہو سکی۔",
+      "unableFinaliseTask": "اس وقت ٹاسک ختم نہیں ہو سکا۔ بعد میں کوشش کریں۔",
+      "finaliseTask": "ٹاسک ختم کرنے میں ناکامی",
       "unableSaveTask": "محفوظ نہیں ہو سکا۔",
       "changeTaskStatus": "حالت تبدیل کرنے میں ناکامی",
       "loadFeed": "فیڈ لوڈ کرنے میں ناکامی",
@@ -521,7 +540,8 @@
       "noUsers": "کوئی صارف نہیں",
       "user": "صارف",
       "users": "صارفین",
-      "fillWorkOrderOrNotification": "براہ کرم ورک آرڈر نمبر یا نوٹیفکیشن نمبر درج کریں۔",
+      "fillWorkOrderOrNotification": "ورک آرڈر نمبر اور نوٹیفکیشن نمبر لازمی ہیں۔",
+      "fillWorkOrderAndNotification": "ورک آرڈر نمبر اور نوٹیفکیشن نمبر لازمی ہیں۔",
       "projectRequired": "پروجیکٹ نمبر لازمی ہے۔",
       "assetRequired": "براہ کرم ایک اثاثہ منتخب کریں۔",
       "tagAsset": "اثاثہ منتخب کریں",
@@ -645,6 +665,11 @@
       "gpsPosition": "GPS مقام:",
       "auto": "خودکار",
       "changePin": "پن تبدیل کریں",
+      "gpsPinPickerTitle": "GPS مقام سیٹ کریں",
+      "gpsPinPickerHint": "پن گھسیٹیں یا نقشے پر تھپتھپائیں۔ ختم ہونے پر یہ مقام استعمال کریں دبائیں۔",
+      "gpsPinPickerApply": "یہ مقام استعمال کریں",
+      "gpsPinPickerOpenMaps": "نقشے میں کھولیں (اختیاری)",
+      "gpsPinPickerMapError": "نقشہ لوڈ نہیں ہو سکا۔ اپنا نیٹ ورک چیک کریں اور دوبارہ کوشش کریں۔",
       "postsTitle": "پوسٹس",
       "postsTab": "پوسٹس",
       "viewDefectsTab": "عیوب دیکھیں ({{asset}})",
@@ -767,7 +792,9 @@
       "newUserAlert": "نئے صارف کا الرٹ: صارف {{user}} ابھی ایپلیکیشن میں شامل ہوا ہے۔ اگر یہ غلطی ہے تو براہ کرم سپورٹ سے رابطہ کریں۔ شکریہ۔",
       "clickHere": "یہاں کلک کریں",
       "grantedAccess": "آپ کو رسائی دی گئی ہے",
-      "newUserAlertShort": "نئے صارف کا الرٹ"
+      "newUserAlertShort": "نئے صارف کا الرٹ",
+      "documentPdfReady": "دستاویز \"{{title}}\" (PDF) ڈاؤن لوڈ کے لیے تیار ہے۔ رپورٹ کھولنے کے لیے نیچے دیئے گئے عمل کا استعمال کریں۔",
+      "taskCompletionReportReady": "ٹاسک تکمیل کی رپورٹ \"{{title}}\" تیار ہے۔ رپورٹ کھولنے کے لیے نیچے دیئے گئے عمل کا استعمال کریں۔"
     },
     "roles": {
       "admin": "ایڈمن",

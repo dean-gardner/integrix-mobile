@@ -6,6 +6,7 @@ import type {
   TaskCreateDTO,
 } from '../types/task';
 import type { FoundUserDTO } from '../types/user';
+import type { FinaliseTaskDTO } from '../types/finaliseTask';
 import { TASK_STATUS_CANCELLED } from '../config/taskDetail';
 import i18n from '../i18n';
 import {
@@ -19,6 +20,7 @@ import {
   createTask as apiCreateTask,
   editTask as apiEditTask,
   deleteTask as apiDeleteTask,
+  finaliseTask as apiFinaliseTask,
 } from '../api/tasks';
 
 /**
@@ -115,6 +117,35 @@ export const fetchTaskById = createAsyncThunk<
     return res.data;
   } catch (e: any) {
     return rejectWithValue(e?.message ?? i18n.t('app.errors.loadTaskDetails'));
+  }
+});
+
+export const finaliseCurrentTask = createAsyncThunk<
+  TaskWithDetailsReadDTO,
+  { versionId: string; taskId: string; model: FinaliseTaskDTO },
+  { rejectValue: string }
+>('tasks/finalise', async ({ versionId, taskId, model }, { rejectWithValue }) => {
+  try {
+    const res = await apiFinaliseTask(versionId, taskId, model);
+    return res.data;
+  } catch (e: any) {
+    const statusCode = e?.response?.status;
+    const responseData = e?.response?.data;
+    const is5xx = statusCode != null && statusCode >= 500;
+    if (is5xx) {
+      return rejectWithValue(i18n.t('app.errors.unableFinaliseTask'));
+    }
+    const detail =
+      responseData != null
+        ? typeof responseData === 'object'
+          ? JSON.stringify(responseData)
+          : String(responseData)
+        : e?.message ?? i18n.t('app.errors.finaliseTask');
+    return rejectWithValue(
+      statusCode != null
+        ? i18n.t('app.errors.requestFailedStatus', { code: statusCode, detail })
+        : detail
+    );
   }
 });
 
@@ -449,6 +480,19 @@ const tasksSlice = createSlice({
       });
 
     builder
+      .addCase(finaliseCurrentTask.pending, (state) => {
+        state.isActionLoading = true;
+      })
+      .addCase(finaliseCurrentTask.fulfilled, (state, { payload }) => {
+        state.isActionLoading = false;
+        state.currentTask = payload;
+        const i = state.items.findIndex((t) => t.id === payload.id);
+        if (i >= 0) state.items[i] = { ...state.items[i], ...payload };
+      })
+      .addCase(finaliseCurrentTask.rejected, (state, { payload }) => {
+        state.isActionLoading = false;
+        if (payload) state.error = payload;
+      })
       .addCase(changeCurrentTaskStatus.pending, (state) => {
         state.isActionLoading = true;
       })

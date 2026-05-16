@@ -34,6 +34,7 @@ import type { FeedItemDTO, FilteringModel } from '../../types/feed';
 import type { TaskStepReadDTO } from '../../types/task';
 import { theme } from '../../theme';
 import { useTranslation } from 'react-i18next';
+import { GpsPinPickerModal } from './GpsPinPickerModal';
 
 const DEFECT_FIELD_TYPES = {
   FreeText: 0,
@@ -347,6 +348,8 @@ export function TaskStepPostModal({
 
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsPinPickerOpen, setGpsPinPickerOpen] = useState(false);
+  const [gpsPinPickerInitial, setGpsPinPickerInitial] = useState<GpsCoordinates | null>(null);
 
   const selectedTemplate = taskStep?.defectFieldsTemplate ?? defaultTemplate;
 
@@ -357,6 +360,8 @@ export function TaskStepPostModal({
     setFiles([]);
     setGpsCoords(null);
     setGpsLoading(false);
+    setGpsPinPickerOpen(false);
+    setGpsPinPickerInitial(null);
     setError(null);
   }, []);
 
@@ -737,21 +742,39 @@ export function TaskStepPostModal({
       });
   }, [gpsCoords, gpsLoading, isDefect, requestCurrentGpsPosition, t, visible]);
 
+  const closeGpsPinPicker = useCallback(() => {
+    setGpsPinPickerOpen(false);
+    setGpsPinPickerInitial(null);
+  }, []);
+
+  const handleGpsPinApplied = useCallback(
+    (coords: GpsCoordinates) => {
+      setGpsCoords(coords);
+      updateGpsFieldValues(coords);
+      closeGpsPinPicker();
+    },
+    [closeGpsPinPicker, updateGpsFieldValues]
+  );
+
   const handleViewGps = useCallback(() => {
     if (gpsCoords) {
-      openGpsInMaps(gpsCoords);
+      setGpsPinPickerInitial(gpsCoords);
+      setGpsPinPickerOpen(true);
       return;
     }
 
     requestCurrentGpsPosition()
       .then((coords) => {
-        if (coords) openGpsInMaps(coords);
+        if (coords) {
+          setGpsPinPickerInitial(coords);
+          setGpsPinPickerOpen(true);
+        }
       })
       .catch(() => {
         setGpsLoading(false);
         setError(t('app.taskStepPost.gpsUnavailable'));
       });
-  }, [gpsCoords, openGpsInMaps, requestCurrentGpsPosition, t]);
+  }, [gpsCoords, requestCurrentGpsPosition, t]);
 
   const handleViewDefectGps = useCallback(
     (defect: DefectReadDTO) => {
@@ -1496,6 +1519,7 @@ export function TaskStepPostModal({
   };
 
   return (
+    <>
     <Modal visible={visible} transparent animationType="fade" onRequestClose={closeModal}>
       <View style={styles.backdrop}>
         <TouchableOpacity style={styles.backdropPressArea} onPress={closeModal} activeOpacity={1} />
@@ -1733,8 +1757,18 @@ export function TaskStepPostModal({
             </View>
           </ScrollView>
         </View>
+        {gpsPinPickerOpen && gpsPinPickerInitial ? (
+          <GpsPinPickerModal
+            embedded
+            visible
+            initial={gpsPinPickerInitial}
+            onClose={closeGpsPinPicker}
+            onApply={handleGpsPinApplied}
+          />
+        ) : null}
       </View>
     </Modal>
+    </>
   );
 }
 

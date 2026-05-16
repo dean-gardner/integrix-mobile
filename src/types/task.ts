@@ -24,6 +24,8 @@ export type TaskReadDTO = {
   createdById?: string;
   documentId?: string;
   versionId?: string;
+  documentNumberStr?: string | null;
+  documentNo?: string | null;
   taskStepsCount?: number;
   taskStepsDone?: number;
   asset?: { id: number; name: string };

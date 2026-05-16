@@ -147,6 +147,7 @@ export function stripEmbeddedUrlsFromDisplay(message: string): string {
   s = s.replace(/\bClick\s+to\s+open\s+it\.?\s*/gi, '');
   s = s.replace(/\bto\s+open\s+the\s+report\.?\s*/gi, '');
   s = s.replace(/\bClick\s+here\s+to\s+open\s+the\s+report\.?\s*/gi, '');
+  s = s.replace(/\bClick\s+.+?\s+to\s+open\s+the\s+report\.?\s*/gi, '');
   s = s.replace(/\s{2,}/g, ' ').trim();
   s = s.replace(/\s+\./g, '.').replace(/\.{2,}/g, '.').trim();
   if (s.length > 0) return s;
@@ -154,12 +155,37 @@ export function stripEmbeddedUrlsFromDisplay(message: string): string {
   return fallback.length > 0 ? fallback : message;
 }
 
+function normalizeQuotes(value: string): string {
+  return value.replace(/[\u2018\u2019\u201C\u201D]/g, "'");
+}
+
 export function translateNotificationMessage(
   message: string,
   translate: (key: string, options?: Record<string, unknown>) => string
 ): string {
-  const trimmed = (message ?? '').trim();
+  const trimmed = normalizeQuotes((message ?? '').trim());
   if (!trimmed) return '';
+
+  const taskReportTitle = trimmed.match(
+    /^The task completion report for ['"](.+?)['"] is ready\.?/i
+  );
+  if (taskReportTitle) {
+    return translate('app.notificationsScreen.taskCompletionReportReady', {
+      title: taskReportTitle[1],
+    });
+  }
+
+  const docPdfTitle = trimmed.match(
+    /^A document ['"](.+?)['"] PDF is ready(?: for download)?\.?/i
+  );
+  if (docPdfTitle) {
+    return translate('app.notificationsScreen.documentPdfReady', { title: docPdfTitle[1] });
+  }
+
+  const docPdfAlt = trimmed.match(/^The document ['"](.+?)['"] PDF is ready(?: for download)?\.?/i);
+  if (docPdfAlt) {
+    return translate('app.notificationsScreen.documentPdfReady', { title: docPdfAlt[1] });
+  }
 
   const accessMatch = trimmed.match(
     /^You've been granted access to view the task ['"]?(.+?)['"]? by (.+?)\.\s*Click here to view the task now\.?$/i
@@ -187,7 +213,7 @@ export function translateNotificationMessage(
     .replace(/\bclick here\b/gi, translate('app.notificationsScreen.clickHere'));
 }
 
-/** Keep API-provided label (e.g. "here") to match web UI wording. */
+/** Map common English / Arabic link labels to the current locale; pass through unknown labels. */
 export function notificationActionLabel(
   linkText: string | undefined,
   translate: (key: string) => string
@@ -197,5 +223,41 @@ export function notificationActionLabel(
   if (/^here$/i.test(raw)) return translate('app.notificationsScreen.viewLink');
   if (/^click here$/i.test(raw)) return translate('app.notificationsScreen.clickHere');
   if (/^view report$/i.test(raw)) return translate('app.notificationsScreen.viewReport');
+  if (/^view$/i.test(raw)) return translate('app.notificationsScreen.viewLink');
+  if (raw === 'عرض') return translate('app.notificationsScreen.viewLink');
   return raw;
+}
+
+export type NotificationDisplayParts = {
+  bodyText: string;
+  actionLabel: string;
+  showActionLink: boolean;
+};
+
+/** Localized notification body + optional action link (never splices raw English around a link). */
+export function buildNotificationDisplay(
+  notification: { message?: string; link?: string | null; linkText?: string | null },
+  translate: (key: string, options?: Record<string, unknown>) => string
+): NotificationDisplayParts {
+  const rawMessage = notification.message ?? '';
+  const link = notification.link?.trim();
+  const hasLink = Boolean(link);
+  const translated = translateNotificationMessage(rawMessage, translate);
+  const actionLabel = hasLink ? notificationActionLabel(notification.linkText ?? undefined, translate) : '';
+  const wasTranslated = translated.trim() !== normalizeQuotes(rawMessage.trim());
+
+  if (wasTranslated) {
+    return {
+      bodyText: translated,
+      actionLabel,
+      showActionLink: hasLink,
+    };
+  }
+
+  const stripped = hasLink ? stripEmbeddedUrlsFromDisplay(rawMessage) : rawMessage;
+  return {
+    bodyText: stripped.trim() || translated.trim(),
+    actionLabel,
+    showActionLink: hasLink,
+  };
 }

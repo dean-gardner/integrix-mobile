@@ -80,10 +80,11 @@ export default function NotificationsScreen() {
     onOpenFromNotification(notification);
   };
 
+  const isRtl = isRtlLayout(i18n);
   const rtlText = rtlAwareTextStyle(i18n);
   const rtlRow = rtlRowStyle(i18n);
   const rtlBlock = rtlBlockAlignStyle(i18n);
-  const contentDirStyle: ViewStyle | undefined = isRtlLayout(i18n)
+  const contentDirStyle: ViewStyle | undefined = isRtl
     ? { direction: 'rtl' }
     : undefined;
 
@@ -99,7 +100,7 @@ export default function NotificationsScreen() {
 
       <View style={styles.panel}>
         <View style={[styles.panelHeader, rtlRow]}>
-          <View style={styles.panelHeaderTexts}>
+          <View style={[styles.panelHeaderTexts, isRtl && styles.rtlAlignedBlock]}>
             <Text style={[styles.panelHeaderTitle, rtlText]}>{t('app.notifications.title')}</Text>
             <Text style={[styles.panelHeaderSubtitle, rtlText]}>
               {t('app.notificationsScreen.unreadCount', { count: unreadCount })}
@@ -133,7 +134,8 @@ export default function NotificationsScreen() {
             {items.map((notification) => {
               const { bodyText, actionLabel, showActionLink } = buildNotificationDisplay(
                 notification,
-                t
+                t,
+                i18n.language
               );
 
               return (
@@ -150,7 +152,7 @@ export default function NotificationsScreen() {
                   <View style={styles.itemIconWrap}>
                     <MaterialIcons name="mail-outline" size={22} color="#2f3b57" />
                   </View>
-                  <View style={styles.itemBody}>
+                  <View style={[styles.itemBody, isRtl && styles.rtlAlignedBlock]}>
                     <Text style={[styles.itemMessage, rtlText]}>
                       {bodyText.trim() || t('app.notificationsScreen.openActionHint')}
                     </Text>
@@ -283,6 +285,9 @@ const styles = StyleSheet.create({
   },
   itemBody: {
     flex: 1,
+  },
+  rtlAlignedBlock: {
+    alignItems: 'flex-end',
   },
   itemMessage: {
     color: '#212633',

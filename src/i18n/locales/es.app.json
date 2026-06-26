@@ -794,7 +794,8 @@
       "grantedAccess": "Se le ha concedido acceso",
       "newUserAlertShort": "Alerta de nuevo usuario",
       "documentPdfReady": "El documento \"{{title}}\" (PDF) está listo para descargar. Use la acción de abajo para abrir el informe.",
-      "taskCompletionReportReady": "El informe de finalización de la tarea \"{{title}}\" está listo. Use la acción de abajo para abrir el informe."
+      "taskCompletionReportReady": "El informe de finalización de la tarea \"{{title}}\" está listo. Use la acción de abajo para abrir el informe.",
+      "reminderTaskScheduled": "Recordatorio: la tarea \"{{title}}\" está programada para comenzar el {{startDate}}."
     },
     "roles": {
       "admin": "Administrador",

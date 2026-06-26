@@ -581,7 +581,8 @@
       "grantedAccess": "You've been granted access",
       "newUserAlertShort": "New user alert",
       "documentPdfReady": "The document \"{{title}}\" (PDF) is ready to download. Use the action below to open the report.",
-      "taskCompletionReportReady": "The task completion report for \"{{title}}\" is ready. Use the action below to open the report."
+      "taskCompletionReportReady": "The task completion report for \"{{title}}\" is ready. Use the action below to open the report.",
+      "reminderTaskScheduled": "Reminder: task \"{{title}}\" is scheduled to start on {{startDate}}."
     },
     "userSearch": {
       "placeholder": "Name or email...",

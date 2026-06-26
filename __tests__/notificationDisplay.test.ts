@@ -66,6 +66,12 @@ describe('findLinkRangeInMessage', () => {
     ).toBe('DOC:Letourneau Chassis Inspection');
     expect(
       translateNotificationMessage(
+        'A document "Letourneau Chassis Inspection" PDF is ready for download. Click عرض to open the report.',
+        t
+      )
+    ).toBe('DOC:Letourneau Chassis Inspection');
+    expect(
+      translateNotificationMessage(
         "A document 'Letourneau Chassis Inspection' PDF is ready. Click عرض to open the report.",
         t
       )
@@ -73,6 +79,24 @@ describe('findLinkRangeInMessage', () => {
     const taskMsg =
       "The task completion report for 'inspection washroom (clone)' is ready. Click http://integrix.s3-eu-central-1.amazonaws.com//TASK_COMPLETION_REPORT_16_03_2026_09_25.pdf.pdf to open the report.";
     expect(translateNotificationMessage(taskMsg, t)).toBe('TASK:inspection washroom (clone)');
+  });
+
+  it('cleans empty address placeholders and localizes reminder dates', () => {
+    const t = (key: string, opts?: Record<string, unknown>) => {
+      if (key === 'app.notificationsScreen.reminderTaskScheduled') {
+        return `REMINDER:${opts?.title}:${opts?.startDate}`;
+      }
+      return key;
+    };
+    const translated = translateNotificationMessage(
+      "Reminder: task '[Trench (Address: )] Remediation Document - 21/02/2026 07:41' is scheduled to start on 6/12/2026.",
+      t,
+      'en-US'
+    );
+    expect(translated).toContain('REMINDER:[Trench] Remediation Document - February 21, 2026');
+    expect(translated).toContain('June 12, 2026');
+    expect(translated).not.toContain('Address: )');
+    expect(translated).not.toContain('6/12/2026');
   });
 
   it('buildNotificationDisplay returns localized body without English slices', () => {

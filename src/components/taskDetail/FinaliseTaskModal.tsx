@@ -200,6 +200,9 @@ export function FinaliseTaskModal({
         fullName: name,
         position: position.trim() || null,
         signatureType: sig.signatureType,
+        signatureImage: sig.signature,
+        signatureFullName: name,
+        signaturePosition: position.trim() || null,
       });
       return;
     }

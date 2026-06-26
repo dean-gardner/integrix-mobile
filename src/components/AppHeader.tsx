@@ -320,7 +320,8 @@ export function AppHeader({ title, showMenu = true }: AppHeaderProps) {
                     {previewItems.map((notification) => {
                       const { bodyText, actionLabel, showActionLink } = buildNotificationDisplay(
                         notification,
-                        t
+                        t,
+                        i18n.language
                       );
 
                       return (

@@ -15,6 +15,7 @@ import {
   InteractionManager,
   Image,
   Platform,
+  type KeyboardEvent,
 } from 'react-native';
 import { launchCamera, launchImageLibrary, type Asset as ImagePickerAsset } from 'react-native-image-picker';
 import { useDispatch, useSelector } from 'react-redux';
@@ -102,6 +103,7 @@ const OFFLINE_DEFECTS_FILTER_MODEL: DefectFilteringModel = {
 };
 
 const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic', 'heif']);
+const SHARE_INPUT_KEYBOARD_MARGIN = 16;
 
 type CompletionPhotoFile = {
   uri: string;
@@ -136,6 +138,51 @@ function getFileExtensionFromUrl(url: string): string {
   const cleanUrl = url.split('?')[0].split('#')[0];
   const parts = cleanUrl.split('.');
   return parts.length > 1 ? (parts[parts.length - 1] ?? '').toLowerCase() : '';
+}
+
+function pickFirstTrimmedString(...values: unknown[]): string {
+  for (const value of values) {
+    if (value == null) continue;
+    const trimmed = String(value).trim();
+    if (trimmed) return trimmed;
+  }
+  return '';
+}
+
+function getTaskDocumentTitle(task: TaskReadDTO | null | undefined): string {
+  const record = task as Record<string, unknown> | null | undefined;
+  const documentRecord = record?.document as Record<string, unknown> | null | undefined;
+  return pickFirstTrimmedString(
+    record?.documentTitle,
+    record?.documentDescription,
+    documentRecord?.description,
+    task?.description
+  );
+}
+
+function getTaskDocumentNumber(task: TaskReadDTO | null | undefined): string {
+  const record = task as Record<string, unknown> | null | undefined;
+  const documentRecord = record?.document as Record<string, unknown> | null | undefined;
+  return pickFirstTrimmedString(
+    task?.documentNumberStr,
+    task?.documentNo,
+    record?.documentNumber,
+    record?.documentNumberString,
+    documentRecord?.documentNumberStr,
+    documentRecord?.documentNo,
+    documentRecord?.documentNumber
+  );
+}
+
+function hasSubmittedGpsCoordinates(payload: Extract<TaskStepPostPayload, { kind: 'defect' }>): boolean {
+  return Boolean(
+    payload.template?.fields?.some((field) => {
+      const isGpsField = field.type === 3 || field.name.toLowerCase().includes('gps');
+      if (!isGpsField) return false;
+      const value = (payload.fieldValues[field.id] ?? '').trim();
+      return Boolean(value && value.toLowerCase() !== 'auto');
+    })
+  );
 }
 
 function isImageUrl(url: string): boolean {
@@ -208,8 +255,9 @@ export default function TaskDetailScreen() {
   const navigation = useNavigation();
   const dispatch = useDispatch<AppDispatch>();
   const scrollRef = useRef<ScrollView>(null);
-  const shareSectionRef = useRef<View>(null);
+  const shareInputRowRef = useRef<View>(null);
   const shareInputFocusedRef = useRef(false);
+  const keyboardTopRef = useRef<number | null>(null);
   const scrollOffsetYRef = useRef(0);
   const stepLayoutMap = useRef<Record<string, number>>({});
   const targetStepId = route.params?.taskStepId ?? null;
@@ -271,16 +319,9 @@ export default function TaskDetailScreen() {
     };
   }, [dispatch, routeTask?.id, routeTask?.versionId]);
 
-  const documentNumberFromTask = useMemo(() => {
-    const n = task?.documentNumberStr ?? task?.documentNo;
-    if (n == null) return '';
-    return String(n).trim();
-  }, [task?.documentNumberStr, task?.documentNo]);
+  const documentNumberFromTask = useMemo(() => getTaskDocumentNumber(task), [task]);
 
-  const taskDescriptionTrimmed = useMemo(() => {
-    if (!task?.description) return '';
-    return String(task.description).trim();
-  }, [task?.description]);
+  const documentTitleFromTask = useMemo(() => getTaskDocumentTitle(task), [task]);
 
   const [fetchedDocMeta, setFetchedDocMeta] = useState<{
     description?: string;
@@ -304,7 +345,7 @@ export default function TaskDetailScreen() {
       return;
     }
     const needNumber = !documentNumberFromTask;
-    const needTitle = !taskDescriptionTrimmed;
+    const needTitle = !documentTitleFromTask;
     const needSignatureFlag = !isSignatureRequiredOnTaskCompletion(
       task as Record<string, unknown> | undefined
     );
@@ -338,13 +379,13 @@ export default function TaskDetailScreen() {
     return () => {
       cancelled = true;
     };
-  }, [task, documentNumberFromTask, taskDescriptionTrimmed]);
+  }, [task, documentNumberFromTask, documentTitleFromTask]);
 
   const documentTitleDisplay = useMemo(() => {
-    if (taskDescriptionTrimmed) return taskDescriptionTrimmed;
+    if (documentTitleFromTask) return documentTitleFromTask;
     const fromDoc = (fetchedDocMeta?.description ?? '').trim();
     return fromDoc || '-';
-  }, [taskDescriptionTrimmed, fetchedDocMeta]);
+  }, [documentTitleFromTask, fetchedDocMeta]);
 
   const documentNumberDisplay = useMemo(() => {
     if (documentNumberFromTask) return documentNumberFromTask;
@@ -352,7 +393,9 @@ export default function TaskDetailScreen() {
     return fromDoc || '-';
   }, [documentNumberFromTask, fetchedDocMeta]);
 
-  const showTaskDocumentMeta = Boolean(task?.documentId && task?.versionId);
+  const showTaskDocumentMeta =
+    Boolean(documentTitleFromTask || documentNumberFromTask || fetchedDocMeta) ||
+    Boolean(task?.documentId && task?.versionId);
 
   const resolveSectionToExpand = useCallback(
     (ordered: TaskSectionWithStepsDTO[]): string | null => {
@@ -547,16 +590,30 @@ export default function TaskDetailScreen() {
     };
   }, [shareQuery, sharedUserEmails]);
 
-  const scrollShareInputIntoView = useCallback(() => {
+  const scrollShareInputIntoView = useCallback((keyboardTop: number | null = keyboardTopRef.current) => {
     const scroll = scrollRef.current;
-    const section = shareSectionRef.current;
-    if (!scroll || !section) return;
+    const row = shareInputRowRef.current;
+    if (!scroll || !row || keyboardTop == null) return;
 
-    section.measureInWindow((_x, sectionWindowY) => {
+    row.measureInWindow((_x, rowWindowY, _width, rowHeight) => {
       scroll.measureInWindow((_sx, scrollWindowY) => {
-        const sectionTopInContent = scrollOffsetYRef.current + (sectionWindowY - scrollWindowY);
-        const targetY = Math.max(0, sectionTopInContent - 12);
-        scroll.scrollTo({ y: targetY, animated: true });
+        const visibleTop = scrollWindowY + SHARE_INPUT_KEYBOARD_MARGIN;
+        const visibleBottom = keyboardTop - SHARE_INPUT_KEYBOARD_MARGIN;
+        if (visibleBottom <= visibleTop) return;
+
+        const rowBottom = rowWindowY + rowHeight;
+        let delta = 0;
+        if (rowBottom > visibleBottom) {
+          delta = rowBottom - visibleBottom;
+        } else if (rowWindowY < visibleTop) {
+          delta = rowWindowY - visibleTop;
+        }
+
+        if (Math.abs(delta) < 1) return;
+        scroll.scrollTo({
+          y: Math.max(0, scrollOffsetYRef.current + delta),
+          animated: true,
+        });
       });
     });
   }, []);
@@ -564,13 +621,15 @@ export default function TaskDetailScreen() {
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const showSub = Keyboard.addListener(showEvent, () => {
+    const showSub = Keyboard.addListener(showEvent, (event: KeyboardEvent) => {
+      keyboardTopRef.current = event.endCoordinates.screenY;
       if (!shareInputFocusedRef.current) return;
       requestAnimationFrame(() => {
-        scrollShareInputIntoView();
+        scrollShareInputIntoView(event.endCoordinates.screenY);
       });
     });
     const hideSub = Keyboard.addListener(hideEvent, () => {
+      keyboardTopRef.current = null;
       shareInputFocusedRef.current = false;
     });
     return () => {
@@ -906,7 +965,7 @@ export default function TaskDetailScreen() {
     });
 
     if (payload.kind === 'defect') {
-      formData.append('IsAutoSetPosition', 'true');
+      formData.append('IsAutoSetPosition', hasSubmittedGpsCoordinates(payload) ? 'false' : 'true');
       formData.append('RemediationDetails', payload.remediationDetails);
 
       if (payload.template) {
@@ -1181,8 +1240,8 @@ export default function TaskDetailScreen() {
           )}
         </View>
 
-        <View ref={shareSectionRef} collapsable={false} style={styles.card}>
-          <View style={styles.shareRow}>
+        <View style={styles.card}>
+          <View ref={shareInputRowRef} collapsable={false} style={styles.shareRow}>
             <TextInput
               style={styles.shareInput}
               value={shareQuery}
@@ -1190,9 +1249,11 @@ export default function TaskDetailScreen() {
               onSubmitEditing={handleSharePress}
               onFocus={() => {
                 shareInputFocusedRef.current = true;
-                requestAnimationFrame(() => {
-                  scrollShareInputIntoView();
-                });
+                if (keyboardTopRef.current != null) {
+                  requestAnimationFrame(() => {
+                    scrollShareInputIntoView();
+                  });
+                }
               }}
               onBlur={() => {
                 shareInputFocusedRef.current = false;

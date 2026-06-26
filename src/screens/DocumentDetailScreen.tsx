@@ -81,6 +81,17 @@ function parseHistoryDescription(value?: string): ParsedHistoryDescription {
   };
 }
 
+function hasSubmittedGpsCoordinates(payload: Extract<TaskStepPostPayload, { kind: 'defect' }>): boolean {
+  return Boolean(
+    payload.template?.fields?.some((field) => {
+      const isGpsField = field.type === 3 || field.name.toLowerCase().includes('gps');
+      if (!isGpsField) return false;
+      const value = (payload.fieldValues[field.id] ?? '').trim();
+      return Boolean(value && value.toLowerCase() !== 'auto');
+    })
+  );
+}
+
 function formatCompactHistoryDate(dateUtc: string | undefined, locale: string): string {
   if (!dateUtc) return '-';
   const date = new Date(dateUtc);
@@ -175,6 +186,7 @@ export default function DocumentDetailScreen() {
 
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [downloadingLargePdf, setDownloadingLargePdf] = useState(false);
+  const [exportFeedback, setExportFeedback] = useState<{ type: 'info' | 'error'; message: string } | null>(null);
   const [exportReportUrl, setExportReportUrl] = useState<string | null>(doc?.exportReportUrl ?? null);
   const [exportLargeReportUrl, setExportLargeReportUrl] = useState<string | null>(
     doc?.exportLargeReportUrl ?? null
@@ -200,6 +212,7 @@ export default function DocumentDetailScreen() {
   const canPostOnTaskStep = Boolean(task?.id) && isPublishedDocument;
   const canChangeTaskStepStatus =
     Boolean(task?.id) && isPublishedDocument && task?.status === TASK_STATUS_IN_PROGRESS;
+  const exportRequestInFlight = downloadingPdf || downloadingLargePdf;
 
   useEffect(() => {
     if (paramDoc?.documentId && paramDoc?.id) {
@@ -211,6 +224,7 @@ export default function DocumentDetailScreen() {
     setEditDescription(doc?.description ?? '');
     setExportReportUrl(doc?.exportReportUrl ?? null);
     setExportLargeReportUrl(doc?.exportLargeReportUrl ?? null);
+    setExportFeedback(null);
     setHistory([]);
     setHistoryLoaded(false);
     setHistoryError(null);
@@ -454,6 +468,7 @@ export default function DocumentDetailScreen() {
   const handleDownloadReport = useCallback(
     async (isLarge: boolean) => {
       if (!doc) return;
+      setExportFeedback(null);
       if (isLarge) {
         setDownloadingLargePdf(true);
       } else {
@@ -468,7 +483,7 @@ export default function DocumentDetailScreen() {
         if (existingUrl) {
           const opened = await openExternalUrl(existingUrl);
           if (!opened) {
-            Alert.alert(t('app.alerts.download'), t('app.document.downloadFail'));
+            setExportFeedback({ type: 'error', message: t('app.document.downloadFail') });
           }
           return;
         }
@@ -487,13 +502,13 @@ export default function DocumentDetailScreen() {
         if (generatedUrl) {
           const opened = await openExternalUrl(generatedUrl);
           if (!opened) {
-            Alert.alert(t('app.alerts.download'), t('app.document.downloadFail'));
+            setExportFeedback({ type: 'error', message: t('app.document.downloadFail') });
           }
         } else {
-          Alert.alert(t('app.alerts.download'), t('app.document.exportProgress'));
+          setExportFeedback({ type: 'info', message: t('app.document.exportProgress') });
         }
       } catch {
-        Alert.alert(t('app.alerts.download'), t('app.document.exportFail'));
+        setExportFeedback({ type: 'error', message: t('app.document.exportFail') });
       } finally {
         if (isLarge) {
           setDownloadingLargePdf(false);
@@ -539,7 +554,7 @@ export default function DocumentDetailScreen() {
         });
 
         if (payload.kind === 'defect') {
-          formData.append('IsAutoSetPosition', 'true');
+          formData.append('IsAutoSetPosition', hasSubmittedGpsCoordinates(payload) ? 'false' : 'true');
           formData.append('RemediationDetails', payload.remediationDetails);
 
           if (payload.template) {
@@ -918,11 +933,11 @@ export default function DocumentDetailScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.downloadButton, downloadingPdf && styles.buttonDisabled]}
+          style={[styles.downloadButton, exportRequestInFlight && styles.buttonDisabled]}
           onPress={() => {
             handleDownloadReport(false).catch(() => { });
           }}
-          disabled={downloadingPdf}
+          disabled={exportRequestInFlight}
         >
           {downloadingPdf ? (
             <ActivityIndicator size="small" color="#ffffff" />
@@ -932,11 +947,11 @@ export default function DocumentDetailScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.downloadButton, downloadingLargePdf && styles.buttonDisabled]}
+          style={[styles.downloadButton, exportRequestInFlight && styles.buttonDisabled]}
           onPress={() => {
             handleDownloadReport(true).catch(() => { });
           }}
-          disabled={downloadingLargePdf}
+          disabled={exportRequestInFlight}
         >
           {downloadingLargePdf ? (
             <ActivityIndicator size="small" color="#ffffff" />
@@ -944,6 +959,25 @@ export default function DocumentDetailScreen() {
             <Text style={styles.downloadButtonText}>{t('app.documentDetail.downloadLargePdf')}</Text>
           )}
         </TouchableOpacity>
+
+        {exportFeedback ? (
+          <View
+            style={[
+              styles.exportFeedback,
+              exportFeedback.type === 'error' ? styles.exportFeedbackError : styles.exportFeedbackInfo,
+            ]}
+          >
+            <Text
+              style={[
+                styles.exportFeedbackText,
+                exportFeedback.type === 'error' ? styles.exportFeedbackErrorText : styles.exportFeedbackInfoText,
+                directionTextStyle,
+              ]}
+            >
+              {exportFeedback.message}
+            </Text>
+          </View>
+        ) : null}
 
         <View style={styles.tabsWrap}>
           <TouchableOpacity
@@ -1123,6 +1157,32 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  exportFeedback: {
+    borderRadius: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginTop: -2,
+    marginBottom: 10,
+    borderWidth: 1,
+  },
+  exportFeedbackInfo: {
+    backgroundColor: '#eef3ff',
+    borderColor: '#c9d6ff',
+  },
+  exportFeedbackError: {
+    backgroundColor: '#fff0f0',
+    borderColor: '#f2c0c0',
+  },
+  exportFeedbackText: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  exportFeedbackInfoText: {
+    color: '#2438ad',
+  },
+  exportFeedbackErrorText: {
+    color: theme.colors.error,
   },
   tabsWrap: {
     marginTop: 6,

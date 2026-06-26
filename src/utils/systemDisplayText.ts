@@ -2,7 +2,13 @@ export function translateKnownDocumentSectionTitle(
   value: string | undefined,
   translate: (key: string) => string
 ): string {
-  const normalized = (value ?? '').trim().toLowerCase().replace(/[\s_-]+/g, ' ');
+  const raw = (value ?? '').trim();
+  const normalized = raw
+    .replace(/[\u200e\u200f\u202a-\u202e]/g, '')
+    .replace(/^\d+\s*[.)-]\s*/u, '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_\u002d\u2010-\u2015]+/g, ' ');
   switch (normalized) {
     case 'pre work':
       return translate('app.documentDetail.sectionPreWork');
@@ -10,7 +16,7 @@ export function translateKnownDocumentSectionTitle(
     case 'main work':
       return translate('app.documentDetail.sectionMainWorks');
     default:
-      return (value ?? '').trim() || '-';
+      return raw || '-';
   }
 }
 

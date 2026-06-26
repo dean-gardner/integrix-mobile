@@ -16,14 +16,20 @@ import { useTranslation } from 'react-i18next';
 import { apiResetPassword } from '../api/auth';
 import { screenStyles } from '../styles/screenStyles';
 import { theme } from '../theme';
+import {
+  isRtlLayout,
+  rtlAwareTextStyle,
+} from '../utils/rtlLayout';
 
 type ResetPasswordParams = { token?: string; email?: string };
 
 export default function ResetPasswordScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation();
   const route = useRoute<RouteProp<{ ResetPassword: ResetPasswordParams }, 'ResetPassword'>>();
   const params = route.params;
+  const isRtl = isRtlLayout(i18n);
+  const rtlText = rtlAwareTextStyle(i18n);
   const [email, setEmail] = useState(params?.email ?? '');
   const [token, setToken] = useState(params?.token ?? '');
   const [newPassword, setNewPassword] = useState('');
@@ -77,17 +83,17 @@ export default function ResetPasswordScreen() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={screenStyles.card}>
-          <Text style={screenStyles.title}>{t('app.resetPassword.title')}</Text>
-          <Text style={styles.hint}>{t('app.resetPassword.hintLong')}</Text>
+        <View style={[screenStyles.card, isRtl && styles.rtlContent]}>
+          <Text style={[screenStyles.title, rtlText]}>{t('app.resetPassword.title')}</Text>
+          <Text style={[styles.hint, rtlText]}>{t('app.resetPassword.hintLong')}</Text>
           {error ? (
             <View style={screenStyles.errorBox}>
-              <Text style={screenStyles.errorText}>{error}</Text>
+              <Text style={[screenStyles.errorText, rtlText]}>{error}</Text>
             </View>
           ) : null}
-          <Text style={screenStyles.formLabel}>{t('app.resetPassword.emailLabel')}</Text>
+          <Text style={[screenStyles.formLabel, rtlText]}>{t('app.resetPassword.emailLabel')}</Text>
           <TextInput
-            style={screenStyles.formInput}
+            style={[screenStyles.formInput, rtlText]}
             value={email}
             onChangeText={setEmail}
             placeholder={t('app.signUp.emailPh')}
@@ -96,9 +102,9 @@ export default function ResetPasswordScreen() {
             autoCapitalize="none"
             editable={!loading}
           />
-          <Text style={screenStyles.formLabel}>{t('app.resetPassword.tokenLabel')}</Text>
+          <Text style={[screenStyles.formLabel, rtlText]}>{t('app.resetPassword.tokenLabel')}</Text>
           <TextInput
-            style={screenStyles.formInput}
+            style={[screenStyles.formInput, rtlText]}
             value={token}
             onChangeText={setToken}
             placeholder={t('app.resetPassword.tokenPh')}
@@ -106,9 +112,9 @@ export default function ResetPasswordScreen() {
             autoCapitalize="none"
             editable={!loading}
           />
-          <Text style={screenStyles.formLabel}>{t('app.resetPassword.newPasswordPh')}</Text>
+          <Text style={[screenStyles.formLabel, rtlText]}>{t('app.resetPassword.newPasswordPh')}</Text>
           <TextInput
-            style={screenStyles.formInput}
+            style={[screenStyles.formInput, rtlText]}
             value={newPassword}
             onChangeText={setNewPassword}
             placeholder={t('app.resetPassword.newPasswordPh')}
@@ -116,9 +122,9 @@ export default function ResetPasswordScreen() {
             secureTextEntry
             editable={!loading}
           />
-          <Text style={screenStyles.formLabel}>{t('app.resetPassword.repeatNew')}</Text>
+          <Text style={[screenStyles.formLabel, rtlText]}>{t('app.resetPassword.repeatNew')}</Text>
           <TextInput
-            style={screenStyles.formInput}
+            style={[screenStyles.formInput, rtlText]}
             value={repeatPassword}
             onChangeText={setRepeatPassword}
             placeholder={t('app.resetPassword.repeatNewPh')}
@@ -142,7 +148,7 @@ export default function ResetPasswordScreen() {
             onPress={() => navigation.goBack()}
             disabled={loading}
           >
-            <Text style={styles.backLinkText}>{t('app.forgotPassword.backSignIn')}</Text>
+            <Text style={[styles.backLinkText, rtlText]}>{t('app.forgotPassword.backSignIn')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -158,6 +164,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.pagePadding,
   },
   hint: { fontSize: 14, color: theme.colors.textMuted, marginBottom: 20 },
+  rtlContent: { direction: 'rtl' },
   buttonDisabled: { opacity: 0.7 },
   backLink: { alignItems: 'center', marginTop: 16 },
   backLinkText: { fontSize: 14, color: theme.colors.primary },

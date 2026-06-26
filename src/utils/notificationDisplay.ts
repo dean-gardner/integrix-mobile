@@ -159,15 +159,99 @@ function normalizeQuotes(value: string): string {
   return value.replace(/[\u2018\u2019\u201C\u201D]/g, "'");
 }
 
+function stripInlineActionPhrase(value: string): string {
+  return value
+    .replace(/\s+Click\s+.+?\s+to\s+open\s+the\s+report\.?\s*$/i, '')
+    .replace(/\s+Click\s+.+?\s+to\s+open\s+it\.?\s*$/i, '')
+    .replace(/\s+Click\s+.+?\s+to\s+view\s+the\s+task\s+now\.?\s*$/i, '')
+    .trim();
+}
+
+function cleanEmptyAddressPlaceholders(value: string): string {
+  return value
+    .replace(/\s*\(\s*Address\s*:\s*\)/gi, '')
+    .replace(/\[\s+/g, '[')
+    .replace(/\s+\]/g, ']')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function parseSlashDate(
+  firstPart: string,
+  secondPart: string,
+  yearPart: string,
+  hourPart?: string,
+  minutePart?: string,
+  meridiemPart?: string
+): Date | null {
+  const first = Number(firstPart);
+  const second = Number(secondPart);
+  const year = yearPart.length === 2 ? 2000 + Number(yearPart) : Number(yearPart);
+  if (!Number.isFinite(first) || !Number.isFinite(second) || !Number.isFinite(year)) return null;
+
+  const month = first > 12 ? second : first;
+  const day = first > 12 ? first : second;
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+
+  let hour = hourPart != null ? Number(hourPart) : 0;
+  const minute = minutePart != null ? Number(minutePart) : 0;
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+
+  const meridiem = meridiemPart?.toUpperCase();
+  if (meridiem === 'PM' && hour < 12) hour += 12;
+  if (meridiem === 'AM' && hour === 12) hour = 0;
+
+  const date = new Date(year, month - 1, day, hour, minute);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatReminderDate(date: Date, locale: string, includeTime: boolean): string {
+  try {
+    return new Intl.DateTimeFormat(locale, {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      ...(includeTime ? { hour: 'numeric', minute: '2-digit' } : {}),
+    }).format(date);
+  } catch {
+    return includeTime ? date.toLocaleString(locale) : date.toLocaleDateString(locale);
+  }
+}
+
+function formatSlashDatesInText(value: string, locale?: string): string {
+  const activeLocale = locale || 'en';
+  return value.replace(
+    /\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?:\s*(AM|PM))?)?\b/gi,
+    (match, first, second, year, hour, minute, meridiem) => {
+      const parsed = parseSlashDate(first, second, year, hour, minute, meridiem);
+      if (!parsed) return match;
+      return formatReminderDate(parsed, activeLocale, hour != null);
+    }
+  );
+}
+
 export function translateNotificationMessage(
   message: string,
-  translate: (key: string, options?: Record<string, unknown>) => string
+  translate: (key: string, options?: Record<string, unknown>) => string,
+  locale?: string
 ): string {
-  const trimmed = normalizeQuotes((message ?? '').trim());
+  const trimmed = stripInlineActionPhrase(normalizeQuotes((message ?? '').trim()));
   if (!trimmed) return '';
 
+  const reminderMatch = trimmed.match(
+    /^Reminder:\s*task\s+['"](.+?)['"]\s+is scheduled to start on\s+(.+?)\.?$/i
+  );
+  if (reminderMatch) {
+    const title = formatSlashDatesInText(cleanEmptyAddressPlaceholders(reminderMatch[1]), locale);
+    const startDate = formatSlashDatesInText(reminderMatch[2], locale);
+    return translate('app.notificationsScreen.reminderTaskScheduled', {
+      title,
+      startDate,
+    });
+  }
+
   const taskReportTitle = trimmed.match(
-    /^The task completion report for ['"](.+?)['"] is ready\.?/i
+    /^The task completion report for ['"]?(.+?)['"]? is ready\.?$/i
   );
   if (taskReportTitle) {
     return translate('app.notificationsScreen.taskCompletionReportReady', {
@@ -176,19 +260,19 @@ export function translateNotificationMessage(
   }
 
   const docPdfTitle = trimmed.match(
-    /^A document ['"](.+?)['"] PDF is ready(?: for download)?\.?/i
+    /^A document ['"]?(.+?)['"]? PDF is ready(?: for download)?\.?$/i
   );
   if (docPdfTitle) {
     return translate('app.notificationsScreen.documentPdfReady', { title: docPdfTitle[1] });
   }
 
-  const docPdfAlt = trimmed.match(/^The document ['"](.+?)['"] PDF is ready(?: for download)?\.?/i);
+  const docPdfAlt = trimmed.match(/^The document ['"]?(.+?)['"]? PDF is ready(?: for download)?\.?$/i);
   if (docPdfAlt) {
     return translate('app.notificationsScreen.documentPdfReady', { title: docPdfAlt[1] });
   }
 
   const accessMatch = trimmed.match(
-    /^You've been granted access to view the task ['"]?(.+?)['"]? by (.+?)\.\s*Click here to view the task now\.?$/i
+    /^You've been granted access to view the task ['"]?(.+?)['"]? by (.+?)\.?$/i
   );
   if (accessMatch) {
     return translate('app.notificationsScreen.taskAccessGranted', {
@@ -206,7 +290,7 @@ export function translateNotificationMessage(
     });
   }
 
-  return trimmed
+  return formatSlashDatesInText(cleanEmptyAddressPlaceholders(trimmed), locale)
     .replace(/\byou(?:'|’)ve been granted access\b/gi, translate('app.notificationsScreen.grantedAccess'))
     .replace(/\byou have been granted access\b/gi, translate('app.notificationsScreen.grantedAccess'))
     .replace(/\bnew user alert\b/gi, translate('app.notificationsScreen.newUserAlertShort'))
@@ -237,12 +321,13 @@ export type NotificationDisplayParts = {
 /** Localized notification body + optional action link (never splices raw English around a link). */
 export function buildNotificationDisplay(
   notification: { message?: string; link?: string | null; linkText?: string | null },
-  translate: (key: string, options?: Record<string, unknown>) => string
+  translate: (key: string, options?: Record<string, unknown>) => string,
+  locale?: string
 ): NotificationDisplayParts {
   const rawMessage = notification.message ?? '';
   const link = notification.link?.trim();
   const hasLink = Boolean(link);
-  const translated = translateNotificationMessage(rawMessage, translate);
+  const translated = translateNotificationMessage(rawMessage, translate, locale);
   const actionLabel = hasLink ? notificationActionLabel(notification.linkText ?? undefined, translate) : '';
   const wasTranslated = translated.trim() !== normalizeQuotes(rawMessage.trim());
 
@@ -256,7 +341,9 @@ export function buildNotificationDisplay(
 
   const stripped = hasLink ? stripEmbeddedUrlsFromDisplay(rawMessage) : rawMessage;
   return {
-    bodyText: stripped.trim() || translated.trim(),
+    bodyText:
+      formatSlashDatesInText(cleanEmptyAddressPlaceholders(stripped), locale).trim() ||
+      translated.trim(),
     actionLabel,
     showActionLink: hasLink,
   };

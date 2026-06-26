@@ -15,6 +15,10 @@ import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { apiSignUp } from '../api/auth';
 import { theme } from '../theme';
+import {
+  isRtlLayout,
+  rtlAwareTextStyle,
+} from '../utils/rtlLayout';
 
 const getTimeZoneId = () => {
   try {
@@ -25,8 +29,10 @@ const getTimeZoneId = () => {
 };
 
 export default function SignUpScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation();
+  const isRtl = isRtlLayout(i18n);
+  const rtlText = rtlAwareTextStyle(i18n);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [position, setPosition] = useState('');
@@ -81,17 +87,17 @@ export default function SignUpScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={styles.formWrapper} keyboardShouldPersistTaps="handled">
-        <View style={styles.card}>
-          <Text style={styles.title}>{t('app.signUp.title')}</Text>
+        <View style={[styles.card, isRtl && styles.rtlContent]}>
+          <Text style={[styles.title, rtlText]}>{t('app.signUp.title')}</Text>
           {error ? (
             <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{error}</Text>
+              <Text style={[styles.errorText, rtlText]}>{error}</Text>
             </View>
           ) : null}
 
-          <Text style={styles.label}>{t('app.signUp.firstNamePh')}</Text>
+          <Text style={[styles.label, rtlText]}>{t('app.signUp.firstNamePh')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, rtlText]}
             value={firstName}
             onChangeText={setFirstName}
             placeholder={t('app.signUp.firstNamePh')}
@@ -99,9 +105,9 @@ export default function SignUpScreen() {
             editable={!loading}
           />
 
-          <Text style={styles.label}>{t('app.signUp.lastNamePh')}</Text>
+          <Text style={[styles.label, rtlText]}>{t('app.signUp.lastNamePh')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, rtlText]}
             value={lastName}
             onChangeText={setLastName}
             placeholder={t('app.signUp.lastNamePh')}
@@ -109,9 +115,9 @@ export default function SignUpScreen() {
             editable={!loading}
           />
 
-          <Text style={styles.label}>{t('app.signUp.position')}</Text>
+          <Text style={[styles.label, rtlText]}>{t('app.signUp.position')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, rtlText]}
             value={position}
             onChangeText={setPosition}
             placeholder={t('app.signUp.positionPh')}
@@ -119,9 +125,9 @@ export default function SignUpScreen() {
             editable={!loading}
           />
 
-          <Text style={styles.label}>{t('app.signUp.companyPh')}</Text>
+          <Text style={[styles.label, rtlText]}>{t('app.signUp.companyPh')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, rtlText]}
             value={companyName}
             onChangeText={setCompanyName}
             placeholder={t('app.signUp.companyPh')}
@@ -129,9 +135,9 @@ export default function SignUpScreen() {
             editable={!loading}
           />
 
-          <Text style={styles.label}>{t('app.signUp.phone')}</Text>
+          <Text style={[styles.label, rtlText]}>{t('app.signUp.phone')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, rtlText]}
             value={phone}
             onChangeText={setPhone}
             placeholder={t('app.signUp.phonePh')}
@@ -140,9 +146,9 @@ export default function SignUpScreen() {
             editable={!loading}
           />
 
-          <Text style={styles.label}>{t('app.signUp.emailPh')}</Text>
+          <Text style={[styles.label, rtlText]}>{t('app.signUp.emailPh')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, rtlText]}
             value={email}
             onChangeText={setEmail}
             placeholder={t('app.signUp.emailPh')}
@@ -152,9 +158,9 @@ export default function SignUpScreen() {
             editable={!loading}
           />
 
-          <Text style={styles.label}>{t('app.signUp.passwordPh')}</Text>
+          <Text style={[styles.label, rtlText]}>{t('app.signUp.passwordPh')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, rtlText]}
             value={password}
             onChangeText={setPassword}
             placeholder={t('app.signUp.passwordPh')}
@@ -163,9 +169,9 @@ export default function SignUpScreen() {
             editable={!loading}
           />
 
-          <Text style={styles.label}>{t('app.signUp.repeatPassword')}</Text>
+          <Text style={[styles.label, rtlText]}>{t('app.signUp.repeatPassword')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, rtlText]}
             value={repeatPassword}
             onChangeText={setRepeatPassword}
             placeholder={t('app.signUp.repeatPasswordPh')}
@@ -191,7 +197,7 @@ export default function SignUpScreen() {
             onPress={() => navigation.navigate('SignIn' as never)}
             disabled={loading}
           >
-            <Text style={styles.secondaryLinkText}>{t('app.signUp.haveAccountFull')}</Text>
+            <Text style={[styles.secondaryLinkText, rtlText]}>{t('app.signUp.haveAccountFull')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -215,6 +221,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  rtlContent: { direction: 'rtl' },
   title: { fontSize: 24, fontWeight: '700', color: '#222', marginBottom: 20 },
   label: { fontSize: 14, color: theme.colors.text, marginBottom: 8 },
   input: {

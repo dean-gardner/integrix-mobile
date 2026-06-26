@@ -4,7 +4,6 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  Linking,
   Modal,
   PermissionsAndroid,
   Platform,
@@ -75,6 +74,7 @@ Geolocation.setRNConfiguration({
 type ModalTab = 'posts' | 'defects';
 type DefectFieldValue = string | boolean;
 type GpsCoordinates = { lat: number; lng: number };
+type GpsPinPickerTarget = 'composer' | 'defectView';
 type DefectFieldValueLike = {
   id?: string;
   name?: string;
@@ -123,7 +123,7 @@ function isAssetField(field: DefectFieldReadDTO): boolean {
 }
 
 function isGpsField(field: DefectFieldReadDTO): boolean {
-  return field.name.toLowerCase().includes('gps');
+  return field.type === DEFECT_FIELD_TYPES.Map || field.name.toLowerCase().includes('gps');
 }
 
 function toReadableText(value: unknown): string {
@@ -350,6 +350,7 @@ export function TaskStepPostModal({
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsPinPickerOpen, setGpsPinPickerOpen] = useState(false);
   const [gpsPinPickerInitial, setGpsPinPickerInitial] = useState<GpsCoordinates | null>(null);
+  const [gpsPinPickerTarget, setGpsPinPickerTarget] = useState<GpsPinPickerTarget>('composer');
 
   const selectedTemplate = taskStep?.defectFieldsTemplate ?? defaultTemplate;
 
@@ -600,8 +601,16 @@ export function TaskStepPostModal({
       return;
     }
 
+    const valuesForSubmit: Record<string, DefectFieldValue> = { ...fieldValues };
+    if (isDefect && gpsCoords) {
+      const serializedGpsCoords = JSON.stringify(gpsCoords);
+      selectedTemplate?.fields?.filter(isGpsField).forEach((field) => {
+        valuesForSubmit[field.id] = serializedGpsCoords;
+      });
+    }
+
     const serializedFieldValues: Record<string, string> = {};
-    Object.entries(fieldValues).forEach(([fieldId, value]) => {
+    Object.entries(valuesForSubmit).forEach(([fieldId, value]) => {
       serializedFieldValues[fieldId] = valueToString(value);
     });
 
@@ -655,19 +664,6 @@ export function TaskStepPostModal({
       setSubmitting(false);
     }
   };
-
-  const openGpsInMaps = useCallback((coords: GpsCoordinates) => {
-    const { lat, lng } = coords;
-    const url =
-      Platform.OS === 'ios'
-        ? `maps://?ll=${lat},${lng}&q=GPS+Position`
-        : `geo:${lat},${lng}?q=${lat},${lng}(GPS+Position)`;
-    Linking.openURL(url).catch(() =>
-      Linking.openURL(`https://maps.google.com/?q=${lat},${lng}`).catch(() => {
-        Alert.alert(t('common.error'), t('app.taskStepPost.gpsOpenFailed'));
-      })
-    );
-  }, [t]);
 
   const updateGpsFieldValues = useCallback(
     (coords: GpsCoordinates) => {
@@ -745,19 +741,23 @@ export function TaskStepPostModal({
   const closeGpsPinPicker = useCallback(() => {
     setGpsPinPickerOpen(false);
     setGpsPinPickerInitial(null);
+    setGpsPinPickerTarget('composer');
   }, []);
 
   const handleGpsPinApplied = useCallback(
     (coords: GpsCoordinates) => {
-      setGpsCoords(coords);
-      updateGpsFieldValues(coords);
+      if (gpsPinPickerTarget === 'composer') {
+        setGpsCoords(coords);
+        updateGpsFieldValues(coords);
+      }
       closeGpsPinPicker();
     },
-    [closeGpsPinPicker, updateGpsFieldValues]
+    [closeGpsPinPicker, gpsPinPickerTarget, updateGpsFieldValues]
   );
 
   const handleViewGps = useCallback(() => {
     if (gpsCoords) {
+      setGpsPinPickerTarget('composer');
       setGpsPinPickerInitial(gpsCoords);
       setGpsPinPickerOpen(true);
       return;
@@ -766,6 +766,7 @@ export function TaskStepPostModal({
     requestCurrentGpsPosition()
       .then((coords) => {
         if (coords) {
+          setGpsPinPickerTarget('composer');
           setGpsPinPickerInitial(coords);
           setGpsPinPickerOpen(true);
         }
@@ -776,17 +777,16 @@ export function TaskStepPostModal({
       });
   }, [gpsCoords, requestCurrentGpsPosition, t]);
 
-  const handleViewDefectGps = useCallback(
-    (defect: DefectReadDTO) => {
-      const coords = getDefectGpsCoordinates(defect);
-      if (coords) {
-        openGpsInMaps(coords);
-        return;
-      }
-      Alert.alert(t('common.info'), t('app.taskStepPost.gpsCoordinatesUnavailable'));
-    },
-    [openGpsInMaps, t]
-  );
+  const handleViewDefectGps = useCallback((defect: DefectReadDTO) => {
+    const coords = getDefectGpsCoordinates(defect);
+    if (coords) {
+      setGpsPinPickerTarget('defectView');
+      setGpsPinPickerInitial(coords);
+      setGpsPinPickerOpen(true);
+      return;
+    }
+    Alert.alert(t('common.info'), t('app.taskStepPost.gpsCoordinatesUnavailable'));
+  }, [t]);
 
   const openUpdateDefect = useCallback(async (defect: DefectReadDTO) => {
     // Set with list data immediately so the form opens without delay.

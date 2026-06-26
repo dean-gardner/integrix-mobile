@@ -40,6 +40,11 @@ import { TaskFilterSelect } from '../components/feed/TaskFilterSelect';
 import { FeedTaskCard } from '../components/feed/FeedTaskCard';
 import { FeedPostCard } from '../components/feed/FeedPostCard';
 import { Paginator } from '../components/Paginator';
+import {
+  isRtlLayout,
+  rtlAwareTextStyle,
+  rtlRowStyle,
+} from '../utils/rtlLayout';
 
 type TaskWithFeedMeta = TaskReadDTO & {
   companyTeamId?: number;
@@ -47,7 +52,7 @@ type TaskWithFeedMeta = TaskReadDTO & {
 };
 
 export default function FeedScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation();
   const isFocused = useIsFocused();
@@ -70,6 +75,9 @@ export default function FeedScreen() {
   );
 
   const [loadingMoreFeed, setLoadingMoreFeed] = useState(false);
+  const isRtl = isRtlLayout(i18n);
+  const rtlText = rtlAwareTextStyle(i18n);
+  const rtlRow = rtlRowStyle(i18n);
 
   useEffect(() => {
     if (!feedState.isLoading) setLoadingMoreFeed(false);
@@ -223,7 +231,7 @@ export default function FeedScreen() {
       <ScrollView
         ref={scrollRef}
         style={styles.container}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, isRtl && styles.rtlContent]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         onScroll={onScroll}
@@ -273,10 +281,10 @@ export default function FeedScreen() {
           </View>
         ) : (
           <View>
-            <View style={styles.tasksHeader}>
-              <Text style={styles.tasksTitle}>{t('app.feed.tasksInProgress')}</Text>
+            <View style={[styles.tasksHeader, rtlRow]}>
+              <Text style={[styles.tasksTitle, rtlText]}>{t('app.feed.tasksInProgress')}</Text>
               <TouchableOpacity style={styles.seeAllLink} onPress={() => navigation.navigate('Tasks' as never)}>
-                <Text style={styles.seeAllText}>{t('app.feed.seeAll')}</Text>
+                <Text style={[styles.seeAllText, rtlText]}>{t('app.feed.seeAll')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -346,6 +354,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingTop: 14,
     paddingBottom: 86,
+  },
+  rtlContent: {
+    direction: 'rtl',
   },
   feedSection: {
     minHeight: 240,

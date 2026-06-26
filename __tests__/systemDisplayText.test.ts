@@ -10,8 +10,11 @@ describe('translateKnownDocumentSectionTitle', () => {
   it('maps common section titles regardless of casing and separators', () => {
     expect(translateKnownDocumentSectionTitle('Pre-Work', t)).toBe('PRE_WORK');
     expect(translateKnownDocumentSectionTitle('pre work', t)).toBe('PRE_WORK');
+    expect(translateKnownDocumentSectionTitle('1. Pre‑Work', t)).toBe('PRE_WORK');
+    expect(translateKnownDocumentSectionTitle('\u200fPre-Work', t)).toBe('PRE_WORK');
     expect(translateKnownDocumentSectionTitle('Main Works', t)).toBe('MAIN_WORKS');
     expect(translateKnownDocumentSectionTitle('main work', t)).toBe('MAIN_WORKS');
+    expect(translateKnownDocumentSectionTitle('2. Main works', t)).toBe('MAIN_WORKS');
   });
 
   it('returns original title for unknown sections', () => {

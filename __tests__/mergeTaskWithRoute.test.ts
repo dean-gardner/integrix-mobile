@@ -9,6 +9,7 @@ describe('mergeTaskWithRoute', () => {
       versionId: 'ver-1',
       description: '08/04 test',
       documentNumberStr: 'Doc000002957.01',
+      requireSignatureOnTaskCompletion: true,
     };
     const fromApi = {
       id: 'task-1',
@@ -22,6 +23,7 @@ describe('mergeTaskWithRoute', () => {
     expect(merged?.versionId).toBe('ver-1');
     expect(merged?.description).toBe('08/04 test');
     expect(merged?.documentNumberStr).toBe('Doc000002957.01');
+    expect(merged?.requireSignatureOnTaskCompletion).toBe(true);
     expect(merged?.workOrderNumber).toBe('1');
   });
 });

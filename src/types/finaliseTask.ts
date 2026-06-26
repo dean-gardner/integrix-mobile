@@ -9,4 +9,7 @@ export type FinaliseTaskDTO = {
   fullName?: string | null;
   position?: string | null;
   signatureType?: TaskSignatureMode | null;
+  signatureImage?: string | null;
+  signatureFullName?: string | null;
+  signaturePosition?: string | null;
 };

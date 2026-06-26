@@ -147,6 +147,8 @@ export function mergeTaskWithRoute(
     documentNumberStr:
       current.documentNumberStr ?? route.documentNumberStr ?? null,
     documentNo: current.documentNo ?? route.documentNo ?? null,
+    requireSignatureOnTaskCompletion:
+      current.requireSignatureOnTaskCompletion ?? route.requireSignatureOnTaskCompletion,
     workOrderNumber: current.workOrderNumber ?? route.workOrderNumber,
     notificationNumber: current.notificationNumber ?? route.notificationNumber,
     projectNumber: current.projectNumber ?? route.projectNumber,

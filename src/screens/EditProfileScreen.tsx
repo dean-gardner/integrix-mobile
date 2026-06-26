@@ -20,12 +20,20 @@ import { editProfile } from '../api/users';
 import { screenStyles } from '../styles/screenStyles';
 import { useTranslation } from 'react-i18next';
 import { theme } from '../theme';
+import {
+  isRtlLayout,
+  rtlAwareTextStyle,
+  rtlBlockAlignStyle,
+} from '../utils/rtlLayout';
 
 export default function EditProfileScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation();
   const user = useSelector((s: RootState) => s.auth.user);
+  const isRtl = isRtlLayout(i18n);
+  const rtlText = rtlAwareTextStyle(i18n);
+  const rtlBlock = rtlBlockAlignStyle(i18n);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -121,19 +129,24 @@ export default function EditProfileScreen() {
   const photoUri = selectedPhoto?.uri ?? user.photoUrl ?? null;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.pageTitle}>{t('app.editProfile.pageTitle')}</Text>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[styles.content, isRtl && styles.rtlContent]}
+    >
+      <View style={rtlBlock}>
+        <Text style={[styles.pageTitle, rtlText]}>{t('app.editProfile.pageTitle')}</Text>
+      </View>
       {error ? (
         <View style={styles.errorBox}>
-          <Text style={styles.errorText}>{error}</Text>
+          <Text style={[styles.errorText, rtlText]}>{error}</Text>
         </View>
       ) : null}
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>{t('app.editProfile.personalInfo')}</Text>
+        <Text style={[styles.sectionTitle, rtlText]}>{t('app.editProfile.personalInfo')}</Text>
 
-        <Text style={styles.label}>{t('app.editProfile.firstNameStar')}</Text>
+        <Text style={[styles.label, rtlText]}>{t('app.editProfile.firstNameStar')}</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, rtlText]}
           value={firstName}
           onChangeText={setFirstName}
           placeholder={t('app.editProfile.firstNamePh')}
@@ -141,9 +154,9 @@ export default function EditProfileScreen() {
           editable={!saving}
         />
 
-        <Text style={styles.label}>{t('app.editProfile.lastNameStar')}</Text>
+        <Text style={[styles.label, rtlText]}>{t('app.editProfile.lastNameStar')}</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, rtlText]}
           value={lastName}
           onChangeText={setLastName}
           placeholder={t('app.editProfile.lastNamePh')}
@@ -151,9 +164,9 @@ export default function EditProfileScreen() {
           editable={!saving}
         />
 
-        <Text style={styles.label}>{t('app.editProfile.emailStar')}</Text>
+        <Text style={[styles.label, rtlText]}>{t('app.editProfile.emailStar')}</Text>
         <TextInput
-          style={[styles.input, styles.disabledInput]}
+          style={[styles.input, rtlText, styles.disabledInput]}
           value={email}
           placeholder={t('app.editProfile.emailPh')}
           placeholderTextColor="#6c757d"
@@ -162,9 +175,9 @@ export default function EditProfileScreen() {
           editable={false}
         />
 
-        <Text style={styles.label}>{t('app.editProfile.phoneLabel')}</Text>
+        <Text style={[styles.label, rtlText]}>{t('app.editProfile.phoneLabel')}</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, rtlText]}
           value={phone}
           onChangeText={setPhone}
           placeholder=""
@@ -173,14 +186,14 @@ export default function EditProfileScreen() {
           editable={!saving}
         />
 
-        <Text style={styles.label}>{t('app.editProfile.passwordLabel')}</Text>
+        <Text style={[styles.label, rtlText]}>{t('app.editProfile.passwordLabel')}</Text>
         <TouchableOpacity
-          style={styles.changePasswordButton}
+          style={[styles.changePasswordButton, isRtl && styles.changePasswordButtonRtl]}
           onPress={openChangePassword}
           disabled={saving}
           activeOpacity={0.8}
         >
-          <Text style={styles.changePasswordText}>{t('app.editProfile.changePasswordBtn')}</Text>
+          <Text style={[styles.changePasswordText, rtlText]}>{t('app.editProfile.changePasswordBtn')}</Text>
         </TouchableOpacity>
 
         <View style={styles.photoSection}>
@@ -192,7 +205,7 @@ export default function EditProfileScreen() {
             </View>
           )}
           <TouchableOpacity
-            style={styles.cameraButton}
+            style={[styles.cameraButton, isRtl && styles.cameraButtonRtl]}
             onPress={pickPhoto}
             disabled={saving}
             activeOpacity={0.8}
@@ -203,7 +216,7 @@ export default function EditProfileScreen() {
 
         <View style={styles.footerDivider} />
 
-        <View style={styles.footerRow}>
+        <View style={[styles.footerRow, isRtl && styles.footerRowRtl]}>
           <TouchableOpacity
             style={[styles.saveButton, saving && styles.buttonDisabled]}
             onPress={handleSave}
@@ -231,6 +244,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingTop: 10,
     paddingBottom: 24,
+  },
+  rtlContent: {
+    direction: 'rtl',
   },
   pageTitle: {
     fontSize: 35,
@@ -290,6 +306,9 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     marginTop: 2,
   },
+  changePasswordButtonRtl: {
+    alignSelf: 'flex-end',
+  },
   changePasswordText: {
     fontSize: 14,
     color: theme.colors.primary,
@@ -331,6 +350,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  cameraButtonRtl: {
+    right: undefined,
+    left: 6,
+  },
   footerDivider: {
     borderTopWidth: 1,
     borderTopColor: '#d8dce6',
@@ -340,6 +363,9 @@ const styles = StyleSheet.create({
   footerRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
+  },
+  footerRowRtl: {
+    justifyContent: 'flex-start',
   },
   saveButton: {
     minHeight: 36,

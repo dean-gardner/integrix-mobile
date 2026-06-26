@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { theme } from '../../theme';
 import type { FeedTabKey, FeedTabOption } from '../../config/feedScreen';
+import { rtlAwareTextStyle, rtlRowStyle } from '../../utils/rtlLayout';
 
 type FeedTabSwitchProps = {
   tabs: FeedTabOption[];
@@ -11,9 +12,11 @@ type FeedTabSwitchProps = {
 };
 
 export function FeedTabSwitch({ tabs, activeTab, onTabPress }: FeedTabSwitchProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const rtlRow = rtlRowStyle(i18n);
+  const rtlText = rtlAwareTextStyle(i18n);
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, rtlRow]}>
       {tabs.map((tab) => {
         const isActive = tab.key === activeTab;
         return (
@@ -23,7 +26,7 @@ export function FeedTabSwitch({ tabs, activeTab, onTabPress }: FeedTabSwitchProp
             onPress={() => onTabPress(tab.key)}
             activeOpacity={0.8}
           >
-            <Text style={[styles.tabText, isActive ? styles.tabTextActive : styles.tabTextInactive]}>
+            <Text style={[styles.tabText, rtlText, isActive ? styles.tabTextActive : styles.tabTextInactive]}>
               {t(tab.titleKey)}
             </Text>
           </TouchableOpacity>

@@ -26,6 +26,7 @@ export type TaskReadDTO = {
   versionId?: string;
   documentNumberStr?: string | null;
   documentNo?: string | null;
+  requireSignatureOnTaskCompletion?: boolean;
   taskStepsCount?: number;
   taskStepsDone?: number;
   asset?: { id: number; name: string };

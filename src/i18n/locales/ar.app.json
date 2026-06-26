@@ -819,7 +819,8 @@
       "grantedAccess": "تم منحك صلاحية الوصول",
       "newUserAlertShort": "تنبيه مستخدم جديد",
       "documentPdfReady": "المستند \"{{title}}\" (PDF) جاهز للتنزيل. استخدم الإجراء أدناه لفتح التقرير.",
-      "taskCompletionReportReady": "تقرير إتمام المهمة \"{{title}}\" جاهز. استخدم الإجراء أدناه لفتح التقرير."
+      "taskCompletionReportReady": "تقرير إتمام المهمة \"{{title}}\" جاهز. استخدم الإجراء أدناه لفتح التقرير.",
+      "reminderTaskScheduled": "تذكير: المهمة \"{{title}}\" مجدولة للبدء في {{startDate}}."
     },
     "roles": {
       "admin": "مسؤول",

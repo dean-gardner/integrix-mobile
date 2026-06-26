@@ -29,6 +29,8 @@ export type DocumentVersionReadDTO = {
   versionStatusCode: string;
   versionNo: string;
   taskReferencingType?: number;
+  requireSignatureOnTaskCompletion?: boolean;
+  requireStepCompletionPhotoConfirmation?: boolean;
   isSharedWithMe?: boolean;
   task?: { id?: string } | null;
   exportReportUrl?: string | null;

@@ -226,6 +226,9 @@ export default function DocumentsScreen() {
           (typeof createdTask.documentNo === 'string' ? createdTask.documentNo : null) ??
           document.documentNo ??
           null,
+        requireSignatureOnTaskCompletion:
+          Boolean(createdTask.requireSignatureOnTaskCompletion) ||
+          Boolean(document.requireSignatureOnTaskCompletion),
         createdOnUtc: createdTask.createdOnUtc,
         createdById: createdTask.createdById,
         taskStepsCount: createdTask.taskStepsCount,

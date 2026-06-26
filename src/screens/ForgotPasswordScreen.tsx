@@ -14,10 +14,16 @@ import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { apiForgotPassword } from '../api/auth';
 import { theme } from '../theme';
+import {
+  isRtlLayout,
+  rtlAwareTextStyle,
+} from '../utils/rtlLayout';
 
 export default function ForgotPasswordScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation();
+  const isRtl = isRtlLayout(i18n);
+  const rtlText = rtlAwareTextStyle(i18n);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,17 +54,17 @@ export default function ForgotPasswordScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.card}>
-        <Text style={styles.title}>{t('app.forgotPassword.title')}</Text>
-        <Text style={styles.hint}>{t('app.forgotPassword.hint')}</Text>
+      <View style={[styles.card, isRtl && styles.rtlContent]}>
+        <Text style={[styles.title, rtlText]}>{t('app.forgotPassword.title')}</Text>
+        <Text style={[styles.hint, rtlText]}>{t('app.forgotPassword.hint')}</Text>
         {error ? (
           <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={[styles.errorText, rtlText]}>{error}</Text>
           </View>
         ) : null}
-        <Text style={styles.label}>{t('app.forgotPassword.emailPh')}</Text>
+        <Text style={[styles.label, rtlText]}>{t('app.forgotPassword.emailPh')}</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, rtlText]}
           value={email}
           onChangeText={setEmail}
           placeholder={t('app.forgotPassword.emailPh')}
@@ -79,14 +85,14 @@ export default function ForgotPasswordScreen() {
           )}
         </TouchableOpacity>
         <TouchableOpacity style={styles.backLink} onPress={() => navigation.goBack()} disabled={loading}>
-          <Text style={styles.backLinkText}>{t('app.forgotPassword.backSignIn')}</Text>
+          <Text style={[styles.backLinkText, rtlText]}>{t('app.forgotPassword.backSignIn')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.secondaryLink}
           onPress={() => navigation.navigate('ResetPassword' as never)}
           disabled={loading}
         >
-          <Text style={styles.backLinkText}>{t('app.forgotPassword.haveResetLink')}</Text>
+          <Text style={[styles.backLinkText, rtlText]}>{t('app.forgotPassword.haveResetLink')}</Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -101,6 +107,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.pagePadding,
   },
   card: { backgroundColor: theme.colors.cardBg, borderRadius: 12, padding: theme.spacing.cardPadding },
+  rtlContent: { direction: 'rtl' },
   title: {
     fontSize: theme.typography.title,
     fontWeight: '600',

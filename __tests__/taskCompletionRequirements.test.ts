@@ -28,6 +28,12 @@ describe('taskCompletionRequirements', () => {
     expect(
       isSignatureRequiredOnTaskCompletion(null, { requireSignatureOnCompletion: true })
     ).toBe(true);
+    expect(
+      isSignatureRequiredOnTaskCompletion({ documentVersion: { RequireSignatureOnTaskCompletion: true } }, null)
+    ).toBe(true);
+    expect(
+      isSignatureRequiredOnTaskCompletion({ document: { signatureRequired: 'yes' } }, null)
+    ).toBe(true);
     expect(isSignatureRequiredOnTaskCompletion({}, {})).toBe(false);
   });
 });

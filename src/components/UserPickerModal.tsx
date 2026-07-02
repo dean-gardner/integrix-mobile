@@ -2,7 +2,7 @@
  * Reusable modal to search and pick a user (e.g. for share/assign flows).
  * Uses getUsersBySearch; on row tap calls onSelect(user) and onClose().
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import type { FoundUserDTO } from '../types/user';
 import { screenStyles } from '../styles/screenStyles';
 import { theme } from '../theme';
 import { useTranslation } from 'react-i18next';
+import { rtlAwareInputStyle, rtlAwareTextStyle, rtlDirectionStyle, rtlRowStyle } from '../utils/rtlLayout';
 
 const MIN_QUERY_LENGTH = 2;
 
@@ -39,7 +40,11 @@ export function UserPickerModal({
   title,
   initialQuery,
 }: UserPickerModalProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
+  const rtlInput = useMemo(() => rtlAwareInputStyle(i18n), [i18n]);
+  const rtlRow = useMemo(() => rtlRowStyle(i18n), [i18n]);
+  const rtlDirection = useMemo(() => rtlDirectionStyle(i18n), [i18n]);
   const resolvedTitle = title ?? t('app.userSearch.title');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<FoundUserDTO[]>([]);
@@ -121,16 +126,17 @@ export function UserPickerModal({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
       >
-        <View style={styles.card}>
-            <View style={styles.header}>
-              <Text style={styles.title}>{resolvedTitle}</Text>
+        <View style={[styles.card, rtlDirection]}>
+            <View style={[styles.header, rtlRow]}>
+              <Text style={[styles.title, rtlText]}>{resolvedTitle}</Text>
               <TouchableOpacity onPress={handleClose} hitSlop={12}>
-                <Text style={styles.closeText}>{t('app.modal.close')}</Text>
+                <Text style={[styles.closeText, rtlText]}>{t('app.modal.close')}</Text>
               </TouchableOpacity>
             </View>
-            <View style={styles.searchRow}>
+            <View style={[styles.searchRow, rtlRow]}>
               <TextInput
-                style={styles.input}
+                style={[styles.input, rtlInput]}
+                textAlign={rtlInput.textAlign}
                 value={query}
                 onChangeText={(text) => {
                   setQuery(text);
@@ -152,13 +158,13 @@ export function UserPickerModal({
                 {loading ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.searchBtnText}>{t('app.userSearch.search')}</Text>
+                  <Text style={[styles.searchBtnText, rtlText]}>{t('app.userSearch.search')}</Text>
                 )}
               </TouchableOpacity>
             </View>
             {error ? (
               <View style={screenStyles.errorBox}>
-                <Text style={screenStyles.errorText}>{error}</Text>
+                <Text style={[screenStyles.errorText, rtlText]}>{error}</Text>
               </View>
             ) : null}
             {loading ? (
@@ -173,7 +179,7 @@ export function UserPickerModal({
                 nestedScrollEnabled
               >
                 {results.length === 0 ? (
-                  <Text style={screenStyles.muted}>{t('app.userSearch.noResults')}</Text>
+                  <Text style={[screenStyles.muted, rtlText]}>{t('app.userSearch.noResults')}</Text>
                 ) : (
                   results.map((u, idx) => (
                     <TouchableOpacity
@@ -182,12 +188,12 @@ export function UserPickerModal({
                       onPress={() => handleSelect(u)}
                       activeOpacity={0.7}
                     >
-                      <Text style={styles.resultName}>{u.fullName || u.email}</Text>
+                      <Text style={[styles.resultName, rtlText]}>{u.fullName || u.email}</Text>
                       {u.fullName ? (
-                        <Text style={screenStyles.muted}>{u.email}</Text>
+                        <Text style={[screenStyles.muted, rtlText]}>{u.email}</Text>
                       ) : null}
                       {u.companyTeam ? (
-                        <Text style={styles.team}>
+                        <Text style={[styles.team, rtlText]}>
                           {t('app.userSearch.teamLabel', { name: u.companyTeam.name })}
                         </Text>
                       ) : null}

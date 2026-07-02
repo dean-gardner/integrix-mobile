@@ -24,6 +24,12 @@ import type { DocumentVersionReadDTO } from '../../types/document';
 import type { FoundUserDTO } from '../../types/user';
 import { useTranslation } from 'react-i18next';
 import { theme } from '../../theme';
+import {
+  rtlAwareInputStyle,
+  rtlAwareTextStyle,
+  rtlDirectionStyle,
+  rtlRowStyle,
+} from '../../utils/rtlLayout';
 
 type ShareDocumentModalProps = {
   visible: boolean;
@@ -64,7 +70,11 @@ function dedupeUsers(users: FoundUserDTO[]): FoundUserDTO[] {
 }
 
 export function ShareDocumentModal({ visible, document, onClose }: ShareDocumentModalProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
+  const rtlInput = useMemo(() => rtlAwareInputStyle(i18n), [i18n]);
+  const rtlRow = useMemo(() => rtlRowStyle(i18n), [i18n]);
+  const rtlDirection = useMemo(() => rtlDirectionStyle(i18n), [i18n]);
   const [query, setQuery] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchResults, setSearchResults] = useState<FoundUserDTO[]>([]);
@@ -271,10 +281,10 @@ export function ShareDocumentModal({ visible, document, onClose }: ShareDocument
       >
         <Pressable style={styles.backdropPressArea} onPress={closeModal} />
 
-        <View style={styles.modalCard}>
+        <View style={[styles.modalCard, rtlDirection]}>
           {/* Header */}
-          <View style={styles.headerRow}>
-            <Text style={styles.title}>{t('app.document.shareDocs')}</Text>
+          <View style={[styles.headerRow, rtlRow]}>
+            <Text style={[styles.title, rtlText]}>{t('app.document.shareDocs')}</Text>
             <TouchableOpacity onPress={closeModal} hitSlop={10}>
               <MaterialIcons name="close" size={22} color="#2f2f33" />
             </TouchableOpacity>
@@ -284,17 +294,18 @@ export function ShareDocumentModal({ visible, document, onClose }: ShareDocument
           <ScrollView
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.body}
+            contentContainerStyle={[styles.body, rtlDirection]}
           >
-            <Text style={styles.documentNoText}>
-              <Text style={styles.documentNoLabel}>{t('app.document.shareDocNo')} </Text>
+            <Text style={[styles.documentNoText, rtlText]}>
+              <Text style={[styles.documentNoLabel, rtlText]}>{t('app.document.shareDocNo')} </Text>
               {document?.documentNumberStr ?? document?.documentNo ?? '-'}
             </Text>
 
             {/* Search input — label matches web; supports adding unregistered users by email (Enter or Add) */}
-            <View style={styles.inputRow}>
+            <View style={[styles.inputRow, rtlRow]}>
               <TextInput
-                style={styles.input}
+                style={[styles.input, rtlInput]}
+                textAlign={rtlInput.textAlign}
                 value={query}
                 onChangeText={handleQueryChange}
                 onSubmitEditing={handleQuerySubmit}
@@ -309,7 +320,7 @@ export function ShareDocumentModal({ visible, document, onClose }: ShareDocument
                 onPress={handleQuerySubmit}
                 disabled={!query.trim() || !isValidEmail(query.trim()) || saving}
               >
-                <Text style={styles.addEmailButtonText}>{t('app.document.addEmail')}</Text>
+                <Text style={[styles.addEmailButtonText, rtlText]}>{t('app.document.addEmail')}</Text>
               </TouchableOpacity>
               {searchLoading ? (
                 <ActivityIndicator size="small" color={theme.colors.primary} style={styles.inputLoader} />
@@ -329,22 +340,22 @@ export function ShareDocumentModal({ visible, document, onClose }: ShareDocument
                       setSearchResults([]);
                     }}
                   >
-                    <Text style={styles.suggestionName}>{user.fullName || user.email}</Text>
-                    {user.fullName ? <Text style={styles.suggestionEmail}>{user.email}</Text> : null}
+                    <Text style={[styles.suggestionName, rtlText]}>{user.fullName || user.email}</Text>
+                    {user.fullName ? <Text style={[styles.suggestionEmail, rtlText]}>{user.email}</Text> : null}
                   </TouchableOpacity>
                 ))}
               </View>
             ) : null}
 
             {/* Users list — label matches web: Shared with: */}
-            <Text style={styles.sharedWithTitle}>{t('app.task.sharedWith')}</Text>
+            <Text style={[styles.sharedWithTitle, rtlText]}>{t('app.task.sharedWith')}</Text>
             {/* Owner */}
-            <View style={styles.userRow}>
+            <View style={[styles.userRow, rtlRow]}>
               <View style={styles.userInfo}>
-                <Text style={styles.userName}>{ownerName}</Text>
-                {ownerEmail ? <Text style={styles.userEmail}>{ownerEmail}</Text> : null}
+                <Text style={[styles.userName, rtlText]}>{ownerName}</Text>
+                {ownerEmail ? <Text style={[styles.userEmail, rtlText]}>{ownerEmail}</Text> : null}
               </View>
-              <Text style={styles.ownerBadge}>{t('app.document.owner')}</Text>
+              <Text style={[styles.ownerBadge, rtlText]}>{t('app.document.owner')}</Text>
             </View>
 
             {loadingSharedUsers ? (
@@ -353,10 +364,10 @@ export function ShareDocumentModal({ visible, document, onClose }: ShareDocument
               </View>
             ) : (
               displayedSharedUsers.map((user) => (
-                <View key={getUserKey(user)} style={styles.userRow}>
+                <View key={getUserKey(user)} style={[styles.userRow, rtlRow]}>
                   <View style={styles.userInfo}>
-                    <Text style={styles.userName}>{user.fullName || user.email}</Text>
-                    {user.fullName ? <Text style={styles.userEmail}>{user.email}</Text> : null}
+                    <Text style={[styles.userName, rtlText]}>{user.fullName || user.email}</Text>
+                    {user.fullName ? <Text style={[styles.userEmail, rtlText]}>{user.email}</Text> : null}
                   </View>
                   <TouchableOpacity onPress={() => removeSharedUser(user)} disabled={saving} hitSlop={8}>
                     <MaterialIcons name="close" size={20} color="#63697b" />
@@ -366,10 +377,10 @@ export function ShareDocumentModal({ visible, document, onClose }: ShareDocument
             )}
 
             {usersToShare.map((user) => (
-              <View key={`pending-${getUserKey(user)}`} style={styles.userRow}>
+              <View key={`pending-${getUserKey(user)}`} style={[styles.userRow, rtlRow]}>
                 <View style={styles.userInfo}>
-                  <Text style={styles.userName}>{user.fullName || user.email}</Text>
-                  {user.fullName ? <Text style={styles.userEmail}>{user.email}</Text> : null}
+                  <Text style={[styles.userName, rtlText]}>{user.fullName || user.email}</Text>
+                  {user.fullName ? <Text style={[styles.userEmail, rtlText]}>{user.email}</Text> : null}
                 </View>
                 <TouchableOpacity onPress={() => removePendingShareUser(user)} disabled={saving} hitSlop={8}>
                   <MaterialIcons name="close" size={20} color="#63697b" />
@@ -379,9 +390,9 @@ export function ShareDocumentModal({ visible, document, onClose }: ShareDocument
           </ScrollView>
 
           {/* Footer */}
-          <View style={styles.footer}>
+          <View style={[styles.footer, rtlRow]}>
             <TouchableOpacity style={styles.cancelBtn} onPress={closeModal} disabled={saving}>
-              <Text style={styles.btnText}>{t('app.modal.cancel')}</Text>
+              <Text style={[styles.btnText, rtlText]}>{t('app.modal.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.saveBtn, (!canSave || saving) && styles.saveBtnDisabled]}
@@ -391,7 +402,7 @@ export function ShareDocumentModal({ visible, document, onClose }: ShareDocument
               {saving ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <Text style={styles.btnText}>{t('app.document.saveChanges')}</Text>
+                <Text style={[styles.btnText, rtlText]}>{t('app.document.saveChanges')}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -466,7 +477,7 @@ const styles = StyleSheet.create({
     minHeight: 40,
   },
   addEmailButton: {
-    marginLeft: 8,
+    marginStart: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
     minHeight: 36,
@@ -484,7 +495,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   inputLoader: {
-    marginLeft: 6,
+    marginStart: 6,
   },
   suggestionBox: {
     borderWidth: 1,
@@ -519,7 +530,7 @@ const styles = StyleSheet.create({
   },
   userInfo: {
     flex: 1,
-    paddingRight: 8,
+    paddingEnd: 8,
     paddingVertical: 6,
   },
   userName: {

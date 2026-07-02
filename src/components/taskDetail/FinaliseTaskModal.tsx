@@ -20,6 +20,13 @@ import { getUsersBySearch } from '../../api/users';
 import { theme } from '../../theme';
 import { buildSignaturePadHtml, stripDataUrlPrefix } from '../../utils/signaturePadHtml';
 import { UserPickerModal } from '../UserPickerModal';
+import {
+  isRtlLayout,
+  rtlAwareInputStyle,
+  rtlAwareTextStyle,
+  rtlDirectionStyle,
+  rtlRowStyle,
+} from '../../utils/rtlLayout';
 
 export type FinaliseTaskModalProps = {
   visible: boolean;
@@ -50,7 +57,12 @@ export function FinaliseTaskModal({
   onClose,
   onSubmit,
 }: FinaliseTaskModalProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isRtl = useMemo(() => isRtlLayout(i18n), [i18n]);
+  const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
+  const rtlInput = useMemo(() => rtlAwareInputStyle(i18n), [i18n]);
+  const rtlRow = useMemo(() => rtlRowStyle(i18n), [i18n]);
+  const rtlDirection = useMemo(() => rtlDirectionStyle(i18n), [i18n]);
   const webViewRef = useRef<WebView>(null);
   const [signatureTab, setSignatureTab] = useState<SignatureTab>('draw');
   const [drawnSignature, setDrawnSignature] = useState<string | null>(null);
@@ -218,9 +230,9 @@ export function FinaliseTaskModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <View style={styles.card}>
-          <View style={styles.headerRow}>
-            <Text style={styles.title}>{t('app.task.finaliseTitle')}</Text>
+        <View style={[styles.card, rtlDirection]}>
+          <View style={[styles.headerRow, rtlRow]}>
+            <Text style={[styles.title, rtlText]}>{t('app.task.finaliseTitle')}</Text>
             <TouchableOpacity onPress={onClose} disabled={submitting} hitSlop={12}>
               <MaterialIcons name="close" size={22} color="#2f3444" />
             </TouchableOpacity>
@@ -228,20 +240,20 @@ export function FinaliseTaskModal({
 
           <ScrollView
             style={styles.scroll}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[styles.scrollContent, rtlDirection]}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator
           >
             {requireSignature ? (
               <View style={styles.section}>
-                <Text style={styles.sectionLabel}>{t('app.taskFinalise.signatureLabel')}</Text>
-                <View style={styles.tabRow}>
+                <Text style={[styles.sectionLabel, rtlText]}>{t('app.taskFinalise.signatureLabel')}</Text>
+                <View style={[styles.tabRow, rtlRow]}>
                   <TouchableOpacity
                     style={[styles.tabBtn, signatureTab === 'draw' && styles.tabBtnActive]}
                     onPress={() => setSignatureTab('draw')}
                     disabled={submitting}
                   >
-                    <Text style={[styles.tabText, signatureTab === 'draw' && styles.tabTextActive]}>
+                    <Text style={[styles.tabText, rtlText, signatureTab === 'draw' && styles.tabTextActive]}>
                       {t('app.taskFinalise.drawTab')}
                     </Text>
                   </TouchableOpacity>
@@ -250,7 +262,7 @@ export function FinaliseTaskModal({
                     onPress={() => setSignatureTab('type')}
                     disabled={submitting}
                   >
-                    <Text style={[styles.tabText, signatureTab === 'type' && styles.tabTextActive]}>
+                    <Text style={[styles.tabText, rtlText, signatureTab === 'type' && styles.tabTextActive]}>
                       {t('app.taskFinalise.typeTab')}
                     </Text>
                   </TouchableOpacity>
@@ -272,7 +284,8 @@ export function FinaliseTaskModal({
                   </View>
                 ) : (
                   <TextInput
-                    style={styles.typedSignatureInput}
+                    style={[styles.typedSignatureInput, rtlInput]}
+                    textAlign={rtlInput.textAlign}
                     value={typedSignature}
                     onChangeText={setTypedSignature}
                     placeholder={t('app.taskFinalise.typeSignaturePh')}
@@ -282,16 +295,17 @@ export function FinaliseTaskModal({
                 )}
 
                 <TouchableOpacity
-                  style={styles.clearSignatureBtn}
+                  style={[styles.clearSignatureBtn, isRtl && styles.clearSignatureBtnRtl]}
                   onPress={handleClearSignature}
                   disabled={submitting}
                 >
-                  <Text style={styles.clearSignatureText}>{t('app.taskFinalise.clearSignature')}</Text>
+                  <Text style={[styles.clearSignatureText, rtlText]}>{t('app.taskFinalise.clearSignature')}</Text>
                 </TouchableOpacity>
 
-                <Text style={styles.fieldLabel}>{t('app.taskFinalise.fullNameLabel')}</Text>
+                <Text style={[styles.fieldLabel, rtlText]}>{t('app.taskFinalise.fullNameLabel')}</Text>
                 <TextInput
-                  style={styles.fieldInput}
+                  style={[styles.fieldInput, rtlInput]}
+                  textAlign={rtlInput.textAlign}
                   value={fullName}
                   onChangeText={setFullName}
                   placeholder={t('app.taskFinalise.fullNamePh')}
@@ -300,9 +314,10 @@ export function FinaliseTaskModal({
                   autoCapitalize="words"
                 />
 
-                <Text style={styles.fieldLabel}>{t('app.taskFinalise.positionLabel')}</Text>
+                <Text style={[styles.fieldLabel, rtlText]}>{t('app.taskFinalise.positionLabel')}</Text>
                 <TextInput
-                  style={styles.fieldInput}
+                  style={[styles.fieldInput, rtlInput]}
+                  textAlign={rtlInput.textAlign}
                   value={position}
                   onChangeText={setPosition}
                   placeholder={t('app.taskFinalise.positionPh')}
@@ -312,11 +327,11 @@ export function FinaliseTaskModal({
               </View>
             ) : null}
 
-            <Text style={styles.description}>{t('app.taskFinalise.shareDescription')}</Text>
+            <Text style={[styles.description, rtlText]}>{t('app.taskFinalise.shareDescription')}</Text>
 
             {showCrmAttach ? (
               <TouchableOpacity
-                style={styles.crmRow}
+                style={[styles.crmRow, rtlRow]}
                 onPress={() => setShouldBeSentToCrm((v) => !v)}
                 disabled={submitting}
               >
@@ -325,16 +340,17 @@ export function FinaliseTaskModal({
                   size={22}
                   color={theme.colors.primary}
                 />
-                <Text style={styles.crmLabel}>
+                <Text style={[styles.crmLabel, rtlText]}>
                   {t('app.taskFinalise.attachToCrm', { crmName: task.integratedCrmName })}
                 </Text>
               </TouchableOpacity>
             ) : null}
 
-            <Text style={styles.fieldLabel}>{t('app.task.usersToShare')}</Text>
-            <View style={styles.shareInputRow}>
+            <Text style={[styles.fieldLabel, rtlText]}>{t('app.task.usersToShare')}</Text>
+            <View style={[styles.shareInputRow, rtlRow]}>
               <TextInput
-                style={[styles.fieldInput, styles.shareInput]}
+                style={[styles.fieldInput, rtlInput, styles.shareInput]}
+                textAlign={rtlInput.textAlign}
                 value={shareQuery}
                 onChangeText={setShareQuery}
                 placeholder={t('app.task.sharePh')}
@@ -362,19 +378,19 @@ export function FinaliseTaskModal({
                 onPress={() => addShareUser(user)}
                 disabled={submitting}
               >
-                <Text style={styles.shareResultName}>{user.fullName || user.email}</Text>
-                {user.fullName ? <Text style={styles.shareResultEmail}>{user.email}</Text> : null}
+                <Text style={[styles.shareResultName, rtlText]}>{user.fullName || user.email}</Text>
+                {user.fullName ? <Text style={[styles.shareResultEmail, rtlText]}>{user.email}</Text> : null}
               </TouchableOpacity>
             ))}
 
             {shareUsers.length > 0 ? (
               <View style={styles.selectedUsersWrap}>
                 {shareUsers.map((user) => (
-                  <View key={user.email} style={styles.selectedUserRow}>
+                  <View key={user.email} style={[styles.selectedUserRow, rtlRow]}>
                     <View style={styles.selectedUserText}>
-                      <Text style={styles.selectedUserName}>{user.fullName || user.email}</Text>
+                      <Text style={[styles.selectedUserName, rtlText]}>{user.fullName || user.email}</Text>
                       {user.fullName ? (
-                        <Text style={styles.selectedUserEmail}>{user.email}</Text>
+                        <Text style={[styles.selectedUserEmail, rtlText]}>{user.email}</Text>
                       ) : null}
                     </View>
                     <TouchableOpacity
@@ -389,12 +405,12 @@ export function FinaliseTaskModal({
               </View>
             ) : null}
 
-            {formError ? <Text style={styles.formError}>* {formError}</Text> : null}
+            {formError ? <Text style={[styles.formError, rtlText]}>* {formError}</Text> : null}
           </ScrollView>
 
-          <View style={styles.actions}>
+          <View style={[styles.actions, rtlRow]}>
             <TouchableOpacity style={styles.cancelBtn} onPress={onClose} disabled={submitting}>
-              <Text style={styles.cancelBtnText}>{t('app.modal.cancel')}</Text>
+              <Text style={[styles.cancelBtnText, rtlText]}>{t('app.modal.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.finaliseBtn, submitting && styles.finaliseBtnDisabled]}
@@ -404,7 +420,7 @@ export function FinaliseTaskModal({
               {submitting ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <Text style={styles.finaliseBtnText}>{t('app.taskDetail.finaliseBtn')}</Text>
+                <Text style={[styles.finaliseBtnText, rtlText]}>{t('app.taskDetail.finaliseBtn')}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -516,6 +532,9 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
     marginTop: 6,
     marginBottom: 8,
+  },
+  clearSignatureBtnRtl: {
+    alignSelf: 'flex-start',
   },
   clearSignatureText: {
     fontSize: 13,

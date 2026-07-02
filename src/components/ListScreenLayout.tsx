@@ -1,7 +1,7 @@
 /**
  * Reusable layout for paginated list screens: ScrollView, title, error, loading/empty/list.
  */
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { screenStyles } from '../styles/screenStyles';
 import { theme } from '../theme';
+import { rtlAwareTextStyle, rtlDirectionStyle } from '../utils/rtlLayout';
 
 type ListScreenLayoutProps = {
   title: string;
@@ -39,10 +40,14 @@ export function ListScreenLayout({
   children,
   contentContainerStyle,
 }: ListScreenLayoutProps) {
+  const { i18n } = useTranslation();
+  const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
+  const rtlDirection = useMemo(() => rtlDirectionStyle(i18n), [i18n]);
+
   return (
     <ScrollView
       style={screenStyles.container}
-      contentContainerStyle={[screenStyles.content, contentContainerStyle]}
+      contentContainerStyle={[screenStyles.content, rtlDirection, contentContainerStyle]}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -50,10 +55,10 @@ export function ListScreenLayout({
         />
       }
     >
-      <Text style={screenStyles.title}>{title}</Text>
+      <Text style={[screenStyles.title, rtlText]}>{title}</Text>
       {error ? (
         <View style={screenStyles.errorBox}>
-          <Text style={screenStyles.errorText}>{error}</Text>
+          <Text style={[screenStyles.errorText, rtlText]}>{error}</Text>
         </View>
       ) : null}
       {isLoading && isEmpty ? (
@@ -62,7 +67,7 @@ export function ListScreenLayout({
         </View>
       ) : isEmpty ? (
         <View style={screenStyles.card}>
-          <Text style={screenStyles.muted}>{emptyMessage}</Text>
+          <Text style={[screenStyles.muted, rtlText]}>{emptyMessage}</Text>
         </View>
       ) : (
         children
@@ -83,7 +88,8 @@ export function LoadMoreButton({
   totalCount: number;
   disabled?: boolean;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
   return (
     <TouchableOpacity
       style={screenStyles.loadMore}
@@ -93,7 +99,7 @@ export function LoadMoreButton({
       {loading ? (
         <ActivityIndicator size="small" color={theme.colors.primary} />
       ) : (
-        <Text style={screenStyles.loadMoreText}>
+        <Text style={[screenStyles.loadMoreText, rtlText]}>
           {t('app.list.loadMoreTotal', { count: totalCount })}
         </Text>
       )}

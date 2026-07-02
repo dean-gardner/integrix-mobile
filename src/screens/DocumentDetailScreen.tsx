@@ -12,18 +12,17 @@ import {
   Linking,
 } from 'react-native';
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useRoute, RouteProp } from '@react-navigation/native';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '../store';
 import { fetchDocumentById, editDocument } from '../store/documentsSlice';
 import {
-  duplicateDocument,
   generateDocumentReport,
   getDocumentHistory,
   getDocumentSectionTaskSteps,
   getDocumentSections,
 } from '../api/documents';
-import { changeTaskStepStatus, getTaskById, getTaskSectionsWithTaskSteps } from '../api/tasks';
+import { getTaskById, getTaskSectionsWithTaskSteps } from '../api/tasks';
 import { createDefect as apiCreateDefect } from '../api/defects';
 import { createObservation as apiCreateObservation } from '../api/observations';
 import type {
@@ -44,9 +43,7 @@ import { translateKnownDocumentSectionTitle } from '../utils/systemDisplayText';
 import { RTL_LANGUAGES } from '../i18n';
 import {
   parseVerificationStatus,
-  verificationStatusToApiString,
   stripHtmlToText,
-  TASK_STATUS_IN_PROGRESS,
   TASK_STEP_COMPLETED_WITH_RECORD,
   TASK_STEP_NOT_COMPLETED,
 } from '../config/taskDetail';
@@ -146,7 +143,6 @@ function mapTaskStepToDocumentTaskStep(taskStep: TaskStepReadDTO): DocumentTaskS
 
 export default function DocumentDetailScreen() {
   const { t, i18n } = useTranslation();
-  const navigation = useNavigation();
   const route = useRoute<RouteProp<{ params: DocumentDetailParams }, 'params'>>();
   const dispatch = useDispatch<AppDispatch>();
   const paramDoc = route.params?.document;
@@ -167,8 +163,8 @@ export default function DocumentDetailScreen() {
   const [task, setTask] = useState<TaskWithDetailsReadDTO | null>(null);
   const [taskLoading, setTaskLoading] = useState(false);
   const [stepStatuses, setStepStatuses] = useState<Record<string, number | null>>({});
-  const [statusUpdatingStepId, setStatusUpdatingStepId] = useState<string | null>(null);
-  const [statusUpdatingAction, setStatusUpdatingAction] = useState<StatusActionKind>(null);
+  const [statusUpdatingStepId] = useState<string | null>(null);
+  const [statusUpdatingAction] = useState<StatusActionKind>(null);
 
   const [history, setHistory] = useState<DocumentAuditTrailDTO[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -182,7 +178,6 @@ export default function DocumentDetailScreen() {
 
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [shareAutoOpened, setShareAutoOpened] = useState(false);
-  const [cloning, setCloning] = useState(false);
 
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [downloadingLargePdf, setDownloadingLargePdf] = useState(false);
@@ -205,13 +200,6 @@ export default function DocumentDetailScreen() {
     return typeof doc.task.id === 'string' ? doc.task.id : null;
   }, [doc]);
 
-  const isPublishedDocument = useMemo(() => {
-    return String(doc?.versionStatusCode ?? '').trim().toLowerCase() === 'published';
-  }, [doc?.versionStatusCode]);
-
-  const canPostOnTaskStep = Boolean(task?.id) && isPublishedDocument;
-  const canChangeTaskStepStatus =
-    Boolean(task?.id) && isPublishedDocument && task?.status === TASK_STATUS_IN_PROGRESS;
   const exportRequestInFlight = downloadingPdf || downloadingLargePdf;
 
   useEffect(() => {
@@ -399,13 +387,6 @@ export default function DocumentDetailScreen() {
     return taskReferencingOptions.find((option) => option.value === referencingCode);
   }, [doc?.taskReferencingType]);
 
-  const openEdit = () => {
-    if (!doc) return;
-    setEditDescription(doc.description ?? '');
-    setEditError(null);
-    setEditVisible(true);
-  };
-
   const submitEdit = async () => {
     if (!doc) return;
     const description = (editDescription ?? '').trim();
@@ -432,38 +413,6 @@ export default function DocumentDetailScreen() {
       setEditing(false);
     }
   };
-
-  const handleCloneDocument = useCallback(() => {
-    if (!doc) return;
-
-    Alert.alert(
-      t('app.documentDetail.cloneTitle'),
-      t('app.documentDetail.cloneConfirmName', {
-        name: doc.documentNumberStr ?? doc.documentNo ?? '',
-      }),
-      [
-        { text: t('app.modal.cancel'), style: 'cancel' },
-        {
-          text: t('app.documentDetail.cloneOkBtn'),
-          onPress: async () => {
-            setCloning(true);
-            try {
-              const response = await duplicateDocument(doc.id);
-              const cloned = response.data;
-              Alert.alert(t('app.alerts.document'), t('app.document.cloneOk'));
-              (navigation.navigate as (name: string, params?: object) => void)('DocumentDetail', {
-                document: cloned,
-              });
-            } catch {
-              Alert.alert(t('app.alerts.document'), t('app.document.cloneFail'));
-            } finally {
-              setCloning(false);
-            }
-          },
-        },
-      ]
-    );
-  }, [doc, navigation, t]);
 
   const handleDownloadReport = useCallback(
     async (isLarge: boolean) => {

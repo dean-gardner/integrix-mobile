@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
 import { useTranslation } from 'react-i18next';
 import type { TaskReadDTO } from '../../types/task';
+import { rtlAwareTextStyle, rtlDirectionStyle, rtlRowStyle } from '../../utils/rtlLayout';
 
 type TasksListCardProps = {
   task: TaskReadDTO;
@@ -56,44 +57,47 @@ function getTaskReference(task: TaskReadDTO, t: (key: string) => string): string
 }
 
 export function TasksListCard({ task, onViewTask, onOpenActions }: TasksListCardProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
+  const rtlRow = useMemo(() => rtlRowStyle(i18n), [i18n]);
+  const rtlDirection = useMemo(() => rtlDirectionStyle(i18n), [i18n]);
 
   return (
-    <View style={styles.card}>
-      <View style={styles.topRow}>
-        <Text style={styles.taskNumber}>{task.taskNumber ?? '-'}</Text>
+    <View style={[styles.card, rtlDirection]}>
+      <View style={[styles.topRow, rtlRow]}>
+        <Text style={[styles.taskNumber, rtlText]}>{task.taskNumber ?? '-'}</Text>
         <TouchableOpacity style={styles.viewTaskButton} onPress={() => onViewTask(task)}>
-          <Text style={styles.viewTaskText}>{t('app.tasksScreen.viewTask')}</Text>
+          <Text style={[styles.viewTaskText, rtlText]}>{t('app.tasksScreen.viewTask')}</Text>
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.description}>{task.description ?? '-'}</Text>
+      <Text style={[styles.description, rtlText]}>{task.description ?? '-'}</Text>
 
       <View style={styles.divider} />
 
-      <View style={styles.fieldRow}>
-        <Text style={styles.fieldLabel}>{t('app.tasksScreen.asset')}</Text>
-        <Text style={styles.fieldValue}>{task.asset?.name ?? '-'}</Text>
+      <View style={[styles.fieldRow, rtlRow]}>
+        <Text style={[styles.fieldLabel, rtlText]}>{t('app.tasksScreen.asset')}</Text>
+        <Text style={[styles.fieldValue, rtlText]}>{task.asset?.name ?? '-'}</Text>
       </View>
-      <View style={styles.fieldRow}>
-        <Text style={styles.fieldLabel}>{t('app.tasksScreen.taskReference')}</Text>
-        <Text style={styles.fieldValue}>{getTaskReference(task, t)}</Text>
+      <View style={[styles.fieldRow, rtlRow]}>
+        <Text style={[styles.fieldLabel, rtlText]}>{t('app.tasksScreen.taskReference')}</Text>
+        <Text style={[styles.fieldValue, rtlText]}>{getTaskReference(task, t)}</Text>
       </View>
-      <View style={styles.fieldRow}>
-        <Text style={styles.fieldLabel}>{t('app.tasks.status')}</Text>
-        <Text style={styles.fieldValue}>{getTaskStatusText(task.status, t)}</Text>
+      <View style={[styles.fieldRow, rtlRow]}>
+        <Text style={[styles.fieldLabel, rtlText]}>{t('app.tasks.status')}</Text>
+        <Text style={[styles.fieldValue, rtlText]}>{getTaskStatusText(task.status, t)}</Text>
       </View>
-      <View style={styles.fieldRow}>
-        <Text style={styles.fieldLabel}>{t('app.tasksScreen.createdBy')}</Text>
-        <Text style={styles.fieldValue}>{task.createdBy ?? '-'}</Text>
+      <View style={[styles.fieldRow, rtlRow]}>
+        <Text style={[styles.fieldLabel, rtlText]}>{t('app.tasksScreen.createdBy')}</Text>
+        <Text style={[styles.fieldValue, rtlText]}>{task.createdBy ?? '-'}</Text>
       </View>
-      <View style={styles.fieldRow}>
-        <Text style={styles.fieldLabel}>{t('app.documentsScreen.createdDate')}</Text>
-        <Text style={styles.fieldValue}>{formatDateTime(task.createdOnUtc)}</Text>
+      <View style={[styles.fieldRow, rtlRow]}>
+        <Text style={[styles.fieldLabel, rtlText]}>{t('app.documentsScreen.createdDate')}</Text>
+        <Text style={[styles.fieldValue, rtlText]}>{formatDateTime(task.createdOnUtc)}</Text>
       </View>
 
-      <TouchableOpacity style={styles.actionsButton} onPress={() => onOpenActions(task)}>
-        <Text style={styles.actionsText}>{t('app.tasksScreen.actions')}</Text>
+      <TouchableOpacity style={[styles.actionsButton, rtlRow]} onPress={() => onOpenActions(task)}>
+        <Text style={[styles.actionsText, rtlText]}>{t('app.tasksScreen.actions')}</Text>
         <MaterialIcons name="more-vert" size={20} color="#3d4662" />
       </TouchableOpacity>
     </View>

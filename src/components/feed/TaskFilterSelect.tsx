@@ -9,6 +9,7 @@ import { MaterialIcons } from '@react-native-vector-icons/material-icons';
 import { useTranslation } from 'react-i18next';
 import { theme } from '../../theme';
 import type { FeedTaskFilterId, FeedTaskFilterOption } from '../../config/feedScreen';
+import { isRtlLayout, rtlAwareTextStyle, rtlDirectionStyle, rtlRowStyle } from '../../utils/rtlLayout';
 
 type TaskFilterSelectProps = {
   options: FeedTaskFilterOption[];
@@ -17,7 +18,11 @@ type TaskFilterSelectProps = {
 };
 
 export function TaskFilterSelect({ options, selectedFilterId, onSelect }: TaskFilterSelectProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isRtl = useMemo(() => isRtlLayout(i18n), [i18n]);
+  const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
+  const rtlRow = useMemo(() => rtlRowStyle(i18n), [i18n]);
+  const rtlDirection = useMemo(() => rtlDirectionStyle(i18n), [i18n]);
   const [open, setOpen] = useState(false);
 
   const selectedOption = useMemo(
@@ -31,14 +36,16 @@ export function TaskFilterSelect({ options, selectedFilterId, onSelect }: TaskFi
   };
 
   return (
-    <View style={styles.wrapper}>
-      <Text style={styles.floatingLabel}>{t('app.feed.filterFloat')}</Text>
+    <View style={[styles.wrapper, rtlDirection]}>
+      <Text style={[styles.floatingLabel, isRtl && styles.floatingLabelRtl, rtlText]}>
+        {t('app.feed.filterFloat')}
+      </Text>
       <TouchableOpacity
-        style={[styles.trigger, open && styles.triggerOpen]}
+        style={[styles.trigger, rtlRow, open && styles.triggerOpen]}
         onPress={() => setOpen((prev) => !prev)}
         activeOpacity={0.8}
       >
-        <Text style={[styles.triggerText, !selectedOption && styles.placeholderText]} numberOfLines={1}>
+        <Text style={[styles.triggerText, rtlText, !selectedOption && styles.placeholderText]} numberOfLines={1}>
           {selectedOption ? t(selectedOption.titleKey) : t('app.feed.selectFilter')}
         </Text>
         <MaterialIcons
@@ -49,16 +56,16 @@ export function TaskFilterSelect({ options, selectedFilterId, onSelect }: TaskFi
       </TouchableOpacity>
 
       {open ? (
-        <View style={styles.menu}>
+        <View style={[styles.menu, rtlDirection]}>
           {options.map((option) => (
             <TouchableOpacity
               key={option.id}
-              style={styles.optionRow}
+              style={[styles.optionRow, rtlRow]}
               onPress={() => onPick(option.id)}
               activeOpacity={0.8}
             >
               <View style={[styles.filterChip, { backgroundColor: option.indicatorColor }]}>
-                <Text style={styles.optionText}>{t(option.titleKey)}</Text>
+                <Text style={[styles.optionText, rtlText]}>{t(option.titleKey)}</Text>
               </View>
             </TouchableOpacity>
           ))}
@@ -84,6 +91,10 @@ const styles = StyleSheet.create({
     color: '#1976d2',
     fontSize: 12,
   },
+  floatingLabelRtl: {
+    left: undefined,
+    right: 10,
+  },
   trigger: {
     width: 206,
     minHeight: 40,
@@ -104,7 +115,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#2d3448',
     fontWeight: '500',
-    marginRight: 8,
+    marginEnd: 8,
   },
   placeholderText: {
     color: '#4a5369',

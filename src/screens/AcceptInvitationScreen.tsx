@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { getTeamsToJoin } from '../api/teams';
 import type { CompanyTeamReadDTO } from '../types/team';
 import { useTranslation } from 'react-i18next';
 import { theme } from '../theme';
+import { rtlAwareInputStyle, rtlAwareTextStyle, rtlDirectionStyle, rtlRowStyle } from '../utils/rtlLayout';
 
 const getTimeZoneId = () => {
   try {
@@ -34,7 +35,11 @@ type AcceptInvitationParams = {
 };
 
 export default function AcceptInvitationScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
+  const rtlInput = useMemo(() => rtlAwareInputStyle(i18n), [i18n]);
+  const rtlRow = useMemo(() => rtlRowStyle(i18n), [i18n]);
+  const rtlDirection = useMemo(() => rtlDirectionStyle(i18n), [i18n]);
   const navigation = useNavigation();
   const route = useRoute<RouteProp<{ params: AcceptInvitationParams }, 'params'>>();
   const params = route.params;
@@ -106,7 +111,7 @@ export default function AcceptInvitationScreen() {
     return () => {
       isCancelled = true;
     };
-  }, [params?.invitationId]);
+  }, [params?.invitationId, t]);
 
   const submit = async () => {
     const fn = (firstName ?? '').trim();
@@ -148,28 +153,29 @@ export default function AcceptInvitationScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={styles.formWrapper} keyboardShouldPersistTaps="handled">
-        <View style={styles.card}>
-          <View style={styles.titleRow}>
-            <Text style={styles.title}>{t('app.acceptInvitation.title')}</Text>
+      <ScrollView contentContainerStyle={[styles.formWrapper, rtlDirection]} keyboardShouldPersistTaps="handled">
+        <View style={[styles.card, rtlDirection]}>
+          <View style={[styles.titleRow, rtlRow]}>
+            <Text style={[styles.title, rtlText]}>{t('app.acceptInvitation.title')}</Text>
             {invitationLoading ? (
               <ActivityIndicator size="small" color={theme.colors.primary} />
             ) : null}
           </View>
           {params?.companyName ? (
-            <Text style={styles.companyNameText}>
+            <Text style={[styles.companyNameText, rtlText]}>
               {t('app.acceptInvitation.companyLabel', { name: params.companyName })}
             </Text>
           ) : null}
           {error ? (
             <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{error}</Text>
+              <Text style={[styles.errorText, rtlText]}>{error}</Text>
             </View>
           ) : null}
 
-          <Text style={styles.label}>{t('app.acceptInvitation.firstName')}</Text>
+          <Text style={[styles.label, rtlText]}>{t('app.acceptInvitation.firstName')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, rtlInput]}
+            textAlign={rtlInput.textAlign}
             value={firstName}
             onChangeText={setFirstName}
             placeholder={t('app.signUp.firstNamePh')}
@@ -177,9 +183,10 @@ export default function AcceptInvitationScreen() {
             editable={!loading}
           />
 
-          <Text style={styles.label}>{t('app.acceptInvitation.lastName')}</Text>
+          <Text style={[styles.label, rtlText]}>{t('app.acceptInvitation.lastName')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, rtlInput]}
+            textAlign={rtlInput.textAlign}
             value={lastName}
             onChangeText={setLastName}
             placeholder={t('app.signUp.lastNamePh')}
@@ -187,9 +194,10 @@ export default function AcceptInvitationScreen() {
             editable={!loading}
           />
 
-          <Text style={styles.label}>{t('app.acceptInvitation.phone')}</Text>
+          <Text style={[styles.label, rtlText]}>{t('app.acceptInvitation.phone')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, rtlInput]}
+            textAlign={rtlInput.textAlign}
             value={phone}
             onChangeText={setPhone}
             placeholder={t('app.acceptInvitation.phonePh')}
@@ -198,9 +206,10 @@ export default function AcceptInvitationScreen() {
             editable={!loading}
           />
 
-          <Text style={styles.label}>{t('app.acceptInvitation.email')}</Text>
+          <Text style={[styles.label, rtlText]}>{t('app.acceptInvitation.email')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, rtlInput]}
+            textAlign={rtlInput.textAlign}
             value={email}
             onChangeText={setEmail}
             placeholder={t('app.signUp.emailPh')}
@@ -212,8 +221,8 @@ export default function AcceptInvitationScreen() {
 
           {availableTeams.length > 0 ? (
             <>
-              <Text style={styles.label}>{t('app.acceptInvitation.teamLabel')}</Text>
-              <View style={styles.teamList}>
+              <Text style={[styles.label, rtlText]}>{t('app.acceptInvitation.teamLabel')}</Text>
+              <View style={[styles.teamList, rtlRow]}>
                 {availableTeams.map((team) => {
                   const selected = companyTeamId === String(team.id);
                   return (
@@ -223,7 +232,7 @@ export default function AcceptInvitationScreen() {
                       onPress={() => setCompanyTeamId(String(team.id))}
                       disabled={loading}
                     >
-                      <Text style={[styles.teamChipText, selected && styles.teamChipTextSelected]}>
+                      <Text style={[styles.teamChipText, rtlText, selected && styles.teamChipTextSelected]}>
                         {team.name}
                       </Text>
                     </TouchableOpacity>
@@ -232,9 +241,10 @@ export default function AcceptInvitationScreen() {
               </View>
             </>
           ) : null}
-          <Text style={styles.label}>{t('app.acceptInvitation.teamIdOptional')}</Text>
+          <Text style={[styles.label, rtlText]}>{t('app.acceptInvitation.teamIdOptional')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, rtlInput]}
+            textAlign={rtlInput.textAlign}
             value={companyTeamId}
             onChangeText={setCompanyTeamId}
             placeholder={t('app.acceptInvitation.teamIdPh')}
@@ -243,9 +253,10 @@ export default function AcceptInvitationScreen() {
             editable={!loading}
           />
 
-          <Text style={styles.label}>{t('app.signUp.passwordPh')}</Text>
+          <Text style={[styles.label, rtlText]}>{t('app.signUp.passwordPh')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, rtlInput]}
+            textAlign={rtlInput.textAlign}
             value={password}
             onChangeText={setPassword}
             placeholder={t('app.acceptInvitation.passwordPh')}
@@ -254,9 +265,10 @@ export default function AcceptInvitationScreen() {
             editable={!loading}
           />
 
-          <Text style={styles.label}>{t('app.signUp.repeatPassword')}</Text>
+          <Text style={[styles.label, rtlText]}>{t('app.signUp.repeatPassword')}</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, rtlInput]}
+            textAlign={rtlInput.textAlign}
             value={repeatPassword}
             onChangeText={setRepeatPassword}
             placeholder={t('app.signUp.confirmPh')}
@@ -273,7 +285,7 @@ export default function AcceptInvitationScreen() {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>{t('app.acceptInvitation.submit')}</Text>
+              <Text style={[styles.buttonText, rtlText]}>{t('app.acceptInvitation.submit')}</Text>
             )}
           </TouchableOpacity>
 
@@ -282,7 +294,7 @@ export default function AcceptInvitationScreen() {
             onPress={() => navigation.navigate('SignIn' as never)}
             disabled={loading}
           >
-            <Text style={styles.secondaryLinkText}>{t('app.forgotPassword.backSignIn')}</Text>
+            <Text style={[styles.secondaryLinkText, rtlText]}>{t('app.forgotPassword.backSignIn')}</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

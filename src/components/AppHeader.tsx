@@ -10,7 +10,6 @@ import {
   TouchableWithoutFeedback,
   ActivityIndicator,
   Linking,
-  type ViewStyle,
 } from 'react-native';
 import { theme } from '../theme';
 import { useDrawer } from '../context/DrawerContext';
@@ -30,7 +29,13 @@ import { buildNotificationDisplay } from '../utils/notificationDisplay';
 import { formatLocaleDateTime } from '../utils/formatLocaleDateTime';
 import { openNotificationLinkInApp } from '../utils/notificationLinking';
 import { setAppLanguage, SUPPORTED_LANGUAGES } from '../i18n';
-import { isRtlLayout, rtlAwareTextStyle, rtlRowStyle } from '../utils/rtlLayout';
+import {
+  isRtlLayout,
+  rtlAwareTextStyle,
+  rtlDirectionStyle,
+  rtlEdgePosition,
+  rtlRowStyle,
+} from '../utils/rtlLayout';
 
 type AppHeaderProps = {
   title?: string;
@@ -56,11 +61,11 @@ export function AppHeader({ title, showMenu = true }: AppHeaderProps) {
     if (unread.length > 0) return unread.slice(0, 4);
     return items.slice(0, 4);
   }, [items]);
+  const isRtl = useMemo(() => isRtlLayout(i18n), [i18n]);
   const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
   const rtlRow = useMemo(() => rtlRowStyle(i18n), [i18n]);
-  const previewCardDirStyle = useMemo((): ViewStyle | undefined => {
-    return isRtlLayout(i18n) ? { direction: 'rtl' } : undefined;
-  }, [i18n]);
+  const rtlDirection = useMemo(() => rtlDirectionStyle(i18n), [i18n]);
+  const headerBadgeEdge = useMemo(() => rtlEdgePosition(i18n, 1), [i18n]);
   const currentLanguage = (i18n.resolvedLanguage ?? i18n.language ?? 'en').split('-')[0];
   const currentLanguageOption =
     SUPPORTED_LANGUAGES.find((language) => language.code === currentLanguage) ?? SUPPORTED_LANGUAGES[0];
@@ -164,7 +169,7 @@ export function AppHeader({ title, showMenu = true }: AppHeaderProps) {
 
   return (
     <>
-      <View style={styles.container}>
+      <View style={[styles.container, rtlRow]}>
         {showMenu ? (
           <TouchableOpacity
             style={styles.iconBtn}
@@ -177,11 +182,11 @@ export function AppHeader({ title, showMenu = true }: AppHeaderProps) {
           <View style={styles.iconPlaceholder} />
         )}
 
-        <Text style={styles.logo} numberOfLines={1}>
+        <Text style={[styles.logo, rtlText]} numberOfLines={1}>
           {displayTitle}
         </Text>
 
-        <View style={styles.headerActions}>
+        <View style={[styles.headerActions, rtlRow]}>
           <TouchableOpacity style={styles.headerActionButton} onPress={openHelp} activeOpacity={0.8}>
             <MaterialIcons name="help" size={22} color="#111827" />
           </TouchableOpacity>
@@ -189,15 +194,15 @@ export function AppHeader({ title, showMenu = true }: AppHeaderProps) {
           <TouchableOpacity style={styles.headerActionButton} onPress={openNotificationsPreview} activeOpacity={0.8}>
             <MaterialIcons name="notifications" size={22} color="#111827" />
             {unreadCount > 0 ? (
-              <View style={styles.unreadBadge}>
+              <View style={[styles.unreadBadge, headerBadgeEdge]}>
                 <Text style={styles.unreadBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
               </View>
             ) : null}
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.languageButton} onPress={openLanguageMenu} activeOpacity={0.8}>
+          <TouchableOpacity style={[styles.languageButton, rtlRow]} onPress={openLanguageMenu} activeOpacity={0.8}>
             <Text style={styles.languageFlag}>{languageFlags[currentLanguageOption.code]}</Text>
-            <Text style={styles.languageCode}>{currentLanguageOption.code.toUpperCase()}</Text>
+            <Text style={[styles.languageCode, rtlText]}>{currentLanguageOption.code.toUpperCase()}</Text>
             <MaterialIcons name="arrow-drop-down" size={18} color="#111827" />
           </TouchableOpacity>
 
@@ -209,16 +214,16 @@ export function AppHeader({ title, showMenu = true }: AppHeaderProps) {
 
       <Modal visible={languageVisible} transparent animationType="fade" onRequestClose={() => setLanguageVisible(false)}>
         <TouchableWithoutFeedback onPress={() => setLanguageVisible(false)}>
-          <View style={styles.dropdownBackdrop}>
+          <View style={[styles.dropdownBackdrop, isRtl && styles.dropdownBackdropRtl]}>
             <TouchableWithoutFeedback onPress={() => {}}>
-              <View style={styles.languageCard}>
-                <Text style={styles.dropdownTitle}>{t('language.title')}</Text>
+              <View style={[styles.languageCard, rtlDirection]}>
+                <Text style={[styles.dropdownTitle, rtlText]}>{t('language.title')}</Text>
                 {SUPPORTED_LANGUAGES.map(({ code, nativeLabel }) => {
                   const active = code === currentLanguageOption.code;
                   return (
                     <TouchableOpacity
                       key={code}
-                      style={[styles.dropdownRow, active && styles.dropdownRowActive]}
+                      style={[styles.dropdownRow, rtlRow, active && styles.dropdownRowActive]}
                       onPress={() => {
                         setLanguageVisible(false);
                         setAppLanguage(code).catch(() => {});
@@ -226,7 +231,7 @@ export function AppHeader({ title, showMenu = true }: AppHeaderProps) {
                       activeOpacity={0.8}
                     >
                       <Text style={styles.languageFlag}>{languageFlags[code]}</Text>
-                      <Text style={[styles.dropdownRowText, active && styles.dropdownRowTextActive]}>
+                      <Text style={[styles.dropdownRowText, rtlText, active && styles.dropdownRowTextActive]}>
                         {languageLabels[code] ?? nativeLabel}
                       </Text>
                       {active ? <MaterialIcons name="check" size={18} color={theme.colors.primary} /> : null}
@@ -241,38 +246,38 @@ export function AppHeader({ title, showMenu = true }: AppHeaderProps) {
 
       <Modal visible={profileVisible} transparent animationType="fade" onRequestClose={() => setProfileVisible(false)}>
         <TouchableWithoutFeedback onPress={() => setProfileVisible(false)}>
-          <View style={styles.dropdownBackdrop}>
+          <View style={[styles.dropdownBackdrop, isRtl && styles.dropdownBackdropRtl]}>
             <TouchableWithoutFeedback onPress={() => {}}>
-              <View style={styles.profileCard}>
-                <View style={styles.profileHeader}>
+              <View style={[styles.profileCard, rtlDirection]}>
+                <View style={[styles.profileHeader, rtlRow]}>
                   <View style={styles.profileAvatarLarge}>
                     <Text style={styles.profileAvatarLargeText}>{userInitials}</Text>
                   </View>
                   <View style={styles.profileHeaderTextWrap}>
-                    <Text style={styles.profileName} numberOfLines={1}>
+                    <Text style={[styles.profileName, rtlText]} numberOfLines={1}>
                       {userName || t('app.feed.unknownUser')}
                     </Text>
                     {user?.email ? (
-                      <Text style={styles.profileEmail} numberOfLines={1}>{user.email}</Text>
+                      <Text style={[styles.profileEmail, rtlText]} numberOfLines={1}>{user.email}</Text>
                     ) : null}
                   </View>
                 </View>
 
-                <TouchableOpacity style={styles.dropdownRow} onPress={() => navigateFromProfile('EditProfile')}>
+                <TouchableOpacity style={[styles.dropdownRow, rtlRow]} onPress={() => navigateFromProfile('EditProfile')}>
                   <MaterialIcons name="manage-accounts" size={20} color="#5b6e88" />
-                  <Text style={styles.dropdownRowText}>{t('drawer.editProfile')}</Text>
+                  <Text style={[styles.dropdownRowText, rtlText]}>{t('drawer.editProfile')}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.dropdownRow} onPress={() => navigateFromProfile('ChangePassword')}>
+                <TouchableOpacity style={[styles.dropdownRow, rtlRow]} onPress={() => navigateFromProfile('ChangePassword')}>
                   <MaterialIcons name="lock-outline" size={20} color="#5b6e88" />
-                  <Text style={styles.dropdownRowText}>{t('nav.changePassword')}</Text>
+                  <Text style={[styles.dropdownRowText, rtlText]}>{t('nav.changePassword')}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.dropdownRow} onPress={() => navigateFromProfile('Subscription')}>
+                <TouchableOpacity style={[styles.dropdownRow, rtlRow]} onPress={() => navigateFromProfile('Subscription')}>
                   <MaterialIcons name="card-membership" size={20} color="#5b6e88" />
-                  <Text style={styles.dropdownRowText}>{t('drawer.subscription')}</Text>
+                  <Text style={[styles.dropdownRowText, rtlText]}>{t('drawer.subscription')}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.dropdownRow, styles.signOutRow]} onPress={handleSignOut}>
+                <TouchableOpacity style={[styles.dropdownRow, rtlRow, styles.signOutRow]} onPress={handleSignOut}>
                   <MaterialIcons name="logout" size={20} color="#5b6e88" />
-                  <Text style={styles.dropdownRowText}>{t('drawer.signOut')}</Text>
+                  <Text style={[styles.dropdownRowText, rtlText]}>{t('drawer.signOut')}</Text>
                 </TouchableOpacity>
               </View>
             </TouchableWithoutFeedback>
@@ -289,7 +294,7 @@ export function AppHeader({ title, showMenu = true }: AppHeaderProps) {
         <TouchableWithoutFeedback onPress={closeNotificationsPreview}>
           <View style={styles.previewBackdrop}>
             <TouchableWithoutFeedback onPress={() => {}}>
-              <View style={[styles.previewCard, previewCardDirStyle]}>
+              <View style={[styles.previewCard, rtlDirection]}>
                 <View style={[styles.previewHeader, rtlRow]}>
                   <View style={styles.previewHeaderTexts}>
                     <Text style={[styles.previewTitle, rtlText]}>{t('header.notificationsPreview')}</Text>
@@ -303,7 +308,7 @@ export function AppHeader({ title, showMenu = true }: AppHeaderProps) {
                     disabled={unreadCount === 0}
                     activeOpacity={0.8}
                   >
-                    <Text style={styles.markReadButtonText}>{t('header.markAllReadShort')}</Text>
+                    <Text style={[styles.markReadButtonText, rtlText]}>{t('header.markAllReadShort')}</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -363,7 +368,7 @@ export function AppHeader({ title, showMenu = true }: AppHeaderProps) {
                 )}
 
                 <TouchableOpacity style={styles.viewAllButton} onPress={openNotificationsScreen}>
-                  <Text style={styles.viewAllButtonText}>{t('header.viewAllShort')}</Text>
+                  <Text style={[styles.viewAllButtonText, rtlText]}>{t('header.viewAllShort')}</Text>
                 </TouchableOpacity>
               </View>
             </TouchableWithoutFeedback>
@@ -446,12 +451,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingLeft: 7,
-    paddingRight: 3,
+    paddingStart: 7,
+    paddingEnd: 3,
   },
   languageFlag: {
     fontSize: 15,
-    marginRight: 4,
+    marginEnd: 4,
   },
   languageCode: {
     color: '#111827',
@@ -477,6 +482,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     paddingTop: theme.spacing.headerHeight + 8,
     paddingRight: 8,
+  },
+  dropdownBackdropRtl: {
+    alignItems: 'flex-start',
+    paddingRight: 0,
+    paddingLeft: 8,
   },
   languageCard: {
     width: 210,

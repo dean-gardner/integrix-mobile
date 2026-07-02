@@ -35,11 +35,12 @@ import { ShareDocumentModal } from '../components/documents/ShareDocumentModal';
 import { IntegrixLoader } from '../components/IntegrixLoader';
 import { Paginator } from '../components/Paginator';
 import { useTranslation } from 'react-i18next';
+import { rtlAwareTextStyle, rtlDirectionStyle, rtlRowStyle } from '../utils/rtlLayout';
 
 type TopSelectKey = 'status' | 'type' | null;
 
 export default function DocumentsScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation();
   const dispatch = useDispatch<AppDispatch>();
   const documentsState = useSelector((s: RootState) => s.documents);
@@ -57,6 +58,9 @@ export default function DocumentsScreen() {
   const [shareModalVisible, setShareModalVisible] = useState(false);
   const [shareModalDocument, setShareModalDocument] = useState<DocumentVersionReadDTO | null>(null);
   const [openTopSelect, setOpenTopSelect] = useState<TopSelectKey>(null);
+  const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
+  const rtlRow = useMemo(() => rtlRowStyle(i18n), [i18n]);
+  const rtlDirection = useMemo(() => rtlDirectionStyle(i18n), [i18n]);
 
   const selectedStatusValue = useMemo(
     () =>
@@ -301,14 +305,14 @@ export default function DocumentsScreen() {
     <View style={styles.wrapper}>
       <ScrollView
         style={styles.container}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, rtlDirection]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.panel}>
-        <View style={[styles.topFilterRow, styles.topFilterRowStatus]}>
-          <Text style={styles.topFilterLabel}>{t('app.documentsScreen.status')}</Text>
+        <View style={[styles.panel, rtlDirection]}>
+        <View style={[styles.topFilterRow, rtlRow, styles.topFilterRowStatus]}>
+          <Text style={[styles.topFilterLabel, rtlText]}>{t('app.documentsScreen.status')}</Text>
           <DocumentsSelect
             value={selectedStatusValue}
             options={documentStatusOptionsT}
@@ -318,8 +322,8 @@ export default function DocumentsScreen() {
           />
         </View>
 
-        <View style={[styles.topFilterRow, styles.topFilterRowType]}>
-          <Text style={styles.topFilterLabel}>{t('app.documentsScreen.type')}</Text>
+        <View style={[styles.topFilterRow, rtlRow, styles.topFilterRowType]}>
+          <Text style={[styles.topFilterLabel, rtlText]}>{t('app.documentsScreen.type')}</Text>
           <DocumentsSelect
             value={selectedTypeValue}
             options={documentTypeOptionsT}
@@ -329,13 +333,13 @@ export default function DocumentsScreen() {
           />
         </View>
 
-        <View style={styles.actionBar}>
-          <View style={styles.filterSortBar}>
+        <View style={[styles.actionBar, rtlRow]}>
+          <View style={[styles.filterSortBar, rtlRow]}>
             <TouchableOpacity
-              style={styles.filterSortButton}
+              style={[styles.filterSortButton, rtlRow]}
               onPress={() => setFilterModalVisible(true)}
             >
-              <Text style={[styles.filterSortText, hasAppliedFilters && styles.filterSortTextActive]}>
+              <Text style={[styles.filterSortText, rtlText, hasAppliedFilters && styles.filterSortTextActive]}>
                 {t('app.documents.filter')}
               </Text>
               <MaterialIcons
@@ -346,10 +350,10 @@ export default function DocumentsScreen() {
             </TouchableOpacity>
             <View style={styles.filterSortDivider} />
             <TouchableOpacity
-              style={styles.filterSortButton}
+              style={[styles.filterSortButton, rtlRow]}
               onPress={() => setSortModalVisible(true)}
             >
-              <Text style={styles.filterSortText}>{t('app.documents.sort')}</Text>
+              <Text style={[styles.filterSortText, rtlText]}>{t('app.documents.sort')}</Text>
               <MaterialIcons name="sort" size={21} color="#2f3a59" />
             </TouchableOpacity>
           </View>
@@ -357,7 +361,7 @@ export default function DocumentsScreen() {
 
         {error ? (
           <View style={screenStyles.errorBox}>
-            <Text style={screenStyles.errorText}>{error}</Text>
+            <Text style={[screenStyles.errorText, rtlText]}>{error}</Text>
           </View>
         ) : null}
 
@@ -366,7 +370,7 @@ export default function DocumentsScreen() {
             <IntegrixLoader size={44} />
           </View>
         ) : items.length === 0 ? (
-          <Text style={styles.emptyText}>{t('app.documentsScreen.empty')}</Text>
+          <Text style={[styles.emptyText, rtlText]}>{t('app.documentsScreen.empty')}</Text>
         ) : (
           <View>
             {items.map((document) => (

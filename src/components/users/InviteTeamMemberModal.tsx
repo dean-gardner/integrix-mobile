@@ -15,8 +15,14 @@ import type { UserInvitationCreateDTO } from '../../types/invitation';
 import { screenStyles } from '../../styles/screenStyles';
 import { theme } from '../../theme';
 import { useTranslation } from 'react-i18next';
-import { RTL_LANGUAGES } from '../../i18n';
 import { translateKnownRoleName, translateKnownTeamName } from '../../utils/systemDisplayText';
+import {
+  isRtlLayout,
+  rtlAwareInputStyle,
+  rtlAwareTextStyle,
+  rtlDirectionStyle,
+  rtlRowStyle,
+} from '../../utils/rtlLayout';
 
 type InviteTeamMemberModalProps = {
   visible: boolean;
@@ -50,8 +56,11 @@ export function InviteTeamMemberModal({
   onSubmit,
 }: InviteTeamMemberModalProps) {
   const { t, i18n } = useTranslation();
-  const currentLanguage = (i18n.resolvedLanguage ?? i18n.language ?? 'en').toLowerCase();
-  const isRtl = RTL_LANGUAGES.some((code) => currentLanguage === code || currentLanguage.startsWith(`${code}-`));
+  const isRtl = useMemo(() => isRtlLayout(i18n), [i18n]);
+  const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
+  const rtlInput = useMemo(() => rtlAwareInputStyle(i18n), [i18n]);
+  const rtlRow = useMemo(() => rtlRowStyle(i18n), [i18n]);
+  const rtlDirection = useMemo(() => rtlDirectionStyle(i18n), [i18n]);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -148,25 +157,26 @@ export function InviteTeamMemberModal({
       <View style={styles.modalBackdrop}>
         <ScrollView
           style={styles.modalScroll}
-          contentContainerStyle={styles.modalScrollContent}
+          contentContainerStyle={[styles.modalScrollContent, rtlDirection]}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{t('app.inviteMember.title')}</Text>
+          <View style={[styles.modalCard, rtlDirection]}>
+            <Text style={[styles.modalTitle, rtlText]}>{t('app.inviteMember.title')}</Text>
             {localError || error ? (
               <View style={screenStyles.errorBox}>
-                <Text style={screenStyles.errorText}>{localError || error}</Text>
+                <Text style={[screenStyles.errorText, rtlText]}>{localError || error}</Text>
               </View>
             ) : null}
             {inviteDisabledReason ? (
               <View style={styles.infoBox}>
-                <Text style={styles.infoText}>{inviteDisabledReason}</Text>
+                <Text style={[styles.infoText, rtlText]}>{inviteDisabledReason}</Text>
               </View>
             ) : null}
 
-            <Text style={screenStyles.formLabel}>{t('app.inviteMember.emailPh')} *</Text>
+            <Text style={[screenStyles.formLabel, rtlText]}>{t('app.inviteMember.emailPh')} *</Text>
             <TextInput
-              style={screenStyles.formInput}
+              style={[screenStyles.formInput, rtlInput]}
+              textAlign={rtlInput.textAlign}
               value={email}
               onChangeText={setEmail}
               placeholder={t('app.inviteMember.emailPh')}
@@ -176,9 +186,10 @@ export function InviteTeamMemberModal({
               editable={!loading}
             />
 
-            <Text style={screenStyles.formLabel}>{t('app.inviteMember.firstNamePh')} *</Text>
+            <Text style={[screenStyles.formLabel, rtlText]}>{t('app.inviteMember.firstNamePh')} *</Text>
             <TextInput
-              style={screenStyles.formInput}
+              style={[screenStyles.formInput, rtlInput]}
+              textAlign={rtlInput.textAlign}
               value={firstName}
               onChangeText={setFirstName}
               placeholder={t('app.inviteMember.firstNamePh')}
@@ -186,9 +197,10 @@ export function InviteTeamMemberModal({
               editable={!loading}
             />
 
-            <Text style={screenStyles.formLabel}>{t('app.inviteMember.lastNamePh')} *</Text>
+            <Text style={[screenStyles.formLabel, rtlText]}>{t('app.inviteMember.lastNamePh')} *</Text>
             <TextInput
-              style={screenStyles.formInput}
+              style={[screenStyles.formInput, rtlInput]}
+              textAlign={rtlInput.textAlign}
               value={lastName}
               onChangeText={setLastName}
               placeholder={t('app.inviteMember.lastNamePh')}
@@ -196,9 +208,10 @@ export function InviteTeamMemberModal({
               editable={!loading}
             />
 
-            <Text style={screenStyles.formLabel}>{t('app.acceptInvitation.phone')}</Text>
+            <Text style={[screenStyles.formLabel, rtlText]}>{t('app.acceptInvitation.phone')}</Text>
             <TextInput
-              style={screenStyles.formInput}
+              style={[screenStyles.formInput, rtlInput]}
+              textAlign={rtlInput.textAlign}
               value={phone}
               onChangeText={setPhone}
               placeholder={t('app.acceptInvitation.phonePh')}
@@ -207,13 +220,13 @@ export function InviteTeamMemberModal({
               editable={!loading}
             />
 
-            <Text style={screenStyles.formLabel}>{t('app.inviteMember.userRole')} *</Text>
+            <Text style={[screenStyles.formLabel, rtlText]}>{t('app.inviteMember.userRole')} *</Text>
             {rolesLoading ? (
-              <View style={styles.loadingRow}>
+              <View style={[styles.loadingRow, isRtl && styles.loadingRowRtl]}>
                 <ActivityIndicator size="small" color={theme.colors.primary} />
               </View>
             ) : roles.length > 0 ? (
-              <View style={[styles.chipRow, isRtl && styles.chipRowRtl]}>
+              <View style={[styles.chipRow, rtlRow, isRtl && styles.chipRowRtl]}>
                 {isAdmin ? (
                   roles.map((role) => (
                     <TouchableOpacity
@@ -223,7 +236,7 @@ export function InviteTeamMemberModal({
                       disabled={loading || offlineMode}
                     >
                       <Text
-                        style={[styles.chipText, effectiveRoleId === role.id && styles.chipTextActive]}
+                        style={[styles.chipText, rtlText, effectiveRoleId === role.id && styles.chipTextActive]}
                       >
                         {translateKnownRoleName(role.name, t)}
                       </Text>
@@ -231,7 +244,7 @@ export function InviteTeamMemberModal({
                   ))
                 ) : (
                   <View style={[styles.chip, styles.chipActive, styles.chipReadonly]}>
-                    <Text style={[styles.chipText, styles.chipTextActive]}>
+                    <Text style={[styles.chipText, rtlText, styles.chipTextActive]}>
                       {selectedRoleLabel}
                     </Text>
                   </View>
@@ -239,7 +252,7 @@ export function InviteTeamMemberModal({
               </View>
             ) : (
               <View style={styles.disabledField}>
-                <Text style={styles.disabledFieldText}>
+                <Text style={[styles.disabledFieldText, rtlText]}>
                   {offlineMode ? t('app.users.rolesUnavailableOffline') : t('app.users.roleUnavailable')}
                 </Text>
               </View>
@@ -247,9 +260,9 @@ export function InviteTeamMemberModal({
 
             {isAdmin ? (
               <>
-                <Text style={screenStyles.formLabel}>{t('app.inviteMember.team')} *</Text>
+                <Text style={[screenStyles.formLabel, rtlText]}>{t('app.inviteMember.team')} *</Text>
                 {teams.length > 0 ? (
-                  <View style={[styles.chipRow, isRtl && styles.chipRowRtl]}>
+                  <View style={[styles.chipRow, rtlRow, isRtl && styles.chipRowRtl]}>
                     {teams.map((teamItem) => (
                       <TouchableOpacity
                         key={teamItem.id}
@@ -258,7 +271,7 @@ export function InviteTeamMemberModal({
                         disabled={loading || offlineMode}
                       >
                         <Text
-                          style={[styles.chipText, teamId === teamItem.id && styles.chipTextActive]}
+                          style={[styles.chipText, rtlText, teamId === teamItem.id && styles.chipTextActive]}
                         >
                           {translateKnownTeamName(teamItem.name, t)}
                         </Text>
@@ -267,17 +280,17 @@ export function InviteTeamMemberModal({
                   </View>
                 ) : (
                   <View style={styles.disabledField}>
-                    <Text style={styles.disabledFieldText}>{t('app.users.teamUnavailable')}</Text>
+                    <Text style={[styles.disabledFieldText, rtlText]}>{t('app.users.teamUnavailable')}</Text>
                   </View>
                 )}
               </>
             ) : (
-              <Text style={styles.teamHint}>{t('app.inviteMember.currentTeamHint')}</Text>
+              <Text style={[styles.teamHint, rtlText]}>{t('app.inviteMember.currentTeamHint')}</Text>
             )}
 
-            <View style={[styles.modalActions, isRtl && styles.modalActionsRtl]}>
+            <View style={[styles.modalActions, rtlRow, isRtl && styles.modalActionsRtl]}>
               <TouchableOpacity style={styles.cancelBtn} onPress={onClose} disabled={loading}>
-                <Text style={styles.cancelBtnText}>{t('app.modal.cancel')}</Text>
+                <Text style={[styles.cancelBtnText, rtlText]}>{t('app.modal.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[screenStyles.formButton, styles.inviteButton, submitDisabled && styles.buttonDisabled]}
@@ -287,7 +300,7 @@ export function InviteTeamMemberModal({
                 {loading ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={screenStyles.formButtonText}>{t('app.inviteMember.send')}</Text>
+                  <Text style={[screenStyles.formButtonText, rtlText]}>{t('app.inviteMember.send')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -336,6 +349,9 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginTop: 8,
     marginBottom: 8,
+  },
+  loadingRowRtl: {
+    alignItems: 'flex-end',
   },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8, marginBottom: 8 },
   chipRowRtl: {

@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { TaskReadDTO } from '../../types/task';
 import { theme } from '../../theme';
+import { isRtlLayout, rtlAwareTextStyle, rtlDirectionStyle } from '../../utils/rtlLayout';
 
 type FeedTaskCardProps = {
   task: TaskReadDTO;
@@ -46,21 +47,30 @@ function getTopLine(task: TaskReadDTO, t: (key: string) => string): string {
 
 export function FeedTaskCard({ task, indicatorColor, onPress }: FeedTaskCardProps) {
   const { t, i18n } = useTranslation();
+  const isRtl = useMemo(() => isRtlLayout(i18n), [i18n]);
+  const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
+  const rtlDirection = useMemo(() => rtlDirectionStyle(i18n), [i18n]);
   const progressPercent = getProgressPercent(task);
   const assetName = task.asset?.name ?? '—';
   const taskTitle = task.description ?? assetName;
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
-      <View style={[styles.cornerIndicator, { borderTopColor: indicatorColor }]} />
+    <TouchableOpacity style={[styles.card, rtlDirection]} onPress={onPress} activeOpacity={0.8}>
+      <View
+        style={[
+          styles.cornerIndicator,
+          isRtl ? styles.cornerIndicatorRtl : styles.cornerIndicatorLtr,
+          { borderTopColor: indicatorColor },
+        ]}
+      />
       <View style={styles.content}>
-        <Text style={styles.topLine}>{getTopLine(task, t)}</Text>
-        <Text style={styles.assetLine}>{assetName}</Text>
-        <Text style={styles.taskTitle}>{taskTitle}</Text>
+        <Text style={[styles.topLine, rtlText]}>{getTopLine(task, t)}</Text>
+        <Text style={[styles.assetLine, rtlText]}>{assetName}</Text>
+        <Text style={[styles.taskTitle, rtlText]}>{taskTitle}</Text>
         <View style={styles.progressTrack}>
-          <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
+          <View style={[styles.progressFill, isRtl && styles.progressFillRtl, { width: `${progressPercent}%` }]} />
         </View>
-        <Text style={styles.startedText}>
+        <Text style={[styles.startedText, rtlText]}>
           {formatStartedOn(task.createdOnUtc, i18n.language, t('app.feed.started'))}
         </Text>
       </View>
@@ -82,13 +92,20 @@ const styles = StyleSheet.create({
   cornerIndicator: {
     position: 'absolute',
     top: 0,
-    left: 0,
     width: 0,
     height: 0,
     borderTopWidth: 18,
+    zIndex: 2,
+  },
+  cornerIndicatorLtr: {
+    left: 0,
     borderRightWidth: 18,
     borderRightColor: 'transparent',
-    zIndex: 2,
+  },
+  cornerIndicatorRtl: {
+    right: 0,
+    borderLeftWidth: 18,
+    borderLeftColor: 'transparent',
   },
   topLine: {
     fontSize: 12,
@@ -117,6 +134,9 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     backgroundColor: '#a5b2d6',
+  },
+  progressFillRtl: {
+    alignSelf: 'flex-end',
   },
   startedText: {
     marginTop: 10,

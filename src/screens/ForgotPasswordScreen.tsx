@@ -16,6 +16,7 @@ import { apiForgotPassword } from '../api/auth';
 import { theme } from '../theme';
 import {
   isRtlLayout,
+  rtlAwareInputStyle,
   rtlAwareTextStyle,
 } from '../utils/rtlLayout';
 
@@ -24,6 +25,7 @@ export default function ForgotPasswordScreen() {
   const navigation = useNavigation();
   const isRtl = isRtlLayout(i18n);
   const rtlText = rtlAwareTextStyle(i18n);
+  const rtlInput = rtlAwareInputStyle(i18n);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +66,8 @@ export default function ForgotPasswordScreen() {
         ) : null}
         <Text style={[styles.label, rtlText]}>{t('app.forgotPassword.emailPh')}</Text>
         <TextInput
-          style={[styles.input, rtlText]}
+          style={[styles.input, rtlInput]}
+          textAlign={rtlInput.textAlign}
           value={email}
           onChangeText={setEmail}
           placeholder={t('app.forgotPassword.emailPh')}
@@ -81,7 +84,7 @@ export default function ForgotPasswordScreen() {
           {loading ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Text style={styles.buttonText}>{t('app.forgotPassword.sendLink')}</Text>
+            <Text style={[styles.buttonText, rtlText]}>{t('app.forgotPassword.sendLink')}</Text>
           )}
         </TouchableOpacity>
         <TouchableOpacity style={styles.backLink} onPress={() => navigation.goBack()} disabled={loading}>

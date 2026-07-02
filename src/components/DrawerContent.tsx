@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -8,13 +8,18 @@ import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
 import { drawerMenuGroups, type DrawerMenuItem } from '../config/drawerMenu';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { isRtlLayout, rtlAwareTextStyle, rtlDirectionStyle, rtlRowStyle } from '../utils/rtlLayout';
 
 type DrawerContentProps = { onClose: () => void };
 
 export function DrawerContent({ onClose }: DrawerContentProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation();
   const safeAreaInsets = useSafeAreaInsets();
+  const isRtl = useMemo(() => isRtlLayout(i18n), [i18n]);
+  const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
+  const rtlRow = useMemo(() => rtlRowStyle(i18n), [i18n]);
+  const rtlDirection = useMemo(() => rtlDirectionStyle(i18n), [i18n]);
   const user = useSelector((s: RootState) => s.auth.user);
   const roles = Array.isArray(user?.roles)
     ? user.roles.filter((role): role is string => typeof role === 'string')
@@ -44,12 +49,12 @@ export function DrawerContent({ onClose }: DrawerContentProps) {
     .filter((group) => group.items.length > 0);
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: Math.max(14, safeAreaInsets.top + 8) }]}>
+    <View style={[styles.container, rtlDirection]}>
+      <View style={[styles.header, rtlRow, { paddingTop: Math.max(14, safeAreaInsets.top + 8) }]}>
         <TouchableOpacity onPress={onClose} style={styles.headerIconButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <MaterialIcons name="close" size={20} color={theme.colors.sidebarText} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('appName')}</Text>
+        <Text style={[styles.headerTitle, rtlText]}>{t('appName')}</Text>
         <View style={styles.headerIconButton}>
           <MaterialIcons name="more-vert" size={20} color={theme.colors.sidebarText} />
         </View>
@@ -58,13 +63,18 @@ export function DrawerContent({ onClose }: DrawerContentProps) {
         <View>
           {visibleMenuGroups.map((group) => (
             <View key={group.titleKey} style={styles.group}>
-              <Text style={styles.groupTitle}>{t(group.titleKey)}</Text>
+              <Text style={[styles.groupTitle, rtlText]}>{t(group.titleKey)}</Text>
               {group.items.map((item) => {
                 const isActive = currentRouteName === item.route;
                 return (
                   <TouchableOpacity
                     key={item.key}
-                    style={[styles.item, isActive && styles.itemActive]}
+                    style={[
+                      styles.item,
+                      rtlRow,
+                      isRtl ? styles.itemRtl : styles.itemLtr,
+                      isActive && (isRtl ? styles.itemActiveRtl : styles.itemActiveLtr),
+                    ]}
                     onPress={() => closeAndNavigate(item.route)}
                     activeOpacity={0.7}
                   >
@@ -74,7 +84,9 @@ export function DrawerContent({ onClose }: DrawerContentProps) {
                       color={isActive ? theme.colors.primary : theme.colors.sidebarText}
                       style={styles.itemIcon}
                     />
-                    <Text style={[styles.itemText, isActive && styles.itemTextActive]}>{t(item.titleKey)}</Text>
+                    <Text style={[styles.itemText, rtlText, isActive && styles.itemTextActive]}>
+                      {t(item.titleKey)}
+                    </Text>
                   </TouchableOpacity>
                 );
               })}
@@ -138,14 +150,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 20,
+  },
+  itemIcon: {
+    marginEnd: 12,
+  },
+  itemLtr: {
     borderLeftWidth: 3,
     borderLeftColor: 'transparent',
   },
-  itemIcon: {
-    marginRight: 12,
+  itemRtl: {
+    borderRightWidth: 3,
+    borderRightColor: 'transparent',
   },
-  itemActive: {
+  itemActiveLtr: {
     borderLeftColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryLight,
+  },
+  itemActiveRtl: {
+    borderRightColor: theme.colors.primary,
     backgroundColor: theme.colors.primaryLight,
   },
   itemText: {

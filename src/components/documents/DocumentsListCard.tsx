@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
 import { useTranslation } from 'react-i18next';
 import type { DocumentVersionReadDTO } from '../../types/document';
+import { isRtlLayout, rtlAwareTextStyle, rtlDirectionStyle, rtlRowStyle } from '../../utils/rtlLayout';
 
 type DocumentsListCardProps = {
   document: DocumentVersionReadDTO;
@@ -52,7 +53,11 @@ export function DocumentsListCard({
   onView,
   onShare,
 }: DocumentsListCardProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isRtl = useMemo(() => isRtlLayout(i18n), [i18n]);
+  const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
+  const rtlRow = useMemo(() => rtlRowStyle(i18n), [i18n]);
+  const rtlDirection = useMemo(() => rtlDirectionStyle(i18n), [i18n]);
   const isPublished = String(document.versionStatusCode ?? '').trim().toLowerCase() === 'published';
   const actionsRef = useRef<any>(null);
   const [actionsVisible, setActionsVisible] = useState(false);
@@ -73,38 +78,40 @@ export function DocumentsListCard({
 
   const menuWidth = 150;
   const menuTop = menuAnchor ? menuAnchor.y - 4 : 180;
-  const menuLeft = menuAnchor ? Math.max(12, menuAnchor.x + menuAnchor.width - menuWidth) : 12;
+  const menuLeft = menuAnchor
+    ? Math.max(12, isRtl ? menuAnchor.x : menuAnchor.x + menuAnchor.width - menuWidth)
+    : 12;
 
   return (
-    <View style={styles.card}>
-      <View style={styles.topRow}>
-        <Text style={styles.docNumber}>{document.documentNumberStr ?? document.documentNo}</Text>
+    <View style={[styles.card, rtlDirection]}>
+      <View style={[styles.topRow, rtlRow]}>
+        <Text style={[styles.docNumber, rtlText]}>{document.documentNumberStr ?? document.documentNo}</Text>
         {isPublished ? (
           <TouchableOpacity style={styles.startTaskButton} onPress={() => onStartTask(document)}>
-            <Text style={styles.startTaskText}>{t('app.documents.startTask')}</Text>
+            <Text style={[styles.startTaskText, rtlText]}>{t('app.documents.startTask')}</Text>
           </TouchableOpacity>
         ) : null}
       </View>
 
-      <Text style={styles.description}>{document.description}</Text>
+      <Text style={[styles.description, rtlText]}>{document.description}</Text>
 
       <View style={styles.divider} />
 
-      <View style={styles.fieldRow}>
-        <Text style={styles.fieldLabel}>{t('app.documentsScreen.status')}</Text>
-        <Text style={styles.fieldValue}>{formatDocumentStatusLabel(document.versionStatusCode, t)}</Text>
+      <View style={[styles.fieldRow, rtlRow]}>
+        <Text style={[styles.fieldLabel, rtlText]}>{t('app.documentsScreen.status')}</Text>
+        <Text style={[styles.fieldValue, rtlText]}>{formatDocumentStatusLabel(document.versionStatusCode, t)}</Text>
       </View>
-      <View style={styles.fieldRow}>
-        <Text style={styles.fieldLabel}>{t('app.documentsScreen.author')}</Text>
-        <Text style={styles.fieldValue}>{document.createdByName ?? '-'}</Text>
+      <View style={[styles.fieldRow, rtlRow]}>
+        <Text style={[styles.fieldLabel, rtlText]}>{t('app.documentsScreen.author')}</Text>
+        <Text style={[styles.fieldValue, rtlText]}>{document.createdByName ?? '-'}</Text>
       </View>
-      <View style={styles.fieldRow}>
-        <Text style={styles.fieldLabel}>{t('app.documentsScreen.createdDate')}</Text>
-        <Text style={styles.fieldValue}>{formatDateTime(document.createdOnUtc)}</Text>
+      <View style={[styles.fieldRow, rtlRow]}>
+        <Text style={[styles.fieldLabel, rtlText]}>{t('app.documentsScreen.createdDate')}</Text>
+        <Text style={[styles.fieldValue, rtlText]}>{formatDateTime(document.createdOnUtc)}</Text>
       </View>
 
-      <TouchableOpacity ref={actionsRef} style={styles.actionsButton} onPress={openActions}>
-        <Text style={styles.actionsText}>{t('app.documentsScreen.actions')}</Text>
+      <TouchableOpacity ref={actionsRef} style={[styles.actionsButton, rtlRow]} onPress={openActions}>
+        <Text style={[styles.actionsText, rtlText]}>{t('app.documentsScreen.actions')}</Text>
         <MaterialIcons name="more-vert" size={20} color="#3d4662" />
       </TouchableOpacity>
 
@@ -112,26 +119,26 @@ export function DocumentsListCard({
         <TouchableWithoutFeedback onPress={closeActions}>
           <View style={styles.menuBackdrop}>
             <TouchableWithoutFeedback onPress={() => {}}>
-              <View style={[styles.menuCard, { top: menuTop, left: menuLeft, width: menuWidth }]}>
+              <View style={[styles.menuCard, rtlDirection, { top: menuTop, left: menuLeft, width: menuWidth }]}>
                 <TouchableOpacity
-                  style={styles.menuItem}
+                  style={[styles.menuItem, rtlRow]}
                   onPress={() => {
                     closeActions();
                     onShare(document);
                   }}
                 >
                   <MaterialIcons name="share" size={20} color="#2b3550" />
-                  <Text style={styles.menuItemText}>{t('app.common.share')}</Text>
+                  <Text style={[styles.menuItemText, rtlText]}>{t('app.common.share')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.menuItem}
+                  style={[styles.menuItem, rtlRow]}
                   onPress={() => {
                     closeActions();
                     onView(document);
                   }}
                 >
                   <MaterialIcons name="visibility" size={20} color="#2b3550" />
-                  <Text style={styles.menuItemText}>{t('app.common.view')}</Text>
+                  <Text style={[styles.menuItemText, rtlText]}>{t('app.common.view')}</Text>
                 </TouchableOpacity>
               </View>
             </TouchableWithoutFeedback>

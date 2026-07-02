@@ -18,6 +18,7 @@ import { screenStyles } from '../styles/screenStyles';
 import { theme } from '../theme';
 import {
   isRtlLayout,
+  rtlAwareInputStyle,
   rtlAwareTextStyle,
 } from '../utils/rtlLayout';
 
@@ -30,6 +31,7 @@ export default function ResetPasswordScreen() {
   const params = route.params;
   const isRtl = isRtlLayout(i18n);
   const rtlText = rtlAwareTextStyle(i18n);
+  const rtlInput = rtlAwareInputStyle(i18n);
   const [email, setEmail] = useState(params?.email ?? '');
   const [token, setToken] = useState(params?.token ?? '');
   const [newPassword, setNewPassword] = useState('');
@@ -93,7 +95,8 @@ export default function ResetPasswordScreen() {
           ) : null}
           <Text style={[screenStyles.formLabel, rtlText]}>{t('app.resetPassword.emailLabel')}</Text>
           <TextInput
-            style={[screenStyles.formInput, rtlText]}
+            style={[screenStyles.formInput, rtlInput]}
+            textAlign={rtlInput.textAlign}
             value={email}
             onChangeText={setEmail}
             placeholder={t('app.signUp.emailPh')}
@@ -104,7 +107,8 @@ export default function ResetPasswordScreen() {
           />
           <Text style={[screenStyles.formLabel, rtlText]}>{t('app.resetPassword.tokenLabel')}</Text>
           <TextInput
-            style={[screenStyles.formInput, rtlText]}
+            style={[screenStyles.formInput, rtlInput]}
+            textAlign={rtlInput.textAlign}
             value={token}
             onChangeText={setToken}
             placeholder={t('app.resetPassword.tokenPh')}
@@ -114,7 +118,8 @@ export default function ResetPasswordScreen() {
           />
           <Text style={[screenStyles.formLabel, rtlText]}>{t('app.resetPassword.newPasswordPh')}</Text>
           <TextInput
-            style={[screenStyles.formInput, rtlText]}
+            style={[screenStyles.formInput, rtlInput]}
+            textAlign={rtlInput.textAlign}
             value={newPassword}
             onChangeText={setNewPassword}
             placeholder={t('app.resetPassword.newPasswordPh')}
@@ -124,7 +129,8 @@ export default function ResetPasswordScreen() {
           />
           <Text style={[screenStyles.formLabel, rtlText]}>{t('app.resetPassword.repeatNew')}</Text>
           <TextInput
-            style={[screenStyles.formInput, rtlText]}
+            style={[screenStyles.formInput, rtlInput]}
+            textAlign={rtlInput.textAlign}
             value={repeatPassword}
             onChangeText={setRepeatPassword}
             placeholder={t('app.resetPassword.repeatNewPh')}
@@ -140,7 +146,7 @@ export default function ResetPasswordScreen() {
             {loading ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text style={screenStyles.formButtonText}>{t('app.resetPassword.submit')}</Text>
+              <Text style={[screenStyles.formButtonText, rtlText]}>{t('app.resetPassword.submit')}</Text>
             )}
           </TouchableOpacity>
           <TouchableOpacity

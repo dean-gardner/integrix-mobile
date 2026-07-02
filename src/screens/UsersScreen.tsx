@@ -31,6 +31,7 @@ import {
   setUserInvitationsFilter,
 } from '../store/userInvitationsSlice';
 import { useTranslation } from 'react-i18next';
+import { isRtlLayout, rtlAwareTextStyle, rtlDirectionStyle, rtlRowStyle } from '../utils/rtlLayout';
 
 type UsersTab = 'members' | 'invitations';
 
@@ -99,7 +100,11 @@ function mapInvitationToTableRow(invitation: UserInvitationReadDTO): UsersTableR
 }
 
 export default function UsersScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isRtl = useMemo(() => isRtlLayout(i18n), [i18n]);
+  const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
+  const rtlRow = useMemo(() => rtlRowStyle(i18n), [i18n]);
+  const rtlDirection = useMemo(() => rtlDirectionStyle(i18n), [i18n]);
   const dispatch = useDispatch<AppDispatch>();
   const currentUser = useSelector((s: RootState) => s.auth.user);
   const teams = useSelector((s: RootState) => s.teams.items);
@@ -300,27 +305,27 @@ export default function UsersScreen() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, rtlDirection]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       showsVerticalScrollIndicator={false}
       nestedScrollEnabled
     >
-      <View style={styles.panel}>
-        <Text style={styles.panelTitle}>{t('app.users.usersTitle')}</Text>
+      <View style={[styles.panel, rtlDirection]}>
+        <Text style={[styles.panelTitle, rtlText]}>{t('app.users.usersTitle')}</Text>
 
         <TouchableOpacity style={styles.inviteButton} onPress={openInviteModal} activeOpacity={0.85}>
-          <Text style={styles.inviteButtonText}>{t('app.users.inviteMember')}</Text>
+          <Text style={[styles.inviteButtonText, rtlText]}>{t('app.users.inviteMember')}</Text>
         </TouchableOpacity>
 
         <View style={styles.tabsPanel}>
           <View style={styles.tabsTopLine} />
-          <View style={styles.tabsRow}>
+          <View style={[styles.tabsRow, rtlRow]}>
             <TouchableOpacity
               style={[styles.tabButton, activeTab === 'members' && styles.tabButtonActive]}
               onPress={() => setActiveTab('members')}
               activeOpacity={0.85}
             >
-              <Text style={[styles.tabText, activeTab === 'members' && styles.tabTextActive]}>
+              <Text style={[styles.tabText, rtlText, activeTab === 'members' && styles.tabTextActive]}>
                 {membersTabLabel}
               </Text>
             </TouchableOpacity>
@@ -329,7 +334,7 @@ export default function UsersScreen() {
               onPress={() => setActiveTab('invitations')}
               activeOpacity={0.85}
             >
-              <Text style={[styles.tabText, activeTab === 'invitations' && styles.tabTextActive]}>
+              <Text style={[styles.tabText, rtlText, activeTab === 'invitations' && styles.tabTextActive]}>
                 {invitationsTabLabel}
               </Text>
             </TouchableOpacity>
@@ -338,7 +343,7 @@ export default function UsersScreen() {
 
         {activeError ? (
           <View style={styles.errorWrap}>
-            <Text style={styles.errorText}>{activeError}</Text>
+            <Text style={[styles.errorText, rtlText]}>{activeError}</Text>
           </View>
         ) : null}
 
@@ -348,7 +353,7 @@ export default function UsersScreen() {
           </View>
         ) : rows.length === 0 ? (
           <View style={styles.emptyWrap}>
-            <Text style={styles.emptyText}>
+            <Text style={[styles.emptyText, rtlText]}>
               {activeTab === 'members' ? t('app.users.noMembers') : t('app.users.noInvites')}
             </Text>
           </View>
@@ -362,28 +367,28 @@ export default function UsersScreen() {
             contentContainerStyle={styles.tableHScrollContent}
           >
             <View style={[styles.tableSheet, { minWidth: tableMinWidth }]}>
-              <View style={styles.tableHeader}>
-                <Text style={[styles.headerText, styles.colFullNameHeader]}>
+              <View style={[styles.tableHeader, rtlRow]}>
+                <Text style={[styles.headerText, rtlText, styles.colFullNameHeader]}>
                   {t('app.users.colFullName')}
                 </Text>
-                <Text style={[styles.headerText, styles.colEmailHeader]}>{t('app.users.colEmail')}</Text>
-                <Text style={[styles.headerText, styles.colTeamHeader]}>{t('app.users.colTeam')}</Text>
+                <Text style={[styles.headerText, rtlText, styles.colEmailHeader]}>{t('app.users.colEmail')}</Text>
+                <Text style={[styles.headerText, rtlText, styles.colTeamHeader]}>{t('app.users.colTeam')}</Text>
                 {activeTab === 'members' ? (
                   <>
-                    <Text style={[styles.headerText, styles.colLicenseHeader]}>
+                    <Text style={[styles.headerText, rtlText, styles.colLicenseHeader]}>
                       {t('app.users.colLicense')}
                     </Text>
-                    <Text style={[styles.headerText, styles.colRoleHeader]}>{t('app.users.colRole')}</Text>
-                    <Text style={[styles.headerText, styles.colLastAccessHeader]}>
+                    <Text style={[styles.headerText, rtlText, styles.colRoleHeader]}>{t('app.users.colRole')}</Text>
+                    <Text style={[styles.headerText, rtlText, styles.colLastAccessHeader]}>
                       {t('app.users.colLastAccess')}
                     </Text>
                   </>
                 ) : (
                   <>
-                    <Text style={[styles.headerText, styles.colStatusHeader]}>
+                    <Text style={[styles.headerText, rtlText, styles.colStatusHeader]}>
                       {t('app.users.colStatus')}
                     </Text>
-                    <Text style={[styles.headerText, styles.colSendOnHeader]}>
+                    <Text style={[styles.headerText, rtlText, styles.colSendOnHeader]}>
                       {t('app.users.colSendOn')}
                     </Text>
                   </>
@@ -392,34 +397,34 @@ export default function UsersScreen() {
 
               {rows.map((row) => {
                 return (
-                  <View key={row.id} style={styles.dataRow}>
-                    <Text style={[styles.rowText, styles.colFullNameCell]} numberOfLines={1}>
+                  <View key={row.id} style={[styles.dataRow, rtlRow]}>
+                    <Text style={[styles.rowText, rtlText, styles.colFullNameCell]} numberOfLines={1}>
                       {row.fullName}
                     </Text>
-                    <Text style={[styles.rowText, styles.colEmailCell]} numberOfLines={1}>
+                    <Text style={[styles.rowText, rtlText, styles.colEmailCell]} numberOfLines={1}>
                       {row.email}
                     </Text>
-                    <Text style={[styles.rowText, styles.colTeamCell]} numberOfLines={1}>
+                    <Text style={[styles.rowText, rtlText, styles.colTeamCell]} numberOfLines={1}>
                       {row.team}
                     </Text>
                     {activeTab === 'members' ? (
                       <>
-                        <Text style={[styles.rowText, styles.colLicenseCell]} numberOfLines={1}>
+                        <Text style={[styles.rowText, rtlText, styles.colLicenseCell]} numberOfLines={1}>
                           {row.license}
                         </Text>
-                        <Text style={[styles.rowText, styles.colRoleCell]} numberOfLines={1}>
+                        <Text style={[styles.rowText, rtlText, styles.colRoleCell]} numberOfLines={1}>
                           {row.role}
                         </Text>
-                        <Text style={[styles.rowText, styles.colLastAccessCell]} numberOfLines={1}>
+                        <Text style={[styles.rowText, rtlText, styles.colLastAccessCell]} numberOfLines={1}>
                           {row.lastAccess}
                         </Text>
                       </>
                     ) : (
                       <>
-                        <Text style={[styles.rowText, styles.colStatusCell]} numberOfLines={1}>
+                        <Text style={[styles.rowText, rtlText, styles.colStatusCell]} numberOfLines={1}>
                           {row.status}
                         </Text>
-                        <Text style={[styles.rowText, styles.colSendOnCell]} numberOfLines={1}>
+                        <Text style={[styles.rowText, rtlText, styles.colSendOnCell]} numberOfLines={1}>
                           {row.sendOn}
                         </Text>
                       </>
@@ -431,17 +436,17 @@ export default function UsersScreen() {
           </ScrollView>
         )}
 
-        <View style={styles.paginationRow}>
-          <TouchableOpacity style={styles.pageSizeControl} onPress={openPageSizeMenu} activeOpacity={0.75}>
-            <Text style={styles.pageSizeText}>{pageSize}</Text>
+        <View style={[styles.paginationRow, rtlRow]}>
+          <TouchableOpacity style={[styles.pageSizeControl, rtlRow]} onPress={openPageSizeMenu} activeOpacity={0.75}>
+            <Text style={[styles.pageSizeText, rtlText]}>{pageSize}</Text>
             <MaterialIcons name="arrow-drop-down" size={18} color="#6a6f78" />
           </TouchableOpacity>
 
-          <Text style={styles.rangeText}>
+          <Text style={[styles.rangeText, rtlText]}>
             {fromIndex}-{toIndex} of {activeTotalCount}
           </Text>
 
-          <View style={styles.paginationArrows}>
+          <View style={[styles.paginationArrows, rtlRow]}>
             <TouchableOpacity
               onPress={() => updateActivePage(pageNumber - 1)}
               disabled={pageNumber <= 0}
@@ -449,7 +454,7 @@ export default function UsersScreen() {
               activeOpacity={0.7}
             >
               <MaterialIcons
-                name="chevron-left"
+                name={isRtl ? 'chevron-right' : 'chevron-left'}
                 size={22}
                 color={pageNumber <= 0 ? '#c4c6cd' : '#9ba0aa'}
               />
@@ -461,7 +466,7 @@ export default function UsersScreen() {
               activeOpacity={0.7}
             >
               <MaterialIcons
-                name="chevron-right"
+                name={isRtl ? 'chevron-left' : 'chevron-right'}
                 size={22}
                 color={pageNumber >= pageCount - 1 ? '#c4c6cd' : '#9ba0aa'}
               />
@@ -592,35 +597,35 @@ const styles = StyleSheet.create({
   },
   colFullNameHeader: {
     width: COL_FULL_NAME_W,
-    paddingLeft: 10,
+    paddingStart: 10,
   },
   colEmailHeader: {
     width: COL_EMAIL_W,
-    paddingLeft: 10,
+    paddingStart: 10,
   },
   colTeamHeader: {
     width: COL_TEAM_W,
-    paddingLeft: 10,
+    paddingStart: 10,
   },
   colLicenseHeader: {
     width: COL_LICENSE_W,
-    paddingLeft: 10,
+    paddingStart: 10,
   },
   colRoleHeader: {
     width: COL_ROLE_W,
-    paddingLeft: 10,
+    paddingStart: 10,
   },
   colLastAccessHeader: {
     width: COL_LAST_ACCESS_W,
-    paddingLeft: 10,
+    paddingStart: 10,
   },
   colStatusHeader: {
     width: COL_STATUS_W,
-    paddingLeft: 10,
+    paddingStart: 10,
   },
   colSendOnHeader: {
     width: COL_SEND_ON_W,
-    paddingLeft: 10,
+    paddingStart: 10,
   },
   dataRow: {
     minHeight: 48,
@@ -636,43 +641,43 @@ const styles = StyleSheet.create({
   },
   colFullNameCell: {
     width: COL_FULL_NAME_W,
-    paddingLeft: 10,
-    paddingRight: 4,
+    paddingStart: 10,
+    paddingEnd: 4,
   },
   colEmailCell: {
     width: COL_EMAIL_W,
-    paddingLeft: 10,
-    paddingRight: 4,
+    paddingStart: 10,
+    paddingEnd: 4,
   },
   colTeamCell: {
     width: COL_TEAM_W,
-    paddingLeft: 10,
-    paddingRight: 4,
+    paddingStart: 10,
+    paddingEnd: 4,
   },
   colLicenseCell: {
     width: COL_LICENSE_W,
-    paddingLeft: 10,
-    paddingRight: 4,
+    paddingStart: 10,
+    paddingEnd: 4,
   },
   colRoleCell: {
     width: COL_ROLE_W,
-    paddingLeft: 10,
-    paddingRight: 4,
+    paddingStart: 10,
+    paddingEnd: 4,
   },
   colLastAccessCell: {
     width: COL_LAST_ACCESS_W,
-    paddingLeft: 10,
-    paddingRight: 4,
+    paddingStart: 10,
+    paddingEnd: 4,
   },
   colStatusCell: {
     width: COL_STATUS_W,
-    paddingLeft: 10,
-    paddingRight: 4,
+    paddingStart: 10,
+    paddingEnd: 4,
   },
   colSendOnCell: {
     width: COL_SEND_ON_W,
-    paddingLeft: 10,
-    paddingRight: 4,
+    paddingStart: 10,
+    paddingEnd: 4,
   },
   loader: {
     paddingVertical: 22,

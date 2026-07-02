@@ -1,7 +1,9 @@
 import React, { useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
+import { useTranslation } from 'react-i18next';
 import { theme } from '../theme';
+import { isRtlLayout, rtlRowStyle } from '../utils/rtlLayout';
 
 type PaginatorProps = {
   currentPage: number;
@@ -32,19 +34,26 @@ function buildPageItems(current: number, total: number): Array<number | '...'> {
 }
 
 export function Paginator({ currentPage, totalPages, onPageChange, isLoading }: PaginatorProps) {
+  const { i18n } = useTranslation();
   const pageItems = useMemo(() => buildPageItems(currentPage, totalPages), [currentPage, totalPages]);
+  const isRtl = useMemo(() => isRtlLayout(i18n), [i18n]);
+  const rtlRow = useMemo(() => rtlRowStyle(i18n), [i18n]);
 
   if (totalPages <= 1) return null;
 
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, rtlRow]}>
       <TouchableOpacity
         style={[styles.arrowButton, currentPage <= 1 && styles.disabled]}
         onPress={() => onPageChange(currentPage - 1)}
         disabled={currentPage <= 1}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-        <MaterialIcons name="chevron-left" size={22} color={currentPage <= 1 ? '#c8c8c8' : '#555e72'} />
+        <MaterialIcons
+          name={isRtl ? 'chevron-right' : 'chevron-left'}
+          size={22}
+          color={currentPage <= 1 ? '#c8c8c8' : '#555e72'}
+        />
       </TouchableOpacity>
 
       {pageItems.map((item, index) =>
@@ -78,7 +87,11 @@ export function Paginator({ currentPage, totalPages, onPageChange, isLoading }: 
         disabled={currentPage >= totalPages}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-        <MaterialIcons name="chevron-right" size={22} color={currentPage >= totalPages ? '#c8c8c8' : '#555e72'} />
+        <MaterialIcons
+          name={isRtl ? 'chevron-left' : 'chevron-right'}
+          size={22}
+          color={currentPage >= totalPages ? '#c8c8c8' : '#555e72'}
+        />
       </TouchableOpacity>
     </View>
   );

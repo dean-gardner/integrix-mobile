@@ -24,6 +24,7 @@ import { DocumentsSortModal } from '../components/documents/DocumentsSortModal';
 import { TasksListCard } from '../components/tasks/TasksListCard';
 import { TasksFilterModal } from '../components/tasks/TasksFilterModal';
 import { Paginator } from '../components/Paginator';
+import { rtlAwareTextStyle, rtlDirectionStyle, rtlRowStyle } from '../utils/rtlLayout';
 import {
   defaultTasksSortField,
   defaultTasksSortOrder,
@@ -37,7 +38,7 @@ import {
 } from '../config/tasksScreen';
 
 export default function TasksScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation();
   const isFocused = useIsFocused();
   const scrollRef = useRef<ScrollView>(null);
@@ -52,6 +53,9 @@ export default function TasksScreen() {
   const [hasAppliedFilters, setHasAppliedFilters] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
   const [pendingPage, setPendingPage] = useState<number | null>(null);
+  const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
+  const rtlRow = useMemo(() => rtlRowStyle(i18n), [i18n]);
+  const rtlDirection = useMemo(() => rtlDirectionStyle(i18n), [i18n]);
 
   const selectedStatusValue = useMemo(
     () =>
@@ -296,14 +300,14 @@ export default function TasksScreen() {
       <ScrollView
         ref={scrollRef}
         style={styles.container}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, rtlDirection]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.panel}>
-        <View style={styles.topFilterRow}>
-          <Text style={styles.topFilterLabel}>{t('app.tasks.status')}</Text>
+        <View style={[styles.panel, rtlDirection]}>
+        <View style={[styles.topFilterRow, rtlRow]}>
+          <Text style={[styles.topFilterLabel, rtlText]}>{t('app.tasks.status')}</Text>
           <DocumentsSelect
             value={selectedStatusValue}
             options={taskStatusOptionsT}
@@ -311,8 +315,8 @@ export default function TasksScreen() {
           />
         </View>
 
-        <View style={styles.topFilterRow}>
-          <Text style={styles.topFilterLabel}>{t('app.tasks.type')}</Text>
+        <View style={[styles.topFilterRow, rtlRow]}>
+          <Text style={[styles.topFilterLabel, rtlText]}>{t('app.tasks.type')}</Text>
           <DocumentsSelect
             value={selectedTypeValue}
             options={taskTypeOptionsT}
@@ -321,12 +325,12 @@ export default function TasksScreen() {
         </View>
 
         <View style={styles.actionBar}>
-          <View style={styles.filterSortBar}>
+          <View style={[styles.filterSortBar, rtlRow]}>
             <TouchableOpacity
-              style={styles.filterSortButton}
+              style={[styles.filterSortButton, rtlRow]}
               onPress={() => setFilterModalVisible(true)}
             >
-              <Text style={[styles.filterSortText, hasAppliedFilters && styles.filterSortTextActive]}>
+              <Text style={[styles.filterSortText, rtlText, hasAppliedFilters && styles.filterSortTextActive]}>
                 {t('app.tasks.filter')}
               </Text>
               <MaterialIcons
@@ -336,8 +340,8 @@ export default function TasksScreen() {
               />
             </TouchableOpacity>
             <View style={styles.filterSortDivider} />
-            <TouchableOpacity style={styles.filterSortButton} onPress={() => setSortModalVisible(true)}>
-              <Text style={styles.filterSortText}>{t('app.tasks.sort')}</Text>
+            <TouchableOpacity style={[styles.filterSortButton, rtlRow]} onPress={() => setSortModalVisible(true)}>
+              <Text style={[styles.filterSortText, rtlText]}>{t('app.tasks.sort')}</Text>
               <MaterialIcons name="sort" size={21} color="#2f3a59" />
             </TouchableOpacity>
           </View>
@@ -345,7 +349,7 @@ export default function TasksScreen() {
 
         {shouldShowInlineError ? (
           <View style={screenStyles.errorBox}>
-            <Text style={screenStyles.errorText}>{error}</Text>
+            <Text style={[screenStyles.errorText, rtlText]}>{error}</Text>
           </View>
         ) : null}
 
@@ -354,7 +358,7 @@ export default function TasksScreen() {
             <ActivityIndicator size="large" color={theme.colors.primary} />
           </View>
         ) : displayedItems.length === 0 ? (
-          <Text style={styles.emptyText}>{t('app.tasks.empty')}</Text>
+          <Text style={[styles.emptyText, rtlText]}>{t('app.tasks.empty')}</Text>
         ) : (
           <View>
             {displayedItems.map((task) => (

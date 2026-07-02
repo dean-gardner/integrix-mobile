@@ -141,12 +141,13 @@ export default function EditProfileScreen() {
           <Text style={[styles.errorText, rtlText]}>{error}</Text>
         </View>
       ) : null}
-      <View style={styles.card}>
+      <View style={[styles.card, isRtl && styles.cardRtl]}>
         <Text style={[styles.sectionTitle, rtlText]}>{t('app.editProfile.personalInfo')}</Text>
 
         <Text style={[styles.label, rtlText]}>{t('app.editProfile.firstNameStar')}</Text>
         <TextInput
-          style={[styles.input, rtlText]}
+          style={[styles.input, isRtl ? styles.inputRtl : styles.inputLtr]}
+          textAlign={isRtl ? 'right' : 'left'}
           value={firstName}
           onChangeText={setFirstName}
           placeholder={t('app.editProfile.firstNamePh')}
@@ -156,7 +157,8 @@ export default function EditProfileScreen() {
 
         <Text style={[styles.label, rtlText]}>{t('app.editProfile.lastNameStar')}</Text>
         <TextInput
-          style={[styles.input, rtlText]}
+          style={[styles.input, isRtl ? styles.inputRtl : styles.inputLtr]}
+          textAlign={isRtl ? 'right' : 'left'}
           value={lastName}
           onChangeText={setLastName}
           placeholder={t('app.editProfile.lastNamePh')}
@@ -166,7 +168,8 @@ export default function EditProfileScreen() {
 
         <Text style={[styles.label, rtlText]}>{t('app.editProfile.emailStar')}</Text>
         <TextInput
-          style={[styles.input, rtlText, styles.disabledInput]}
+          style={[styles.input, isRtl ? styles.inputRtl : styles.inputLtr, styles.disabledInput]}
+          textAlign={isRtl ? 'right' : 'left'}
           value={email}
           placeholder={t('app.editProfile.emailPh')}
           placeholderTextColor="#6c757d"
@@ -177,7 +180,8 @@ export default function EditProfileScreen() {
 
         <Text style={[styles.label, rtlText]}>{t('app.editProfile.phoneLabel')}</Text>
         <TextInput
-          style={[styles.input, rtlText]}
+          style={[styles.input, isRtl ? styles.inputRtl : styles.inputLtr]}
+          textAlign={isRtl ? 'right' : 'left'}
           value={phone}
           onChangeText={setPhone}
           placeholder=""
@@ -274,6 +278,9 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     paddingBottom: 12,
   },
+  cardRtl: {
+    direction: 'rtl',
+  },
   sectionTitle: {
     color: '#2f3a55',
     fontSize: 13,
@@ -296,6 +303,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     color: '#1f2430',
     fontSize: 14,
+  },
+  inputLtr: {
+    textAlign: 'left',
+    writingDirection: 'ltr',
+    direction: 'ltr',
+  },
+  inputRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+    direction: 'rtl',
   },
   disabledInput: {
     backgroundColor: '#d2d7e5',

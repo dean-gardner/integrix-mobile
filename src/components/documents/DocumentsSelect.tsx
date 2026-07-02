@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
+import { useTranslation } from 'react-i18next';
 import { theme } from '../../theme';
 import type { DocumentsSelectOption, DocumentsSelectValue } from '../../config/documentsScreen';
+import { isRtlLayout, rtlAwareTextStyle, rtlDirectionStyle, rtlRowStyle } from '../../utils/rtlLayout';
 
 type DocumentsSelectProps<T extends DocumentsSelectValue> = {
   value: T;
@@ -23,8 +25,13 @@ export function DocumentsSelect<T extends DocumentsSelectValue>({
   onOpenChange,
   showMenu = true,
 }: DocumentsSelectProps<T>) {
+  const { i18n } = useTranslation();
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlledOpen ?? internalOpen;
+  const isRtl = useMemo(() => isRtlLayout(i18n), [i18n]);
+  const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
+  const rtlRow = useMemo(() => rtlRowStyle(i18n), [i18n]);
+  const rtlDirection = useMemo(() => rtlDirectionStyle(i18n), [i18n]);
 
   const setOpen = (nextOpen: boolean) => {
     if (controlledOpen === undefined) {
@@ -39,16 +46,16 @@ export function DocumentsSelect<T extends DocumentsSelectValue>({
   );
 
   return (
-    <View style={[styles.wrapper, open && styles.wrapperOpen]}>
+    <View style={[styles.wrapper, rtlDirection, open && styles.wrapperOpen]}>
       <TouchableOpacity
-        style={[styles.trigger, open && styles.triggerOpen]}
+        style={[styles.trigger, rtlRow, open && styles.triggerOpen]}
         onPress={() => setOpen(!open)}
         activeOpacity={0.85}
       >
-        <Text style={[styles.triggerText, !selected && styles.placeholderText]} numberOfLines={1}>
+        <Text style={[styles.triggerText, rtlText, !selected && styles.placeholderText]} numberOfLines={1}>
           {selected?.label ?? placeholder}
         </Text>
-        <View style={styles.triggerArrowWrap}>
+        <View style={[styles.triggerArrowWrap, isRtl ? styles.triggerArrowWrapRtl : styles.triggerArrowWrapLtr]}>
           <MaterialIcons
             name={open ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
             size={20}
@@ -58,7 +65,7 @@ export function DocumentsSelect<T extends DocumentsSelectValue>({
       </TouchableOpacity>
 
       {open && showMenu ? (
-        <View style={styles.menu}>
+        <View style={[styles.menu, rtlDirection]}>
           {options.map((option) => {
             const active = option.value === value;
             return (
@@ -71,7 +78,7 @@ export function DocumentsSelect<T extends DocumentsSelectValue>({
                 }}
                 activeOpacity={0.8}
               >
-                <Text style={[styles.optionText, active && styles.optionTextActive]}>{option.label}</Text>
+                <Text style={[styles.optionText, rtlText, active && styles.optionTextActive]}>{option.label}</Text>
               </TouchableOpacity>
             );
           })}
@@ -97,7 +104,8 @@ const styles = StyleSheet.create({
     borderColor: '#d9dfeb',
     borderRadius: 4,
     backgroundColor: '#ffffff',
-    paddingLeft: 10,
+    paddingStart: 10,
+    paddingEnd: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -116,11 +124,16 @@ const styles = StyleSheet.create({
   triggerArrowWrap: {
     alignSelf: 'stretch',
     minWidth: 34,
-    borderLeftWidth: 1,
-    borderLeftColor: '#d9dfeb',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 0,
+  },
+  triggerArrowWrapLtr: {
+    borderLeftWidth: 1,
+    borderLeftColor: '#d9dfeb',
+  },
+  triggerArrowWrapRtl: {
+    borderRightWidth: 1,
+    borderRightColor: '#d9dfeb',
   },
   menu: {
     position: 'absolute',

@@ -14,6 +14,7 @@ import { MaterialIcons } from '@react-native-vector-icons/material-icons';
 import { useTranslation } from 'react-i18next';
 import { theme } from '../../theme';
 import { buildLeafletPickerHtml } from '../../utils/gpsPinPickerHtml';
+import { rtlAwareTextStyle, rtlDirectionStyle, rtlRowStyle } from '../../utils/rtlLayout';
 
 export type GpsPinCoords = { lat: number; lng: number };
 
@@ -35,8 +36,11 @@ function GpsPinPickerContent({
   onClose: () => void;
   onApply: (coords: GpsPinCoords) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
+  const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
+  const rtlRow = useMemo(() => rtlRowStyle(i18n), [i18n]);
+  const rtlDirection = useMemo(() => rtlDirectionStyle(i18n), [i18n]);
   const [draft, setDraft] = useState<GpsPinCoords>(initial);
   const [mapLoading, setMapLoading] = useState(true);
   const [mapError, setMapError] = useState(false);
@@ -45,7 +49,7 @@ function GpsPinPickerContent({
     setDraft(initial);
     setMapLoading(true);
     setMapError(false);
-  }, [initial.lat, initial.lng]);
+  }, [initial]);
 
   const htmlSource = useMemo(
     () => ({ html: buildLeafletPickerHtml(initial.lat, initial.lng) }),
@@ -69,19 +73,20 @@ function GpsPinPickerContent({
     <View
       style={[
         styles.root,
+        rtlDirection,
         {
           paddingTop: insets.top + 8,
           paddingBottom: insets.bottom + 12,
         },
       ]}
     >
-      <View style={styles.header}>
-        <Text style={styles.title}>{t('app.taskStepPost.gpsPinPickerTitle')}</Text>
+      <View style={[styles.header, rtlRow]}>
+        <Text style={[styles.title, rtlText]}>{t('app.taskStepPost.gpsPinPickerTitle')}</Text>
         <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
           <MaterialIcons name="close" size={26} color="#1f2233" />
         </TouchableOpacity>
       </View>
-      <Text style={styles.hint}>{t('app.taskStepPost.gpsPinPickerHint')}</Text>
+      <Text style={[styles.hint, rtlText]}>{t('app.taskStepPost.gpsPinPickerHint')}</Text>
       <View style={styles.mapWrap}>
         {mapLoading ? (
           <View style={styles.mapLoading}>
@@ -90,7 +95,7 @@ function GpsPinPickerContent({
         ) : null}
         {mapError ? (
           <View style={styles.mapLoading}>
-            <Text style={styles.mapErrorText}>{t('app.taskStepPost.gpsPinPickerMapError')}</Text>
+            <Text style={[styles.mapErrorText, rtlText]}>{t('app.taskStepPost.gpsPinPickerMapError')}</Text>
           </View>
         ) : null}
         <WebView
@@ -113,12 +118,12 @@ function GpsPinPickerContent({
       <Text style={styles.coordsPreview}>
         {`${draft.lat.toFixed(5)}, ${draft.lng.toFixed(5)}`}
       </Text>
-      <View style={styles.actions}>
+      <View style={[styles.actions, rtlRow]}>
         <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
-          <Text style={styles.cancelBtnText}>{t('app.modal.cancel')}</Text>
+          <Text style={[styles.cancelBtnText, rtlText]}>{t('app.modal.cancel')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.applyBtn} onPress={() => onApply(draft)}>
-          <Text style={styles.applyBtnText}>{t('app.taskStepPost.gpsPinPickerApply')}</Text>
+          <Text style={[styles.applyBtnText, rtlText]}>{t('app.taskStepPost.gpsPinPickerApply')}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -174,7 +179,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1a1e26',
     flex: 1,
-    paddingRight: 8,
+    paddingEnd: 8,
   },
   hint: {
     fontSize: 13,

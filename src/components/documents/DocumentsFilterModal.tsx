@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Keyboard,
   KeyboardAvoidingView,
@@ -15,6 +15,7 @@ import {
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
 import { useTranslation } from 'react-i18next';
 import type { DocumentsFilterForm } from '../../config/documentsScreen';
+import { rtlAwareInputStyle, rtlAwareTextStyle, rtlDirectionStyle, rtlRowStyle } from '../../utils/rtlLayout';
 
 type DocumentsFilterModalProps = {
   visible: boolean;
@@ -31,7 +32,11 @@ export function DocumentsFilterModal({
   onApply,
   onResetFlag,
 }: DocumentsFilterModalProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
+  const rtlInput = useMemo(() => rtlAwareInputStyle(i18n), [i18n]);
+  const rtlRow = useMemo(() => rtlRowStyle(i18n), [i18n]);
+  const rtlDirection = useMemo(() => rtlDirectionStyle(i18n), [i18n]);
   const [form, setForm] = useState<DocumentsFilterForm>(initialValues);
   const docNoRef = useRef<TextInput>(null);
   const titleRef = useRef<TextInput>(null);
@@ -78,9 +83,9 @@ export function DocumentsFilterModal({
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
-        <View style={styles.card} collapsable={false}>
-          <View style={styles.headerRow}>
-            <Text style={styles.title}>{t('app.documents.filter')}</Text>
+        <View style={[styles.card, rtlDirection]} collapsable={false}>
+          <View style={[styles.headerRow, rtlRow]}>
+            <Text style={[styles.title, rtlText]}>{t('app.documents.filter')}</Text>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <MaterialIcons name="close" size={28} color="#2a2c32" />
             </TouchableOpacity>
@@ -99,11 +104,12 @@ export function DocumentsFilterModal({
             nestedScrollEnabled
             contentContainerStyle={styles.scrollInner}
           >
-            <View style={styles.fieldRow}>
-              <Text style={styles.label}>{t('app.documentsScreen.docNo')}</Text>
+            <View style={[styles.fieldRow, rtlRow]}>
+              <Text style={[styles.label, rtlText]}>{t('app.documentsScreen.docNo')}</Text>
               <TextInput
                 ref={docNoRef}
-                style={styles.input}
+                style={[styles.input, rtlInput]}
+                textAlign={rtlInput.textAlign}
                 value={form.documentNumberStr}
                 onChangeText={(value) => setField('documentNumberStr', value)}
                 blurOnSubmit
@@ -111,11 +117,12 @@ export function DocumentsFilterModal({
               />
             </View>
 
-            <View style={styles.fieldRow}>
-              <Text style={styles.label}>{t('app.documentsScreen.docTitle')}</Text>
+            <View style={[styles.fieldRow, rtlRow]}>
+              <Text style={[styles.label, rtlText]}>{t('app.documentsScreen.docTitle')}</Text>
               <TextInput
                 ref={titleRef}
-                style={styles.input}
+                style={[styles.input, rtlInput]}
+                textAlign={rtlInput.textAlign}
                 value={form.description}
                 onChangeText={(value) => setField('description', value)}
                 blurOnSubmit
@@ -123,11 +130,12 @@ export function DocumentsFilterModal({
               />
             </View>
 
-            <View style={styles.fieldRow}>
-              <Text style={styles.label}>{t('app.documentsScreen.author')}</Text>
+            <View style={[styles.fieldRow, rtlRow]}>
+              <Text style={[styles.label, rtlText]}>{t('app.documentsScreen.author')}</Text>
               <TextInput
                 ref={authorRef}
-                style={styles.input}
+                style={[styles.input, rtlInput]}
+                textAlign={rtlInput.textAlign}
                 value={form.createdByName}
                 onChangeText={(value) => setField('createdByName', value)}
                 blurOnSubmit
@@ -138,18 +146,18 @@ export function DocumentsFilterModal({
 
           <View style={styles.footer}>
             <Pressable
-              style={({ pressed }) => [styles.resetButton, pressed && styles.resetButtonPressed]}
+              style={({ pressed }) => [styles.resetButton, rtlRow, pressed && styles.resetButtonPressed]}
               onPress={handleReset}
               hitSlop={12}
               android_ripple={{ color: 'rgba(39, 50, 78, 0.12)' }}
             >
-              <Text style={styles.resetText}>{t('app.tasksScreen.resetFilter')}</Text>
+              <Text style={[styles.resetText, rtlText]}>{t('app.tasksScreen.resetFilter')}</Text>
               <MaterialIcons name="refresh" size={18} color="#27324e" />
             </Pressable>
 
-            <View style={styles.actionsRow}>
+            <View style={[styles.actionsRow, rtlRow]}>
               <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-                <Text style={styles.cancelText}>{t('app.modal.cancel')}</Text>
+                <Text style={[styles.cancelText, rtlText]}>{t('app.modal.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.applyButton}
@@ -158,7 +166,7 @@ export function DocumentsFilterModal({
                   onApply(form);
                 }}
               >
-                <Text style={styles.applyText}>{t('app.tasksScreen.apply')}</Text>
+                <Text style={[styles.applyText, rtlText]}>{t('app.tasksScreen.apply')}</Text>
               </TouchableOpacity>
             </View>
           </View>

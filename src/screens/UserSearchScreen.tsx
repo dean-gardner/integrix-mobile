@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -15,11 +15,16 @@ import type { FoundUserDTO } from '../types/user';
 import { useTranslation } from 'react-i18next';
 import { screenStyles } from '../styles/screenStyles';
 import { theme } from '../theme';
+import { rtlAwareInputStyle, rtlAwareTextStyle, rtlDirectionStyle, rtlRowStyle } from '../utils/rtlLayout';
 
 const MIN_QUERY_LENGTH = 2;
 
 export default function UserSearchScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
+  const rtlInput = useMemo(() => rtlAwareInputStyle(i18n), [i18n]);
+  const rtlRow = useMemo(() => rtlRowStyle(i18n), [i18n]);
+  const rtlDirection = useMemo(() => rtlDirectionStyle(i18n), [i18n]);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<FoundUserDTO[]>([]);
   const [loading, setLoading] = useState(false);
@@ -61,16 +66,17 @@ export default function UserSearchScreen() {
     >
       <ScrollView
         style={screenStyles.content}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, rtlDirection]}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={screenStyles.title}>{t('app.userSearch.title')}</Text>
-        <Text style={styles.hint}>
+        <Text style={[screenStyles.title, rtlText]}>{t('app.userSearch.title')}</Text>
+        <Text style={[styles.hint, rtlText]}>
           {t('app.userSearch.hint', { min: MIN_QUERY_LENGTH })}
         </Text>
-        <View style={styles.searchRow}>
+        <View style={[styles.searchRow, rtlRow]}>
           <TextInput
-            style={styles.input}
+            style={[styles.input, rtlInput]}
+            textAlign={rtlInput.textAlign}
             value={query}
             onChangeText={(text) => {
               setQuery(text);
@@ -92,13 +98,13 @@ export default function UserSearchScreen() {
             {loading ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text style={styles.searchBtnText}>{t('app.userSearch.search')}</Text>
+              <Text style={[styles.searchBtnText, rtlText]}>{t('app.userSearch.search')}</Text>
             )}
           </TouchableOpacity>
         </View>
         {error ? (
           <View style={screenStyles.errorBox}>
-            <Text style={screenStyles.errorText}>{error}</Text>
+            <Text style={[screenStyles.errorText, rtlText]}>{error}</Text>
           </View>
         ) : null}
         {loading ? (
@@ -109,16 +115,16 @@ export default function UserSearchScreen() {
         {showResults && !loading ? (
           <View style={screenStyles.list}>
             {isEmpty ? (
-              <Text style={screenStyles.muted}>{t('app.userSearch.noResults')}</Text>
+              <Text style={[screenStyles.muted, rtlText]}>{t('app.userSearch.noResults')}</Text>
             ) : (
               results.map((u, idx) => (
                 <View key={`${u.email}-${u.userId ?? idx}`} style={screenStyles.card}>
-                  <Text style={styles.name}>{u.fullName || u.email}</Text>
+                  <Text style={[styles.name, rtlText]}>{u.fullName || u.email}</Text>
                   {u.fullName ? (
-                    <Text style={screenStyles.muted}>{u.email}</Text>
+                    <Text style={[screenStyles.muted, rtlText]}>{u.email}</Text>
                   ) : null}
                   {u.companyTeam ? (
-                    <Text style={styles.team}>
+                    <Text style={[styles.team, rtlText]}>
                       {t('app.userSearch.teamLabel', { name: u.companyTeam.name })}
                     </Text>
                   ) : null}

@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
 import { useTranslation } from 'react-i18next';
 import { DocumentsSelect } from './DocumentsSelect';
 import type { DocumentsSelectOption } from '../../config/documentsScreen';
+import { rtlAwareTextStyle, rtlDirectionStyle, rtlRowStyle } from '../../utils/rtlLayout';
 
 type DocumentsSortModalProps = {
   visible: boolean;
@@ -31,7 +32,10 @@ export function DocumentsSortModal({
   onApply,
   headerTitle,
 }: DocumentsSortModalProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
+  const rtlRow = useMemo(() => rtlRowStyle(i18n), [i18n]);
+  const rtlDirection = useMemo(() => rtlDirectionStyle(i18n), [i18n]);
   const [localField, setLocalField] = useState(sortingField);
   const [localOrder, setLocalOrder] = useState(sortingOrder);
   const [openSelect, setOpenSelect] = useState<SortSelectKey>(null);
@@ -58,16 +62,16 @@ export function DocumentsSortModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <View style={styles.card}>
-          <View style={styles.headerRow}>
-            <Text style={styles.title}>{headerTitle ?? t('app.tasks.sort')}</Text>
+        <View style={[styles.card, rtlDirection]}>
+          <View style={[styles.headerRow, rtlRow]}>
+            <Text style={[styles.title, rtlText]}>{headerTitle ?? t('app.tasks.sort')}</Text>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <MaterialIcons name="close" size={28} color="#2a2c32" />
             </TouchableOpacity>
           </View>
 
-          <View style={styles.fieldRow}>
-            <Text style={styles.label}>{t('app.tasksScreen.byField')}</Text>
+          <View style={[styles.fieldRow, rtlRow]}>
+            <Text style={[styles.label, rtlText]}>{t('app.tasksScreen.byField')}</Text>
             <DocumentsSelect
               value={localField}
               options={sortingFieldOptions}
@@ -81,8 +85,8 @@ export function DocumentsSortModal({
             />
           </View>
 
-          <View style={styles.fieldRow}>
-            <Text style={styles.label}>{t('app.tasksScreen.order')}</Text>
+          <View style={[styles.fieldRow, rtlRow]}>
+            <Text style={[styles.label, rtlText]}>{t('app.tasksScreen.order')}</Text>
             <DocumentsSelect
               value={localOrder}
               options={sortingOrderOptions}
@@ -98,7 +102,7 @@ export function DocumentsSortModal({
 
           <View style={[styles.dropdownSlot, { height: dropdownSlotHeight }]}>
             {openSelect ? (
-              <View style={styles.dropdownMenu}>
+              <View style={[styles.dropdownMenu, rtlDirection]}>
                 <ScrollView
                   style={styles.dropdownScroll}
                   nestedScrollEnabled
@@ -116,7 +120,7 @@ export function DocumentsSortModal({
                         onPress={() => onSelectOption(option)}
                         activeOpacity={0.82}
                       >
-                        <Text style={[styles.optionText, active && styles.optionTextActive]}>
+                        <Text style={[styles.optionText, rtlText, active && styles.optionTextActive]}>
                           {option.label}
                         </Text>
                       </TouchableOpacity>
@@ -127,9 +131,9 @@ export function DocumentsSortModal({
             ) : null}
           </View>
 
-          <View style={styles.actionsRow}>
+          <View style={[styles.actionsRow, rtlRow]}>
             <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-              <Text style={styles.cancelText}>{t('app.modal.cancel')}</Text>
+              <Text style={[styles.cancelText, rtlText]}>{t('app.modal.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.applyButton}
@@ -138,7 +142,7 @@ export function DocumentsSortModal({
                 onApply({ sortingField: localField, sortingOrder: localOrder });
               }}
             >
-              <Text style={styles.applyText}>{t('app.tasksScreen.apply')}</Text>
+              <Text style={[styles.applyText, rtlText]}>{t('app.tasksScreen.apply')}</Text>
             </TouchableOpacity>
           </View>
         </View>

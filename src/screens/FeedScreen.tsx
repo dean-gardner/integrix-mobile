@@ -43,6 +43,7 @@ import { Paginator } from '../components/Paginator';
 import {
   isRtlLayout,
   rtlAwareTextStyle,
+  rtlEdgePosition,
   rtlRowStyle,
 } from '../utils/rtlLayout';
 
@@ -78,6 +79,7 @@ export default function FeedScreen() {
   const isRtl = isRtlLayout(i18n);
   const rtlText = rtlAwareTextStyle(i18n);
   const rtlRow = rtlRowStyle(i18n);
+  const backToTopEdge = useMemo(() => rtlEdgePosition(i18n, 10), [i18n]);
 
   useEffect(() => {
     if (!feedState.isLoading) setLoadingMoreFeed(false);
@@ -246,9 +248,9 @@ export default function FeedScreen() {
                 <ActivityIndicator size="small" color={theme.colors.primary} />
               </View>
             ) : feedState.error ? (
-              <Text style={styles.errorText}>{feedState.error}</Text>
+              <Text style={[styles.errorText, rtlText]}>{feedState.error}</Text>
             ) : feedState.items.length === 0 ? (
-              <Text style={styles.emptyStateText}>{t('app.feed.emptyFeed')}</Text>
+              <Text style={[styles.emptyStateText, rtlText]}>{t('app.feed.emptyFeed')}</Text>
             ) : (
               <View style={styles.feedList}>
                 {feedState.items.map((item) => (
@@ -272,7 +274,7 @@ export default function FeedScreen() {
                     {loadingMoreFeed ? (
                       <ActivityIndicator size="small" color={theme.colors.primary} />
                     ) : (
-                      <Text style={styles.loadMoreText}>{t('app.feed.loadMore')}</Text>
+                      <Text style={[styles.loadMoreText, rtlText]}>{t('app.feed.loadMore')}</Text>
                     )}
                   </TouchableOpacity>
                 ) : null}
@@ -300,7 +302,7 @@ export default function FeedScreen() {
                   <ActivityIndicator size="small" color={theme.colors.primary} />
                 </View>
               ) : tasksState.items.length === 0 ? (
-                <Text style={styles.emptyStateText}>{t('app.feed.noTasksYet')}</Text>
+                <Text style={[styles.emptyStateText, rtlText]}>{t('app.feed.noTasksYet')}</Text>
               ) : (
                 <>
                   {tasksState.items.map((task) => (
@@ -330,7 +332,7 @@ export default function FeedScreen() {
 
       {showBackToTop ? (
         <TouchableOpacity
-          style={styles.backToTopButton}
+          style={[styles.backToTopButton, backToTopEdge]}
           onPress={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}
           activeOpacity={0.85}
         >

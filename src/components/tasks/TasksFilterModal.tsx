@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { DocumentsSelect } from '../documents/DocumentsSelect';
 import type { TasksFilterForm } from '../../config/tasksScreen';
 import { defaultTaskReferenceField, taskReferenceFieldOptions } from '../../config/tasksScreen';
+import { rtlAwareInputStyle, rtlAwareTextStyle, rtlDirectionStyle, rtlRowStyle } from '../../utils/rtlLayout';
 
 type TasksFilterModalProps = {
   visible: boolean;
@@ -33,7 +34,11 @@ export function TasksFilterModal({
   onApply,
   onResetFlag,
 }: TasksFilterModalProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
+  const rtlInput = useMemo(() => rtlAwareInputStyle(i18n), [i18n]);
+  const rtlRow = useMemo(() => rtlRowStyle(i18n), [i18n]);
+  const rtlDirection = useMemo(() => rtlDirectionStyle(i18n), [i18n]);
   const [form, setForm] = useState<TasksFilterForm>(initialValues);
   const [taskReferenceFieldTouched, setTaskReferenceFieldTouched] = useState(false);
   const taskNoRef = useRef<TextInput>(null);
@@ -104,9 +109,9 @@ export function TasksFilterModal({
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
-        <View style={styles.card} collapsable={false}>
-          <View style={styles.headerRow}>
-            <Text style={styles.title}>{t('app.tasks.filter')}</Text>
+        <View style={[styles.card, rtlDirection]} collapsable={false}>
+          <View style={[styles.headerRow, rtlRow]}>
+            <Text style={[styles.title, rtlText]}>{t('app.tasks.filter')}</Text>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <MaterialIcons name="close" size={28} color="#2a2c32" />
             </TouchableOpacity>
@@ -121,11 +126,12 @@ export function TasksFilterModal({
             nestedScrollEnabled
             contentContainerStyle={styles.scrollInner}
           >
-            <View style={styles.fieldRow}>
-              <Text style={styles.label}>{t('app.tasksScreen.taskNo')}</Text>
+            <View style={[styles.fieldRow, rtlRow]}>
+              <Text style={[styles.label, rtlText]}>{t('app.tasksScreen.taskNo')}</Text>
               <TextInput
                 ref={taskNoRef}
-                style={styles.input}
+                style={[styles.input, rtlInput]}
+                textAlign={rtlInput.textAlign}
                 value={form.taskNumber}
                 onChangeText={(value) => setField('taskNumber', value)}
                 blurOnSubmit
@@ -133,11 +139,12 @@ export function TasksFilterModal({
               />
             </View>
 
-            <View style={styles.fieldRow}>
-              <Text style={styles.label}>{t('app.tasksScreen.description')}</Text>
+            <View style={[styles.fieldRow, rtlRow]}>
+              <Text style={[styles.label, rtlText]}>{t('app.tasksScreen.description')}</Text>
               <TextInput
                 ref={descRef}
-                style={styles.input}
+                style={[styles.input, rtlInput]}
+                textAlign={rtlInput.textAlign}
                 value={form.description}
                 onChangeText={(value) => setField('description', value)}
                 blurOnSubmit
@@ -145,8 +152,8 @@ export function TasksFilterModal({
               />
             </View>
 
-            <View style={styles.fieldRow}>
-              <Text style={styles.label}>{t('app.tasksScreen.taskReference')}</Text>
+            <View style={[styles.fieldRow, rtlRow]}>
+              <Text style={[styles.label, rtlText]}>{t('app.tasksScreen.taskReference')}</Text>
               <DocumentsSelect
                 value={form.taskReferenceField}
                 options={taskRefOptions}
@@ -157,11 +164,12 @@ export function TasksFilterModal({
               />
             </View>
 
-            <View style={styles.fieldRow}>
-              <Text style={styles.label}>{t('app.tasksScreen.contains')}</Text>
+            <View style={[styles.fieldRow, rtlRow]}>
+              <Text style={[styles.label, rtlText]}>{t('app.tasksScreen.contains')}</Text>
               <TextInput
                 ref={refContainsRef}
-                style={styles.input}
+                style={[styles.input, rtlInput]}
+                textAlign={rtlInput.textAlign}
                 value={form.taskReference}
                 onChangeText={(value) => setField('taskReference', value)}
                 blurOnSubmit
@@ -169,11 +177,12 @@ export function TasksFilterModal({
               />
             </View>
 
-            <View style={styles.fieldRow}>
-              <Text style={styles.label}>{t('app.tasksScreen.createdBy')}</Text>
+            <View style={[styles.fieldRow, rtlRow]}>
+              <Text style={[styles.label, rtlText]}>{t('app.tasksScreen.createdBy')}</Text>
               <TextInput
                 ref={createdByRef}
-                style={styles.input}
+                style={[styles.input, rtlInput]}
+                textAlign={rtlInput.textAlign}
                 value={form.createdBy}
                 onChangeText={(value) => setField('createdBy', value)}
                 blurOnSubmit
@@ -184,18 +193,18 @@ export function TasksFilterModal({
 
           <View style={styles.footer}>
             <Pressable
-              style={({ pressed }) => [styles.resetButton, pressed && styles.resetButtonPressed]}
+              style={({ pressed }) => [styles.resetButton, rtlRow, pressed && styles.resetButtonPressed]}
               onPress={handleReset}
               hitSlop={12}
               android_ripple={{ color: 'rgba(39, 50, 78, 0.12)' }}
             >
-              <Text style={styles.resetText}>{t('app.tasksScreen.resetFilter')}</Text>
+              <Text style={[styles.resetText, rtlText]}>{t('app.tasksScreen.resetFilter')}</Text>
               <MaterialIcons name="refresh" size={18} color="#27324e" />
             </Pressable>
 
-            <View style={styles.actionsRow}>
+            <View style={[styles.actionsRow, rtlRow]}>
               <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-                <Text style={styles.cancelText}>{t('app.modal.cancel')}</Text>
+                <Text style={[styles.cancelText, rtlText]}>{t('app.modal.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.applyButton}
@@ -204,7 +213,7 @@ export function TasksFilterModal({
                   onApply(form, { taskReferenceFieldTouched });
                 }}
               >
-                <Text style={styles.applyText}>{t('app.tasksScreen.apply')}</Text>
+                <Text style={[styles.applyText, rtlText]}>{t('app.tasksScreen.apply')}</Text>
               </TouchableOpacity>
             </View>
           </View>

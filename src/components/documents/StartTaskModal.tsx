@@ -22,7 +22,13 @@ import type { TaskCreateDTO } from '../../types/task';
 import type { FoundUserDTO } from '../../types/user';
 import { theme } from '../../theme';
 import { useTranslation } from 'react-i18next';
-import { RTL_LANGUAGES } from '../../i18n';
+import {
+  isRtlLayout,
+  rtlAwareInputStyle,
+  rtlAwareTextStyle,
+  rtlDirectionStyle,
+  rtlRowStyle,
+} from '../../utils/rtlLayout';
 
 const DocumentTaskReferencing = {
   WorkOrderAndNotificationNo: 0,
@@ -162,8 +168,11 @@ export function StartTaskModal({
   onOpenAssetsPage,
 }: StartTaskModalProps) {
   const { t, i18n } = useTranslation();
-  const currentLanguage = (i18n.resolvedLanguage ?? i18n.language ?? 'en').toLowerCase();
-  const isRtl = RTL_LANGUAGES.some((code) => currentLanguage === code || currentLanguage.startsWith(`${code}-`));
+  const isRtl = useMemo(() => isRtlLayout(i18n), [i18n]);
+  const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
+  const rtlInput = useMemo(() => rtlAwareInputStyle(i18n), [i18n]);
+  const rtlRow = useMemo(() => rtlRowStyle(i18n), [i18n]);
+  const rtlDirection = useMemo(() => rtlDirectionStyle(i18n), [i18n]);
   const [workOrderNumber, setWorkOrderNumber] = useState('');
   const [notificationNumber, setNotificationNumber] = useState('');
   const [projectNumber, setProjectNumber] = useState('');
@@ -470,13 +479,13 @@ export function StartTaskModal({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <Pressable style={styles.backdropPressArea} onPress={handleBackdropClose} />
-        <View style={styles.modalCard}>
+        <View style={[styles.modalCard, rtlDirection]}>
           <ScrollView
             style={styles.scroll}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[styles.scrollContent, rtlDirection]}
             keyboardShouldPersistTaps="handled"
           >
-            <Text style={styles.title}>{t('app.startTask.title')}</Text>
+            <Text style={[styles.title, rtlText]}>{t('app.startTask.title')}</Text>
 
             {initialLoading ? (
               <View style={styles.initialLoader}>
@@ -484,30 +493,33 @@ export function StartTaskModal({
               </View>
             ) : (
               <>
-                <Text style={styles.label}>{t('app.documentCreate.docTitleStar')}</Text>
+                <Text style={[styles.label, rtlText]}>{t('app.documentCreate.docTitleStar')}</Text>
                 <TextInput
                   value={document?.description ?? ''}
                   editable={false}
-                  style={[styles.input, styles.inputDisabled]}
+                  style={[styles.input, rtlInput, styles.inputDisabled]}
+                  textAlign={rtlInput.textAlign}
                 />
 
                 {taskReferencingType === DocumentTaskReferencing.WorkOrderAndNotificationNo ? (
                   <>
-                    <Text style={styles.label}>{`${t('app.task.workOrderNumber')} *`}</Text>
+                    <Text style={[styles.label, rtlText]}>{`${t('app.task.workOrderNumber')} *`}</Text>
                     <TextInput
                       value={workOrderNumber}
                       onChangeText={(text) => { workOrderRef.current = text; setWorkOrderNumber(text); setError(null); }}
                       editable={!submitting}
-                      style={styles.input}
+                      style={[styles.input, rtlInput]}
+                      textAlign={rtlInput.textAlign}
                       placeholder=""
                     />
 
-                    <Text style={styles.label}>{`${t('app.task.notificationNumber')} *`}</Text>
+                    <Text style={[styles.label, rtlText]}>{`${t('app.task.notificationNumber')} *`}</Text>
                     <TextInput
                       value={notificationNumber}
                       onChangeText={(text) => { notificationRef.current = text; setNotificationNumber(text); setError(null); }}
                       editable={!submitting}
-                      style={styles.input}
+                      style={[styles.input, rtlInput]}
+                      textAlign={rtlInput.textAlign}
                       placeholder=""
                     />
                   </>
@@ -515,19 +527,20 @@ export function StartTaskModal({
 
                 {taskReferencingType === DocumentTaskReferencing.ProjectNo ? (
                   <>
-                    <Text style={styles.label}>{`${t('app.tasksScreen.projectNo')} *`}</Text>
+                    <Text style={[styles.label, rtlText]}>{`${t('app.tasksScreen.projectNo')} *`}</Text>
                     <TextInput
                       value={projectNumber}
                       onChangeText={(text) => { projectRef.current = text; setProjectNumber(text); setError(null); }}
                       editable={!submitting}
-                      style={styles.input}
+                      style={[styles.input, rtlInput]}
+                      textAlign={rtlInput.textAlign}
                       placeholder=""
                     />
                   </>
                 ) : null}
 
-                <Text style={styles.label}>{`${t('app.startTask.tagAsset')} *`}</Text>
-                <Text style={styles.searchLabel}>{t('app.startTask.searchAssetHint')}</Text>
+                <Text style={[styles.label, rtlText]}>{`${t('app.startTask.tagAsset')} *`}</Text>
+                <Text style={[styles.searchLabel, rtlText]}>{t('app.startTask.searchAssetHint')}</Text>
                 <TextInput
                   value={assetSearch}
                   onChangeText={(text) => {
@@ -538,7 +551,8 @@ export function StartTaskModal({
                     setError(null);
                   }}
                   editable={!submitting}
-                  style={styles.underlineInput}
+                  style={[styles.underlineInput, rtlInput]}
+                  textAlign={rtlInput.textAlign}
                   placeholder=""
                 />
                 {assetLoading ? (
@@ -548,8 +562,8 @@ export function StartTaskModal({
                 ) : null}
 
                 {selectedAsset ? (
-                  <View style={styles.selectedRow}>
-                    <Text style={styles.selectedText} numberOfLines={1}>
+                  <View style={[styles.selectedRow, rtlRow]}>
+                    <Text style={[styles.selectedText, rtlText]} numberOfLines={1}>
                       {selectedAsset.name}
                     </Text>
                     <TouchableOpacity
@@ -573,8 +587,8 @@ export function StartTaskModal({
                         onPress={() => handleSelectAsset(asset)}
                         disabled={submitting}
                       >
-                        <Text style={styles.optionTitle}>{asset.name}</Text>
-                        <Text style={styles.optionSubtitle}>
+                        <Text style={[styles.optionTitle, rtlText]}>{asset.name}</Text>
+                        <Text style={[styles.optionSubtitle, rtlText]}>
                           {t('app.startTask.assetIdLabel', { id: asset.externalId })}
                         </Text>
                       </TouchableOpacity>
@@ -583,22 +597,23 @@ export function StartTaskModal({
                 ) : null}
 
                 {hasAssets === false && !selectedAsset ? (
-                  <Text style={styles.assetsWarning}>
+                  <Text style={[styles.assetsWarning, rtlText]}>
                     {t('app.startTask.noAssetsPrefix')}{' '}
-                    <Text style={styles.assetsPageLink} onPress={onOpenAssetsPage}>
+                    <Text style={[styles.assetsPageLink, rtlText]} onPress={onOpenAssetsPage}>
                       {t('app.startTask.assetsPageLink')}
                     </Text>{' '}
                     {t('app.startTask.noAssetsSuffix')}
                   </Text>
                 ) : null}
 
-                <Text style={styles.label}>{t('app.task.usersToShare')}</Text>
+                <Text style={[styles.label, rtlText]}>{t('app.task.usersToShare')}</Text>
                 <TextInput
                   value={userSearch}
                   onChangeText={handleUserInputChange}
                   onSubmitEditing={handleUserInputSubmit}
                   editable={!submitting}
-                  style={styles.underlineInput}
+                  style={[styles.underlineInput, rtlInput]}
+                  textAlign={rtlInput.textAlign}
                   placeholder={t('app.document.shareUsersPh')}
                   placeholderTextColor="#6a6a6a"
                 />
@@ -617,9 +632,9 @@ export function StartTaskModal({
                         onPress={() => addOption(option)}
                         disabled={submitting}
                       >
-                        <Text style={styles.optionTitle}>{option.title}</Text>
+                        <Text style={[styles.optionTitle, rtlText]}>{option.title}</Text>
                         {option.subtitle ? (
-                          <Text style={styles.optionSubtitle} numberOfLines={1}>
+                          <Text style={[styles.optionSubtitle, rtlText]} numberOfLines={1}>
                             {option.subtitle}
                           </Text>
                         ) : null}
@@ -629,10 +644,10 @@ export function StartTaskModal({
                 ) : null}
 
                 {selectedUsers.length > 0 ? (
-                  <View style={styles.selectedUsersWrap}>
+                  <View style={[styles.selectedUsersWrap, rtlRow]}>
                     {selectedUsers.map((option) => (
-                      <View key={option.key} style={styles.userChip}>
-                        <Text style={styles.userChipText} numberOfLines={1}>
+                      <View key={option.key} style={[styles.userChip, rtlRow]}>
+                        <Text style={[styles.userChipText, rtlText]} numberOfLines={1}>
                           {option.title}
                         </Text>
                         <TouchableOpacity
@@ -650,18 +665,18 @@ export function StartTaskModal({
                   </View>
                 ) : null}
 
-                {error ? <Text style={[styles.errorText, isRtl && styles.errorTextRtl]}>{error}</Text> : null}
+                {error ? <Text style={[styles.errorText, rtlText, isRtl && styles.errorTextRtl]}>{error}</Text> : null}
               </>
             )}
           </ScrollView>
 
-          <View style={styles.footerActions}>
+          <View style={[styles.footerActions, rtlRow]}>
             <TouchableOpacity
               style={[styles.footerButton, styles.cancelButton]}
               onPress={handleBackdropClose}
               disabled={submitting}
             >
-              <Text style={styles.cancelButtonText}>{t('app.modal.cancel')}</Text>
+              <Text style={[styles.cancelButtonText, rtlText]}>{t('app.modal.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.footerButton, styles.startButton, submitting && styles.disabledButton]}
@@ -671,7 +686,7 @@ export function StartTaskModal({
               {submitting ? (
                 <ActivityIndicator size="small" color="#ffffff" />
               ) : (
-                <Text style={styles.startButtonText}>{t('app.startTask.start')}</Text>
+                <Text style={[styles.startButtonText, rtlText]}>{t('app.startTask.start')}</Text>
               )}
             </TouchableOpacity>
           </View>

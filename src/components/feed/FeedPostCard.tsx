@@ -12,6 +12,7 @@ import { MaterialIcons } from '@react-native-vector-icons/material-icons';
 import { useTranslation } from 'react-i18next';
 import { config } from '../../config';
 import type { FeedFieldValueDTO, FeedFileDTO, FeedItemDTO } from '../../types/feed';
+import { isRtlLayout, rtlAwareTextStyle, rtlDirectionStyle, rtlRowStyle } from '../../utils/rtlLayout';
 
 const COLLAPSED_CONTENT_HEIGHT = 200;
 const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic', 'heif']);
@@ -148,6 +149,10 @@ type FeedPostCardProps = {
 
 export function FeedPostCard({ post, userCompanyId, onOpenTask }: FeedPostCardProps) {
   const { t, i18n } = useTranslation();
+  const isRtl = useMemo(() => isRtlLayout(i18n), [i18n]);
+  const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
+  const rtlRow = useMemo(() => rtlRowStyle(i18n), [i18n]);
+  const rtlDirection = useMemo(() => rtlDirectionStyle(i18n), [i18n]);
   const [expanded, setExpanded] = useState(false);
   const [measuredHeight, setMeasuredHeight] = useState(0);
 
@@ -193,11 +198,12 @@ export function FeedPostCard({ post, userCompanyId, onOpenTask }: FeedPostCardPr
   };
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, rtlDirection]}>
       <View style={styles.statusRow}>
         <View
           style={[
             styles.statusPill,
+            rtlRow,
             isDefect
               ? styles.statusPillDefect
               : isStepCompletion
@@ -218,6 +224,7 @@ export function FeedPostCard({ post, userCompanyId, onOpenTask }: FeedPostCardPr
           <Text
             style={[
               styles.statusText,
+              rtlText,
               isDefect
                 ? styles.statusTextDefect
                 : isStepCompletion
@@ -234,15 +241,15 @@ export function FeedPostCard({ post, userCompanyId, onOpenTask }: FeedPostCardPr
         </View>
       </View>
 
-      <View style={styles.authorRow}>
-        <View style={styles.authorMeta}>
+      <View style={[styles.authorRow, rtlRow]}>
+        <View style={[styles.authorMeta, rtlRow]}>
           <MaterialIcons name="account-circle" size={26} color="#b9bdc7" />
-          <View style={styles.authorTextWrap}>
-            <Text style={styles.authorLine} numberOfLines={1}>
+          <View style={[styles.authorTextWrap, rtlRow]}>
+            <Text style={[styles.authorLine, rtlText]} numberOfLines={1}>
               {authorDisplayName}
             </Text>
             {post.createdOnUtc ? (
-              <Text style={styles.timeLine} numberOfLines={1}>
+              <Text style={[styles.timeLine, rtlText]} numberOfLines={1}>
                 {formatTimeDifference(post.createdOnUtc, i18n.language)}
               </Text>
             ) : null}
@@ -255,46 +262,51 @@ export function FeedPostCard({ post, userCompanyId, onOpenTask }: FeedPostCardPr
             onPress={() => onOpenTask(post)}
             activeOpacity={0.85}
           >
-            <Text style={styles.openTaskButtonText}>{t('app.feed.openTask')}</Text>
+            <Text style={[styles.openTaskButtonText, rtlText]}>{t('app.feed.openTask')}</Text>
           </TouchableOpacity>
         ) : null}
       </View>
 
       {(post.taskTitle || post.taskStepDescription) ? (
-        <View style={styles.taskBreadcrumb}>
+        <View style={[styles.taskBreadcrumb, rtlRow]}>
           {post.taskTitle ? (
-            <Text style={styles.taskLine} numberOfLines={1}>
-              <Text style={styles.taskLineLabel}>{t('app.feed.taskLabel')}</Text>
-              <Text style={styles.taskLineValue}>{taskTitle}</Text>
+            <Text style={[styles.taskLine, rtlText]} numberOfLines={1}>
+              <Text style={[styles.taskLineLabel, rtlText]}>{t('app.feed.taskLabel')}</Text>
+              <Text style={[styles.taskLineValue, rtlText]}>{taskTitle}</Text>
             </Text>
           ) : null}
           {post.taskTitle && post.taskStepDescription ? (
-            <MaterialIcons name="chevron-right" size={16} color="#707887" style={styles.taskLineChevron} />
+            <MaterialIcons
+              name={isRtl ? 'chevron-left' : 'chevron-right'}
+              size={16}
+              color="#707887"
+              style={styles.taskLineChevron}
+            />
           ) : null}
           {post.taskStepDescription ? (
-            <Text style={styles.taskLine} numberOfLines={1}>
-              <Text style={styles.taskLineLabel}>{t('app.feed.stepLabel')}</Text>
-              <Text style={styles.taskLineValue}>{stepTitle}</Text>
+            <Text style={[styles.taskLine, rtlText]} numberOfLines={1}>
+              <Text style={[styles.taskLineLabel, rtlText]}>{t('app.feed.stepLabel')}</Text>
+              <Text style={[styles.taskLineValue, rtlText]}>{stepTitle}</Text>
             </Text>
           ) : null}
         </View>
       ) : null}
 
       {references.length > 0 || post.assetName ? (
-        <Text style={styles.referenceLine} numberOfLines={2}>
+        <Text style={[styles.referenceLine, rtlText]} numberOfLines={2}>
           {references.length > 0 ? (
             <>
-              <Text style={styles.referenceLabel}>{references[0].label}</Text>
-              <Text style={styles.referenceValue}>{references[0].value}</Text>
+              <Text style={[styles.referenceLabel, rtlText]}>{references[0].label}</Text>
+              <Text style={[styles.referenceValue, rtlText]}>{references[0].value}</Text>
               {references.slice(1).map((item, index) => (
-                <Text key={`ref-${index}`} style={styles.referenceValue}>
+                <Text key={`ref-${index}`} style={[styles.referenceValue, rtlText]}>
                   {`  •  ${item.label}${item.value}`}
                 </Text>
               ))}
             </>
           ) : null}
           {post.assetName ? (
-            <Text style={styles.referenceValue}>
+            <Text style={[styles.referenceValue, rtlText]}>
               {`${references.length > 0 ? '  •  ' : ''}${toReadableText(post.assetName)}`}
             </Text>
           ) : null}
@@ -316,23 +328,23 @@ export function FeedPostCard({ post, userCompanyId, onOpenTask }: FeedPostCardPr
               .filter((fieldValue) => fieldValue.type !== 3)
               .map((fieldValue: FeedFieldValueDTO, index) => (
                 <View key={fieldValue.id ?? `${fieldValue.name ?? 'field'}-${index}`} style={styles.fieldBlock}>
-                  <Text style={styles.fieldLabel}>{toReadableText(fieldValue.name)}</Text>
-                  <Text style={styles.fieldValue}>{toReadableText(fieldValue.value)}</Text>
+                  <Text style={[styles.fieldLabel, rtlText]}>{toReadableText(fieldValue.name)}</Text>
+                  <Text style={[styles.fieldValue, rtlText]}>{toReadableText(fieldValue.value)}</Text>
                 </View>
               ))
           ) : (
-            <Text style={styles.descriptionText}>{detailsDescription}</Text>
+            <Text style={[styles.descriptionText, rtlText]}>{detailsDescription}</Text>
           )}
 
           {isDefect ? (
             <View style={styles.fieldBlock}>
-              <Text style={styles.fieldLabel}>{t('app.feed.remediationDetails')}</Text>
-              <Text style={styles.fieldValue}>{remediationDetails}</Text>
+              <Text style={[styles.fieldLabel, rtlText]}>{t('app.feed.remediationDetails')}</Text>
+              <Text style={[styles.fieldValue, rtlText]}>{remediationDetails}</Text>
             </View>
           ) : null}
 
           {visibleFiles.length > 0 ? (
-            <View style={styles.filesGrid}>
+            <View style={[styles.filesGrid, rtlRow]}>
               {visibleFiles.map((file, index) => {
                 const previewUrl = resolvePreviewUrl(file);
                 const extension = getFileExtension(file);
@@ -355,7 +367,7 @@ export function FeedPostCard({ post, userCompanyId, onOpenTask }: FeedPostCardPr
                           size={72}
                           color={extension === 'pdf' ? '#e53935' : '#6d7891'}
                         />
-                        <Text style={styles.fileFallbackText}>
+                        <Text style={[styles.fileFallbackText, rtlText]}>
                           {(extension || 'FILE').toUpperCase()}
                         </Text>
                       </View>

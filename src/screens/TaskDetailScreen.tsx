@@ -82,6 +82,13 @@ import type { FinaliseTaskDTO } from '../types/finaliseTask';
 import { isSignatureRequiredOnTaskCompletion } from '../utils/taskCompletionRequirements';
 import { translateKnownDocumentSectionTitle } from '../utils/systemDisplayText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  rtlAwareInputStyle,
+  rtlAwareTextStyle,
+  rtlDirectionStyle,
+  rtlEdgePosition,
+  rtlRowStyle,
+} from '../utils/rtlLayout';
 
 type TaskDetailParams = { task: TaskReadDTO; taskStepId?: string | null; scrollToSteps?: boolean };
 
@@ -249,8 +256,13 @@ async function warmUrl(url: string, token: string | null): Promise<void> {
 }
 
 export default function TaskDetailScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const safeAreaInsets = useSafeAreaInsets();
+  const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
+  const rtlInput = useMemo(() => rtlAwareInputStyle(i18n), [i18n]);
+  const rtlRow = useMemo(() => rtlRowStyle(i18n), [i18n]);
+  const rtlDirection = useMemo(() => rtlDirectionStyle(i18n), [i18n]);
+  const backToTopEdge = useMemo(() => rtlEdgePosition(i18n, 22), [i18n]);
   const route = useRoute<RouteProp<{ params: TaskDetailParams }, 'params'>>();
   const navigation = useNavigation();
   const dispatch = useDispatch<AppDispatch>();
@@ -1143,7 +1155,7 @@ export default function TaskDetailScreen() {
         <ScrollView
           ref={scrollRef}
           style={styles.container}
-          contentContainerStyle={[styles.content, { paddingBottom: bottomScrollPadding }]}
+          contentContainerStyle={[styles.content, rtlDirection, { paddingBottom: bottomScrollPadding }]}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           automaticallyAdjustKeyboardInsets={false}
@@ -1178,7 +1190,7 @@ export default function TaskDetailScreen() {
       </View>
 
       <View
-        style={styles.panel}
+        style={[styles.panel, rtlDirection]}
         onLayout={(e) => {
           setPanelOffsetY(e.nativeEvent.layout.y);
         }}
@@ -1186,16 +1198,16 @@ export default function TaskDetailScreen() {
         <View style={styles.infoPanel}>
           {showTaskDocumentMeta ? (
             <>
-              <Text style={styles.infoText}>
+              <Text style={[styles.infoText, rtlText]}>
                 {t('app.task.documentTitle')}: {documentTitleDisplay}
               </Text>
-              <Text style={styles.infoText}>
+              <Text style={[styles.infoText, rtlText]}>
                 {t('app.task.documentNumber')}: {documentNumberDisplay}
               </Text>
             </>
           ) : null}
-          <View style={styles.infoRow}>
-            <Text style={styles.infoText}>
+          <View style={[styles.infoRow, rtlRow]}>
+            <Text style={[styles.infoText, rtlText]}>
               {t('app.task.workOrderNumber')}:{' '}
               {task.workOrderNumber != null && String(task.workOrderNumber).trim() !== ''
                 ? String(task.workOrderNumber)
@@ -1205,8 +1217,8 @@ export default function TaskDetailScreen() {
               <MaterialIcons name="edit" size={20} color="#6e7280" />
             </TouchableOpacity>
           </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoText}>
+          <View style={[styles.infoRow, rtlRow]}>
+            <Text style={[styles.infoText, rtlText]}>
               {t('app.task.notificationNumber')}:{' '}
               {task.notificationNumber != null && String(task.notificationNumber).trim() !== ''
                 ? String(task.notificationNumber)
@@ -1216,8 +1228,8 @@ export default function TaskDetailScreen() {
               <MaterialIcons name="edit" size={20} color="#6e7280" />
             </TouchableOpacity>
           </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoText}>
+          <View style={[styles.infoRow, rtlRow]}>
+            <Text style={[styles.infoText, rtlText]}>
               {t('app.task.asset')}: {task.asset?.name ?? '-'}
             </Text>
             <TouchableOpacity onPress={openEdit} disabled={isActionLoading}>
@@ -1225,8 +1237,8 @@ export default function TaskDetailScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.statusRow}>
-            <Text style={styles.infoText}>
+          <View style={[styles.statusRow, rtlRow]}>
+            <Text style={[styles.infoText, rtlText]}>
               {t('app.task.statusLabel')}: {taskStatusLabel}
             </Text>
             <TouchableOpacity
@@ -1237,28 +1249,28 @@ export default function TaskDetailScreen() {
               onPress={handleTaskStatusAction}
               disabled={statusAction.nextStatus == null || !canChangeStatus || isActionLoading}
             >
-              <Text style={styles.statusButtonText}>{statusAction.alertTitle}</Text>
+              <Text style={[styles.statusButtonText, rtlText]}>{statusAction.alertTitle}</Text>
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.infoText}>
+          <Text style={[styles.infoText, rtlText]}>
             {t('app.task.startDate')}: {formatDateTime(task.createdOnUtc)}
           </Text>
-          <Text style={styles.infoText}>
+          <Text style={[styles.infoText, rtlText]}>
             {t('app.task.elapsed')}: {getElapsedTime(task.createdOnUtc, t)}
           </Text>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>{t('app.task.attachments')}:</Text>
+          <Text style={[styles.cardTitle, rtlText]}>{t('app.task.attachments')}:</Text>
           {attachmentFiles.length === 0 ? (
-            <Text style={styles.mutedText}>{t('app.task.noAttachments')}</Text>
+            <Text style={[styles.mutedText, rtlText]}>{t('app.task.noAttachments')}</Text>
           ) : (
             <ScrollView horizontal showsHorizontalScrollIndicator>
               {attachmentFiles.map((file, index) => (
                 <TouchableOpacity
                   key={`${file.url ?? file.name ?? 'file'}-${index}`}
-                  style={styles.attachmentChip}
+                  style={[styles.attachmentChip, rtlRow]}
                   onPress={() => {
                     if (typeof file.url === 'string') {
                       Linking.openURL(file.url).catch(() => {});
@@ -1266,7 +1278,7 @@ export default function TaskDetailScreen() {
                   }}
                 >
                   <MaterialIcons name="description" size={18} color="#666f81" />
-                  <Text style={styles.attachmentText} numberOfLines={1}>
+                  <Text style={[styles.attachmentText, rtlText]} numberOfLines={1}>
                     {file.name ?? t('app.taskDetail.attachmentFallback')}
                   </Text>
                 </TouchableOpacity>
@@ -1289,7 +1301,7 @@ export default function TaskDetailScreen() {
           >
             <View
               collapsable={false}
-              style={styles.shareRow}
+              style={[styles.shareRow, rtlRow]}
               onLayout={(event) => {
                 shareInputLayoutRef.current = {
                   y: event.nativeEvent.layout.y,
@@ -1298,7 +1310,8 @@ export default function TaskDetailScreen() {
               }}
             >
               <TextInput
-                style={styles.shareInput}
+                style={[styles.shareInput, rtlInput]}
+                textAlign={rtlInput.textAlign}
                 value={shareQuery}
                 onChangeText={setShareQuery}
                 onSubmitEditing={handleSharePress}
@@ -1318,7 +1331,7 @@ export default function TaskDetailScreen() {
                 placeholderTextColor="#7e7e85"
               />
               <TouchableOpacity style={styles.shareButton} onPress={handleSharePress}>
-                <Text style={styles.shareButtonText}>{t('app.task.shareBtn')}</Text>
+                <Text style={[styles.shareButtonText, rtlText]}>{t('app.task.shareBtn')}</Text>
               </TouchableOpacity>
             </View>
             {shareSearchLoading ? (
@@ -1344,11 +1357,11 @@ export default function TaskDetailScreen() {
                       }}
                       activeOpacity={0.7}
                     >
-                      <Text style={styles.shareSearchResultName}>
+                      <Text style={[styles.shareSearchResultName, rtlText]}>
                         {user.fullName || user.email}
                       </Text>
                       {user.fullName ? (
-                        <Text style={styles.shareSearchResultEmail}>{user.email}</Text>
+                        <Text style={[styles.shareSearchResultEmail, rtlText]}>{user.email}</Text>
                       ) : null}
                     </TouchableOpacity>
                   ))}
@@ -1357,15 +1370,15 @@ export default function TaskDetailScreen() {
             ) : null}
           </View>
 
-          <Text style={styles.sharedWithTitle}>{t('app.task.sharedWith')}</Text>
+          <Text style={[styles.sharedWithTitle, rtlText]}>{t('app.task.sharedWith')}</Text>
           {sharedUsers.length === 0 ? (
-            <Text style={styles.mutedText}>{t('app.task.noUsersYet')}</Text>
+            <Text style={[styles.mutedText, rtlText]}>{t('app.task.noUsersYet')}</Text>
           ) : (
             sharedUsers.map((user, index) => (
-              <View key={`${user.userId ?? user.email}-${index}`} style={styles.sharedUserRow}>
+              <View key={`${user.userId ?? user.email}-${index}`} style={[styles.sharedUserRow, rtlRow]}>
                 <View style={styles.sharedUserTexts}>
-                  <Text style={styles.sharedUserName}>{user.fullName || user.email}</Text>
-                  {user.fullName ? <Text style={styles.sharedUserEmail}>{user.email}</Text> : null}
+                  <Text style={[styles.sharedUserName, rtlText]}>{user.fullName || user.email}</Text>
+                  {user.fullName ? <Text style={[styles.sharedUserEmail, rtlText]}>{user.email}</Text> : null}
                 </View>
                 <TouchableOpacity
                   style={[styles.removeUserButton, (!canChangeStatus || isActionLoading) && styles.buttonDisabled]}
@@ -1386,7 +1399,7 @@ export default function TaskDetailScreen() {
           }}
         >
           <View style={styles.taskStepsTab}>
-            <Text style={styles.taskStepsTabText}>{t('app.task.taskSteps')}</Text>
+            <Text style={[styles.taskStepsTabText, rtlText]}>{t('app.task.taskSteps')}</Text>
           </View>
 
           {/* Only swap steps for a full-screen loader on *initial* load. Refreshing the task
@@ -1397,7 +1410,7 @@ export default function TaskDetailScreen() {
               <ActivityIndicator size="small" color={theme.colors.primary} />
             </View>
           ) : sections.length === 0 ? (
-            <Text style={styles.mutedText}>{t('app.task.noSteps')}</Text>
+            <Text style={[styles.mutedText, rtlText]}>{t('app.task.noSteps')}</Text>
           ) : (
             <>
               {sections.map((section, sectionIndex) => {
@@ -1416,7 +1429,7 @@ export default function TaskDetailScreen() {
                         setExpandedSectionId((prev) => (prev === section.id ? null : section.id));
                       }}
                     >
-                      <Text style={styles.sectionHeaderText}>
+                      <Text style={[styles.sectionHeaderText, rtlText]}>
                         {sectionIndex + 1}.{' '}
                         {translateKnownDocumentSectionTitle(section.sectionTitle, t)}
                       </Text>
@@ -1455,21 +1468,25 @@ export default function TaskDetailScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.finaliseButton, (!canFinalise || isActionLoading) && styles.finaliseButtonDisabled]}
+          style={[
+            styles.finaliseButton,
+            rtlDirection && styles.finaliseButtonRtl,
+            (!canFinalise || isActionLoading) && styles.finaliseButtonDisabled,
+          ]}
           onPress={handleFinaliseTask}
           disabled={!canFinalise || isActionLoading}
         >
-          <Text style={styles.finaliseButtonText}>{t('app.task.finalise')}</Text>
+          <Text style={[styles.finaliseButtonText, rtlText]}>{t('app.task.finalise')}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.footerRow}>
-        <Text style={styles.footerText}>{t('app.common.copyright')}</Text>
+        <Text style={[styles.footerText, rtlText]}>{t('app.common.copyright')}</Text>
       </View>
         </ScrollView>
       </KeyboardAvoidingView>
       <TouchableOpacity
-        style={[styles.backToTopButton, { bottom: backToTopBottomOffset }]}
+        style={[styles.backToTopButton, backToTopEdge, { bottom: backToTopBottomOffset }]}
         onPress={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}
       >
         <MaterialIcons name="keyboard-double-arrow-up" size={30} color="#ffffff" />
@@ -1483,10 +1500,10 @@ export default function TaskDetailScreen() {
         onRequestClose={closeDoneConfirmationModal}
       >
         <View style={styles.doneConfirmBackdrop}>
-          <View style={styles.doneConfirmCard}>
-            <View style={styles.doneConfirmHeaderRow}>
+          <View style={[styles.doneConfirmCard, rtlDirection]}>
+            <View style={[styles.doneConfirmHeaderRow, rtlRow]}>
               <Text
-                style={styles.doneConfirmTitle}
+                style={[styles.doneConfirmTitle, rtlText]}
                 maxFontSizeMultiplier={1.2}
                 accessibilityRole="header"
               >
@@ -1501,14 +1518,15 @@ export default function TaskDetailScreen() {
                 <MaterialIcons name="close" size={22} color="#2f3444" />
               </TouchableOpacity>
             </View>
-            <Text style={styles.doneConfirmSubtitle} maxFontSizeMultiplier={1.3}>
+            <Text style={[styles.doneConfirmSubtitle, rtlText]} maxFontSizeMultiplier={1.3}>
               {t('app.task.photoConfirmHint')}
             </Text>
 
-            <Text style={styles.doneConfirmLabel}>{t('app.task.description')}</Text>
+            <Text style={[styles.doneConfirmLabel, rtlText]}>{t('app.task.description')}</Text>
             <View style={styles.doneConfirmInputWrap}>
               <TextInput
-                style={styles.doneConfirmInput}
+                style={[styles.doneConfirmInput, rtlInput]}
+                textAlign={rtlInput.textAlign}
                 value={doneConfirmDescription}
                 onChangeText={setDoneConfirmDescription}
                 multiline
@@ -1519,7 +1537,7 @@ export default function TaskDetailScreen() {
               />
               {doneConfirmDescription.trim() ? (
                 <TouchableOpacity
-                  style={styles.doneConfirmClear}
+                  style={[styles.doneConfirmClear, rtlEdgePosition(i18n, 8)]}
                   onPress={() => setDoneConfirmDescription('')}
                   disabled={doneConfirmSubmitting}
                 >
@@ -1542,7 +1560,7 @@ export default function TaskDetailScreen() {
                   <View key={`${file.uri}-${file.name}`} style={styles.doneConfirmFileThumbWrap}>
                     <Image source={{ uri: file.uri }} style={styles.doneConfirmFileThumb} />
                     <TouchableOpacity
-                      style={styles.doneConfirmFileRemove}
+                      style={[styles.doneConfirmFileRemove, rtlEdgePosition(i18n, 4)]}
                       onPress={() =>
                         setDoneConfirmFiles((prev) =>
                           prev.filter((entry) => !(entry.uri === file.uri && entry.name === file.name))
@@ -1557,14 +1575,14 @@ export default function TaskDetailScreen() {
               </ScrollView>
             ) : null}
 
-            {doneConfirmError ? <Text style={styles.doneConfirmError}>* {doneConfirmError}</Text> : null}
+            {doneConfirmError ? <Text style={[styles.doneConfirmError, rtlText]}>* {doneConfirmError}</Text> : null}
 
             <TouchableOpacity
               style={styles.doneConfirmCancelBtn}
               onPress={closeDoneConfirmationModal}
               disabled={doneConfirmSubmitting}
             >
-              <Text style={styles.doneConfirmCancelText}>{t('app.modal.cancel')}</Text>
+              <Text style={[styles.doneConfirmCancelText, rtlText]}>{t('app.modal.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.doneConfirmSubmitBtn, doneConfirmSubmitting && styles.buttonDisabled]}
@@ -1576,7 +1594,7 @@ export default function TaskDetailScreen() {
               {doneConfirmSubmitting ? (
                 <ActivityIndicator size="small" color="#ffffff" />
               ) : (
-                <Text style={styles.doneConfirmSubmitText}>{t('app.task.markDone')}</Text>
+                <Text style={[styles.doneConfirmSubmitText, rtlText]}>{t('app.task.markDone')}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -1613,50 +1631,54 @@ export default function TaskDetailScreen() {
 
       <Modal visible={editVisible} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
-          <View style={styles.editModalCard}>
-            <Text style={styles.modalTitle}>{t('app.task.editTask')}</Text>
+          <View style={[styles.editModalCard, rtlDirection]}>
+            <Text style={[styles.modalTitle, rtlText]}>{t('app.task.editTask')}</Text>
             <View style={styles.editModalBody}>
               <ScrollView
                 style={styles.editModalScroll}
-                contentContainerStyle={styles.editModalScrollContent}
+                contentContainerStyle={[styles.editModalScrollContent, rtlDirection]}
                 keyboardShouldPersistTaps="always"
                 showsVerticalScrollIndicator
               >
               {editError ? (
                 <View style={screenStyles.errorBox}>
-                  <Text style={screenStyles.errorText}>{editError}</Text>
+                  <Text style={[screenStyles.errorText, rtlText]}>{editError}</Text>
                 </View>
               ) : null}
-              <Text style={screenStyles.formLabel}>{t('app.task.workOrder')}</Text>
+              <Text style={[screenStyles.formLabel, rtlText]}>{t('app.task.workOrder')}</Text>
               <TextInput
-                style={screenStyles.formInput}
+                style={[screenStyles.formInput, rtlInput]}
+                textAlign={rtlInput.textAlign}
                 value={workOrderNumber}
                 onChangeText={setWorkOrderNumber}
                 placeholder={t('app.tasksScreen.workOrderNumberPh')}
                 placeholderTextColor="#6c757d"
                 editable={!isActionLoading}
               />
-              <Text style={screenStyles.formLabel}>{t('app.task.notification')}</Text>
+              <Text style={[screenStyles.formLabel, rtlText]}>{t('app.task.notification')}</Text>
               <TextInput
-                style={screenStyles.formInput}
+                style={[screenStyles.formInput, rtlInput]}
+                textAlign={rtlInput.textAlign}
                 value={notificationNumber}
                 onChangeText={setNotificationNumber}
                 placeholder={t('app.tasksScreen.notificationNumberPh')}
                 placeholderTextColor="#6c757d"
                 editable={!isActionLoading}
               />
-              <Text style={screenStyles.formLabel}>{t('app.task.project')}</Text>
+              <Text style={[screenStyles.formLabel, rtlText]}>{t('app.task.project')}</Text>
               <TextInput
-                style={screenStyles.formInput}
+                style={[screenStyles.formInput, rtlInput]}
+                textAlign={rtlInput.textAlign}
                 value={projectNumber}
                 onChangeText={setProjectNumber}
                 placeholder={t('app.tasksScreen.projectNumberPh')}
                 placeholderTextColor="#6c757d"
                 editable={!isActionLoading}
               />
-              <Text style={screenStyles.formLabel}>{t('app.task.assetId')}</Text>
+              <Text style={[screenStyles.formLabel, rtlText]}>{t('app.task.assetId')}</Text>
               <TextInput
-                style={screenStyles.formInput}
+                style={[screenStyles.formInput, rtlInput]}
+                textAlign={rtlInput.textAlign}
                 value={assetId}
                 onChangeText={setAssetId}
                 placeholder={t('app.task.assetId')}
@@ -1666,13 +1688,13 @@ export default function TaskDetailScreen() {
               />
               </ScrollView>
             </View>
-            <View style={styles.modalActions}>
+            <View style={[styles.modalActions, rtlRow]}>
               <TouchableOpacity
                 style={styles.modalCancelBtn}
                 onPress={() => setEditVisible(false)}
                 disabled={isActionLoading}
               >
-                <Text style={styles.modalCancelBtnText}>{t('app.modal.cancel')}</Text>
+                <Text style={[styles.modalCancelBtnText, rtlText]}>{t('app.modal.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
@@ -1687,7 +1709,7 @@ export default function TaskDetailScreen() {
                 {isActionLoading ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={screenStyles.formButtonText}>{t('app.common.save')}</Text>
+                  <Text style={[screenStyles.formButtonText, rtlText]}>{t('app.common.save')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -1807,7 +1829,7 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     backgroundColor: '#e6e7ec',
     paddingHorizontal: 10,
-    marginRight: 8,
+    marginEnd: 8,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -1908,7 +1930,7 @@ const styles = StyleSheet.create({
   },
   sharedUserTexts: {
     flex: 1,
-    paddingRight: 8,
+    paddingEnd: 8,
   },
   sharedUserName: {
     color: '#14151c',
@@ -1982,6 +2004,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  finaliseButtonRtl: {
+    alignSelf: 'flex-end',
+  },
   finaliseButtonDisabled: {
     opacity: 0.55,
   },
@@ -2041,7 +2066,7 @@ const styles = StyleSheet.create({
   },
   doneConfirmCloseBtn: {
     marginTop: 2,
-    marginLeft: 8,
+    marginStart: 8,
   },
   doneConfirmTitle: {
     color: theme.colors.text,
@@ -2101,7 +2126,7 @@ const styles = StyleSheet.create({
     width: 82,
     height: 82,
     borderRadius: 6,
-    marginRight: 8,
+    marginEnd: 8,
     overflow: 'hidden',
     position: 'relative',
   },

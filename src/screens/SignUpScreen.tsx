@@ -17,6 +17,7 @@ import { apiSignUp } from '../api/auth';
 import { theme } from '../theme';
 import {
   isRtlLayout,
+  rtlAwareInputStyle,
   rtlAwareTextStyle,
 } from '../utils/rtlLayout';
 
@@ -33,6 +34,7 @@ export default function SignUpScreen() {
   const navigation = useNavigation();
   const isRtl = isRtlLayout(i18n);
   const rtlText = rtlAwareTextStyle(i18n);
+  const rtlInput = rtlAwareInputStyle(i18n);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [position, setPosition] = useState('');
@@ -97,7 +99,8 @@ export default function SignUpScreen() {
 
           <Text style={[styles.label, rtlText]}>{t('app.signUp.firstNamePh')}</Text>
           <TextInput
-            style={[styles.input, rtlText]}
+            style={[styles.input, rtlInput]}
+            textAlign={rtlInput.textAlign}
             value={firstName}
             onChangeText={setFirstName}
             placeholder={t('app.signUp.firstNamePh')}
@@ -107,7 +110,8 @@ export default function SignUpScreen() {
 
           <Text style={[styles.label, rtlText]}>{t('app.signUp.lastNamePh')}</Text>
           <TextInput
-            style={[styles.input, rtlText]}
+            style={[styles.input, rtlInput]}
+            textAlign={rtlInput.textAlign}
             value={lastName}
             onChangeText={setLastName}
             placeholder={t('app.signUp.lastNamePh')}
@@ -117,7 +121,8 @@ export default function SignUpScreen() {
 
           <Text style={[styles.label, rtlText]}>{t('app.signUp.position')}</Text>
           <TextInput
-            style={[styles.input, rtlText]}
+            style={[styles.input, rtlInput]}
+            textAlign={rtlInput.textAlign}
             value={position}
             onChangeText={setPosition}
             placeholder={t('app.signUp.positionPh')}
@@ -127,7 +132,8 @@ export default function SignUpScreen() {
 
           <Text style={[styles.label, rtlText]}>{t('app.signUp.companyPh')}</Text>
           <TextInput
-            style={[styles.input, rtlText]}
+            style={[styles.input, rtlInput]}
+            textAlign={rtlInput.textAlign}
             value={companyName}
             onChangeText={setCompanyName}
             placeholder={t('app.signUp.companyPh')}
@@ -137,7 +143,8 @@ export default function SignUpScreen() {
 
           <Text style={[styles.label, rtlText]}>{t('app.signUp.phone')}</Text>
           <TextInput
-            style={[styles.input, rtlText]}
+            style={[styles.input, rtlInput]}
+            textAlign={rtlInput.textAlign}
             value={phone}
             onChangeText={setPhone}
             placeholder={t('app.signUp.phonePh')}
@@ -148,7 +155,8 @@ export default function SignUpScreen() {
 
           <Text style={[styles.label, rtlText]}>{t('app.signUp.emailPh')}</Text>
           <TextInput
-            style={[styles.input, rtlText]}
+            style={[styles.input, rtlInput]}
+            textAlign={rtlInput.textAlign}
             value={email}
             onChangeText={setEmail}
             placeholder={t('app.signUp.emailPh')}
@@ -160,7 +168,8 @@ export default function SignUpScreen() {
 
           <Text style={[styles.label, rtlText]}>{t('app.signUp.passwordPh')}</Text>
           <TextInput
-            style={[styles.input, rtlText]}
+            style={[styles.input, rtlInput]}
+            textAlign={rtlInput.textAlign}
             value={password}
             onChangeText={setPassword}
             placeholder={t('app.signUp.passwordPh')}
@@ -171,7 +180,8 @@ export default function SignUpScreen() {
 
           <Text style={[styles.label, rtlText]}>{t('app.signUp.repeatPassword')}</Text>
           <TextInput
-            style={[styles.input, rtlText]}
+            style={[styles.input, rtlInput]}
+            textAlign={rtlInput.textAlign}
             value={repeatPassword}
             onChangeText={setRepeatPassword}
             placeholder={t('app.signUp.repeatPasswordPh')}
@@ -188,7 +198,7 @@ export default function SignUpScreen() {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>{t('app.signUp.submit')}</Text>
+              <Text style={[styles.buttonText, rtlText]}>{t('app.signUp.submit')}</Text>
             )}
           </TouchableOpacity>
 

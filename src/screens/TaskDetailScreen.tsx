@@ -255,10 +255,13 @@ export default function TaskDetailScreen() {
   const navigation = useNavigation();
   const dispatch = useDispatch<AppDispatch>();
   const scrollRef = useRef<ScrollView>(null);
-  const shareInputRowRef = useRef<View>(null);
   const shareInputFocusedRef = useRef(false);
   const keyboardTopRef = useRef<number | null>(null);
   const scrollOffsetYRef = useRef(0);
+  const shareCardYRef = useRef<number | null>(null);
+  const shareAutocompleteYRef = useRef<number | null>(null);
+  const shareInputLayoutRef = useRef<{ y: number; height: number } | null>(null);
+  const shareKeyboardScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stepLayoutMap = useRef<Record<string, number>>({});
   const targetStepId = route.params?.taskStepId ?? null;
   const scrollToSteps = route.params?.scrollToSteps ?? !targetStepId;
@@ -592,31 +595,48 @@ export default function TaskDetailScreen() {
 
   const scrollShareInputIntoView = useCallback((keyboardTop: number | null = keyboardTopRef.current) => {
     const scroll = scrollRef.current;
-    const row = shareInputRowRef.current;
-    if (!scroll || !row || keyboardTop == null) return;
+    const cardY = shareCardYRef.current;
+    const autocompleteY = shareAutocompleteYRef.current;
+    const row = shareInputLayoutRef.current;
+    if (
+      !scroll ||
+      cardY == null ||
+      autocompleteY == null ||
+      !row ||
+      keyboardTop == null ||
+      panelOffsetY == null
+    ) return;
 
-    row.measureInWindow((_x, rowWindowY, _width, rowHeight) => {
-      scroll.measureInWindow((_sx, scrollWindowY) => {
-        const visibleTop = scrollWindowY + SHARE_INPUT_KEYBOARD_MARGIN;
-        const visibleBottom = keyboardTop - SHARE_INPUT_KEYBOARD_MARGIN;
-        if (visibleBottom <= visibleTop) return;
+    scroll.measureInWindow((_x, scrollWindowY, _width, scrollHeight) => {
+      const visibleHeight = Math.max(
+        0,
+        Math.min(scrollHeight, keyboardTop - scrollWindowY) - SHARE_INPUT_KEYBOARD_MARGIN
+      );
+      if (visibleHeight <= 0) return;
 
-        const rowBottom = rowWindowY + rowHeight;
-        let delta = 0;
-        if (rowBottom > visibleBottom) {
-          delta = rowBottom - visibleBottom;
-        } else if (rowWindowY < visibleTop) {
-          delta = rowWindowY - visibleTop;
-        }
+      const currentY = scrollOffsetYRef.current;
+      const rowTop = panelOffsetY + cardY + autocompleteY + row.y;
+      const rowBottom = rowTop + row.height;
+      const visibleTop = currentY + SHARE_INPUT_KEYBOARD_MARGIN;
+      const visibleBottom = currentY + visibleHeight;
+      let targetY = currentY;
 
-        if (Math.abs(delta) < 1) return;
-        scroll.scrollTo({
-          y: Math.max(0, scrollOffsetYRef.current + delta),
-          animated: true,
-        });
+      if (rowBottom > visibleBottom) {
+        targetY += rowBottom - visibleBottom;
+      } else if (rowTop < visibleTop) {
+        targetY -= visibleTop - rowTop;
+      }
+
+      const maxYThatKeepsInputAnchored = Math.max(0, rowTop - SHARE_INPUT_KEYBOARD_MARGIN);
+      targetY = Math.max(0, Math.min(targetY, maxYThatKeepsInputAnchored));
+      if (Math.abs(targetY - currentY) < 1) return;
+
+      scroll.scrollTo({
+        y: targetY,
+        animated: true,
       });
     });
-  }, []);
+  }, [panelOffsetY]);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -624,15 +644,30 @@ export default function TaskDetailScreen() {
     const showSub = Keyboard.addListener(showEvent, (event: KeyboardEvent) => {
       keyboardTopRef.current = event.endCoordinates.screenY;
       if (!shareInputFocusedRef.current) return;
+      if (shareKeyboardScrollTimerRef.current) {
+        clearTimeout(shareKeyboardScrollTimerRef.current);
+      }
       requestAnimationFrame(() => {
         scrollShareInputIntoView(event.endCoordinates.screenY);
       });
+      shareKeyboardScrollTimerRef.current = setTimeout(() => {
+        scrollShareInputIntoView(event.endCoordinates.screenY);
+        shareKeyboardScrollTimerRef.current = null;
+      }, 120);
     });
     const hideSub = Keyboard.addListener(hideEvent, () => {
       keyboardTopRef.current = null;
       shareInputFocusedRef.current = false;
+      if (shareKeyboardScrollTimerRef.current) {
+        clearTimeout(shareKeyboardScrollTimerRef.current);
+        shareKeyboardScrollTimerRef.current = null;
+      }
     });
     return () => {
+      if (shareKeyboardScrollTimerRef.current) {
+        clearTimeout(shareKeyboardScrollTimerRef.current);
+        shareKeyboardScrollTimerRef.current = null;
+      }
       showSub.remove();
       hideSub.remove();
     };
@@ -1240,66 +1275,87 @@ export default function TaskDetailScreen() {
           )}
         </View>
 
-        <View style={styles.card}>
-          <View ref={shareInputRowRef} collapsable={false} style={styles.shareRow}>
-            <TextInput
-              style={styles.shareInput}
-              value={shareQuery}
-              onChangeText={setShareQuery}
-              onSubmitEditing={handleSharePress}
-              onFocus={() => {
-                shareInputFocusedRef.current = true;
-                if (keyboardTopRef.current != null) {
-                  requestAnimationFrame(() => {
-                    scrollShareInputIntoView();
-                  });
-                }
+        <View
+          style={styles.card}
+          onLayout={(event) => {
+            shareCardYRef.current = event.nativeEvent.layout.y;
+          }}
+        >
+          <View
+            style={styles.shareAutocompleteWrap}
+            onLayout={(event) => {
+              shareAutocompleteYRef.current = event.nativeEvent.layout.y;
+            }}
+          >
+            <View
+              collapsable={false}
+              style={styles.shareRow}
+              onLayout={(event) => {
+                shareInputLayoutRef.current = {
+                  y: event.nativeEvent.layout.y,
+                  height: event.nativeEvent.layout.height,
+                };
               }}
-              onBlur={() => {
-                shareInputFocusedRef.current = false;
-              }}
-              returnKeyType="done"
-              placeholder={t('app.task.sharePh')}
-              placeholderTextColor="#7e7e85"
-            />
-            <TouchableOpacity style={styles.shareButton} onPress={handleSharePress}>
-              <Text style={styles.shareButtonText}>{t('app.task.shareBtn')}</Text>
-            </TouchableOpacity>
+            >
+              <TextInput
+                style={styles.shareInput}
+                value={shareQuery}
+                onChangeText={setShareQuery}
+                onSubmitEditing={handleSharePress}
+                onFocus={() => {
+                  shareInputFocusedRef.current = true;
+                  if (keyboardTopRef.current != null) {
+                    requestAnimationFrame(() => {
+                      scrollShareInputIntoView();
+                    });
+                  }
+                }}
+                onBlur={() => {
+                  shareInputFocusedRef.current = false;
+                }}
+                returnKeyType="done"
+                placeholder={t('app.task.sharePh')}
+                placeholderTextColor="#7e7e85"
+              />
+              <TouchableOpacity style={styles.shareButton} onPress={handleSharePress}>
+                <Text style={styles.shareButtonText}>{t('app.task.shareBtn')}</Text>
+              </TouchableOpacity>
+            </View>
+            {shareSearchLoading ? (
+              <View style={[styles.shareSearchLoader, styles.shareSearchFloating]}>
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+              </View>
+            ) : null}
+            {!shareSearchLoading && shareSearchResults.length > 0 ? (
+              <View style={[styles.shareSearchResults, styles.shareSearchFloating]}>
+                <ScrollView
+                  style={styles.shareSearchResultsScroll}
+                  nestedScrollEnabled
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {shareSearchResults.map((user, idx) => (
+                    <TouchableOpacity
+                      key={`${user.email}-${user.userId ?? idx}`}
+                      style={styles.shareSearchResultRow}
+                      onPress={() => {
+                        handleUserPick(user);
+                        setShareQuery('');
+                        setShareSearchResults([]);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.shareSearchResultName}>
+                        {user.fullName || user.email}
+                      </Text>
+                      {user.fullName ? (
+                        <Text style={styles.shareSearchResultEmail}>{user.email}</Text>
+                      ) : null}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null}
           </View>
-          {shareSearchLoading ? (
-            <View style={styles.shareSearchLoader}>
-              <ActivityIndicator size="small" color={theme.colors.primary} />
-            </View>
-          ) : null}
-          {!shareSearchLoading && shareSearchResults.length > 0 ? (
-            <View style={styles.shareSearchResults}>
-              <ScrollView
-                style={styles.shareSearchResultsScroll}
-                nestedScrollEnabled
-                keyboardShouldPersistTaps="handled"
-              >
-                {shareSearchResults.map((user, idx) => (
-                  <TouchableOpacity
-                    key={`${user.email}-${user.userId ?? idx}`}
-                    style={styles.shareSearchResultRow}
-                    onPress={() => {
-                      handleUserPick(user);
-                      setShareQuery('');
-                      setShareSearchResults([]);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.shareSearchResultName}>
-                      {user.fullName || user.email}
-                    </Text>
-                    {user.fullName ? (
-                      <Text style={styles.shareSearchResultEmail}>{user.email}</Text>
-                    ) : null}
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          ) : null}
 
           <Text style={styles.sharedWithTitle}>{t('app.task.sharedWith')}</Text>
           {sharedUsers.length === 0 ? (
@@ -1768,6 +1824,11 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 12,
   },
+  shareAutocompleteWrap: {
+    position: 'relative',
+    zIndex: 30,
+    elevation: 30,
+  },
   shareInput: {
     flex: 1,
     borderBottomWidth: 1,
@@ -1804,6 +1865,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#fafbfc',
     overflow: 'hidden',
     elevation: 2,
+  },
+  shareSearchFloating: {
+    position: 'absolute',
+    top: 44,
+    left: 0,
+    right: 0,
+    zIndex: 40,
+    elevation: 40,
+    marginBottom: 0,
   },
   shareSearchResultsScroll: {
     maxHeight: 200,

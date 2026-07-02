@@ -112,7 +112,7 @@
       "notificationNumber": "N.º notificación",
       "project": "Proyecto",
       "assetId": "ID de activo",
-      "sharePh": "Usuarios (externos)...",
+      "sharePh": "Ingrese usuarios (para usuarios externos, escriba un correo y pulse Enter)",
       "usersToShare": "Usuarios a compartir",
       "finaliseSuccess": "La tarea se finalizó correctamente.",
       "documentTitle": "Título del documento",
@@ -130,7 +130,12 @@
       "signatureRequired": "Se requiere una firma para finalizar esta tarea.",
       "positionLabel": "Cargo (opcional)",
       "positionPh": "Introduzca su cargo",
+      "finaliseSubtitle": "Revise y confirme la finalización de la tarea",
+      "signOffSection": "Detalles de firma",
+      "shareReportSection": "Compartir informe de finalización",
       "shareDescription": "Recibirá un informe de finalización. Añada usuarios para compartir el informe:",
+      "shareWithLabel": "Compartir con",
+      "shareUsersPh": "Ingrese usuarios para compartir el informe de finalización",
       "attachToCrm": "Adjuntar a {{crmName}}"
     },
     "users": {
@@ -365,7 +370,7 @@
       "shareDocs": "Compartir documentos",
       "shareSaveFail": "Error al guardar cambios de uso compartido.",
       "shareDocNo": "N.º documento:",
-      "shareUsersPh": "Introduzca usuarios (externos...",
+      "shareUsersPh": "Ingrese usuarios (para externos, escriba direcciones de correo completas)",
       "addEmail": "Añadir",
       "owner": "Propietario",
       "ownerFallback": "Propietario",
@@ -540,7 +545,8 @@
       "noUsers": "Sin usuarios",
       "user": "usuario",
       "users": "usuarios",
-      "fillWorkOrderOrNotification": "El número de orden de trabajo y el número de notificación son obligatorios.",
+      "fillWorkOrderOrNotification": "Se requiere el número de orden de trabajo o el número de notificación.",
+      "workOrderOrNotificationHint": "Número de orden de trabajo o número de notificación",
       "fillWorkOrderAndNotification": "El número de orden de trabajo y el número de notificación son obligatorios.",
       "projectRequired": "El número de proyecto es obligatorio.",
       "assetRequired": "Seleccione un activo.",
@@ -755,7 +761,9 @@
       "newRequired": "Ingrese una nueva contraseña.",
       "mismatch": "La nueva contraseña y la repetición no coinciden.",
       "failedChange": "Error al cambiar la contraseña",
-      "validationFailed": "Revise los campos de contraseña y asegúrese de que su contraseña actual sea correcta."
+      "validationFailed": "Revise los campos de contraseña y asegúrese de que su contraseña actual sea correcta.",
+      "showPassword": "Mostrar contraseña",
+      "hidePassword": "Ocultar contraseña"
     },
     "acceptInvitation": {
       "title": "Aceptar invitación",

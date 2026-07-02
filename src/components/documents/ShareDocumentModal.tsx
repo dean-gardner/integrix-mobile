@@ -69,6 +69,35 @@ function dedupeUsers(users: FoundUserDTO[]): FoundUserDTO[] {
   return Array.from(map.values());
 }
 
+function getDocumentShareIds(document: DocumentVersionReadDTO): string[] {
+  const ids = [
+    document.id,
+    typeof document.documentId === 'string' ? document.documentId : null,
+  ];
+  return ids.filter((id, index): id is string =>
+    Boolean(id && id.trim()) && ids.findIndex((candidate) => candidate === id) === index
+  );
+}
+
+function getShareErrorMessage(error: unknown): string | null {
+  const err = error as { response?: { data?: { message?: string } | string } };
+  if (typeof err?.response?.data === 'string') return err.response.data;
+  if (
+    typeof err?.response?.data === 'object' &&
+    err?.response?.data &&
+    'message' in err.response.data &&
+    typeof (err.response.data as { message?: string }).message === 'string'
+  ) {
+    return (err.response.data as { message?: string }).message ?? null;
+  }
+  return null;
+}
+
+function isDocumentIdLookupError(error: unknown): boolean {
+  const message = getShareErrorMessage(error)?.toLowerCase() ?? '';
+  return message.includes('not all documents') && message.includes('found');
+}
+
 export function ShareDocumentModal({ visible, document, onClose }: ShareDocumentModalProps) {
   const { t, i18n } = useTranslation();
   const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
@@ -126,14 +155,27 @@ export function ShareDocumentModal({ visible, document, onClose }: ShareDocument
     if (!document?.id) return;
     setLoadingSharedUsers(true);
     try {
-      const response = await getDocumentUsersSharedWith(document.id);
-      setSharedUsers(response.data ?? []);
+      let responseData: FoundUserDTO[] = [];
+      let lastError: unknown = null;
+      for (const documentId of getDocumentShareIds(document)) {
+        try {
+          const response = await getDocumentUsersSharedWith(documentId);
+          responseData = response.data ?? [];
+          lastError = null;
+          break;
+        } catch (error) {
+          lastError = error;
+          if (!isDocumentIdLookupError(error)) break;
+        }
+      }
+      if (lastError) throw lastError;
+      setSharedUsers(responseData);
     } catch {
       setSharedUsers([]);
     } finally {
       setLoadingSharedUsers(false);
     }
-  }, [document?.id]);
+  }, [document]);
 
   useEffect(() => {
     if (!visible) { resetState(); return; }
@@ -249,27 +291,44 @@ export function ShareDocumentModal({ visible, document, onClose }: ShareDocument
     setSaving(true);
     try {
       const usersToSharePayload = dedupeUsers([...usersToShare, ...queryUsersToShare]);
-      if (usersToUnshare.length > 0) await unshareDocumentUsers(document.id, usersToUnshare);
+      const documentShareIds = getDocumentShareIds(document);
+      let resolvedDocumentId = documentShareIds[0];
+      const runWithFallback = async (operation: (documentId: string) => Promise<void>) => {
+        let lastError: unknown = null;
+        const orderedIds = [
+          resolvedDocumentId,
+          ...documentShareIds.filter((documentId) => documentId !== resolvedDocumentId),
+        ];
+        for (const documentId of orderedIds) {
+          try {
+            await operation(documentId);
+            resolvedDocumentId = documentId;
+            return;
+          } catch (error) {
+            lastError = error;
+            if (!isDocumentIdLookupError(error)) break;
+          }
+        }
+        throw lastError;
+      };
+
+      if (usersToUnshare.length > 0) {
+        await runWithFallback((documentId) => unshareDocumentUsers(documentId, usersToUnshare));
+      }
       if (usersToSharePayload.length > 0) {
-        await shareDocuments({ itemsIds: [document.id], usersToShare: usersToSharePayload });
+        await runWithFallback((documentId) =>
+          shareDocuments({ itemsIds: [documentId], usersToShare: usersToSharePayload }).then(() => {})
+        );
       }
       closeModal();
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { message?: string } | string } };
       const message =
-        typeof err?.response?.data === 'string'
-          ? err.response.data
-          : typeof err?.response?.data === 'object' &&
-              err?.response?.data &&
-              'message' in err.response.data &&
-              typeof (err.response.data as { message?: string }).message === 'string'
-            ? (err.response.data as { message?: string }).message
-            : t('app.document.shareSaveFail');
+        getShareErrorMessage(e) ?? t('app.document.shareSaveFail');
       Alert.alert(t('app.document.shareDocs'), message);
     } finally {
       setSaving(false);
     }
-  }, [closeModal, document?.id, queryUsersToShare, usersToShare, usersToUnshare, t]);
+  }, [closeModal, document, queryUsersToShare, usersToShare, usersToUnshare, t]);
 
   if (!visible) return null;
 

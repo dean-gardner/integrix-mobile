@@ -122,27 +122,73 @@ export function isImageFile(name?: string, url?: string): boolean {
   );
 }
 
+const pickString = (...values: unknown[]): string | undefined => {
+  for (const value of values) {
+    if (value == null) continue;
+    const text = String(value).trim();
+    if (text) return text;
+  }
+  return undefined;
+};
+
+const pickNestedId = (value: unknown): string | undefined => {
+  if (!value || typeof value !== 'object') return undefined;
+  const record = value as Record<string, unknown>;
+  return pickString(record.id, record.Id);
+};
+
+export function getTaskVersionId(task: TaskReadDTO | null | undefined): string | undefined {
+  if (!task) return undefined;
+  const record = task as Record<string, unknown>;
+  return pickString(
+    record.versionId,
+    record.VersionId,
+    record.documentVersionId,
+    record.DocumentVersionId,
+    record.documentVersionID,
+    record.DocumentVersionID,
+    pickNestedId(record.version),
+    pickNestedId(record.Version),
+    pickNestedId(record.documentVersion),
+    pickNestedId(record.DocumentVersion)
+  );
+}
+
+export function getTaskDocumentId(task: TaskReadDTO | null | undefined): string | undefined {
+  if (!task) return undefined;
+  const record = task as Record<string, unknown>;
+  return pickString(
+    record.documentId,
+    record.DocumentId,
+    pickNestedId(record.document),
+    pickNestedId(record.Document)
+  );
+}
+
+function withNormalizedTaskContext<T extends TaskReadDTO>(task: T): T {
+  return {
+    ...task,
+    documentId: getTaskDocumentId(task),
+    versionId: getTaskVersionId(task),
+  };
+}
+
 /** Keep document context from navigation when the task-details API omits document fields. */
 export function mergeTaskWithRoute(
   current: TaskWithDetailsReadDTO | null | undefined,
   route: TaskReadDTO | undefined
 ): TaskReadDTO | null | undefined {
   if (!route && !current) return null;
-  if (!route) return current ?? null;
-  if (!current || current.id !== route.id) return route;
+  if (!route) return current ? withNormalizedTaskContext(current) : null;
+  if (!current || current.id !== route.id) return withNormalizedTaskContext(route);
 
-  const pickString = (primary: unknown, fallback: unknown): string | undefined => {
-    const p = primary != null ? String(primary).trim() : '';
-    if (p) return p;
-    const f = fallback != null ? String(fallback).trim() : '';
-    return f || undefined;
-  };
-
-  return {
+  const currentSharedUsers = Array.isArray(current.usersSharedWith) ? current.usersSharedWith : [];
+  const routeSharedUsers = Array.isArray(route.usersSharedWith) ? route.usersSharedWith : [];
+  const merged = {
     ...route,
     ...current,
-    documentId: pickString(current.documentId, route.documentId),
-    versionId: pickString(current.versionId, route.versionId),
+    documentId: pickString(getTaskDocumentId(current), getTaskDocumentId(route)),
+    versionId: pickString(getTaskVersionId(current), getTaskVersionId(route)),
     description: pickString(current.description, route.description),
     documentNumberStr:
       current.documentNumberStr ?? route.documentNumberStr ?? null,
@@ -153,5 +199,8 @@ export function mergeTaskWithRoute(
     notificationNumber: current.notificationNumber ?? route.notificationNumber,
     projectNumber: current.projectNumber ?? route.projectNumber,
     asset: current.asset ?? route.asset,
+    usersSharedWith: currentSharedUsers.length > 0 ? currentSharedUsers : routeSharedUsers,
   };
+
+  return withNormalizedTaskContext(merged);
 }

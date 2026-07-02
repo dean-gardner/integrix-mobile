@@ -11,7 +11,6 @@ import {
   Image,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { StackActions, useNavigation } from '@react-navigation/native';
 import { launchImageLibrary, type Asset } from 'react-native-image-picker';
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
 import type { AppDispatch, RootState } from '../store';
@@ -29,7 +28,6 @@ import {
 export default function EditProfileScreen() {
   const { t, i18n } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
-  const navigation = useNavigation();
   const user = useSelector((s: RootState) => s.auth.user);
   const isRtl = isRtlLayout(i18n);
   const rtlText = rtlAwareTextStyle(i18n);
@@ -114,10 +112,6 @@ export default function EditProfileScreen() {
     }
   };
 
-  const openChangePassword = () => {
-    navigation.dispatch(StackActions.push('ChangePassword'));
-  };
-
   if (!user) {
     return (
       <View style={screenStyles.container}>
@@ -189,16 +183,6 @@ export default function EditProfileScreen() {
           keyboardType="phone-pad"
           editable={!saving}
         />
-
-        <Text style={[styles.label, rtlText]}>{t('app.editProfile.passwordLabel')}</Text>
-        <TouchableOpacity
-          style={[styles.changePasswordButton, isRtl && styles.changePasswordButtonRtl]}
-          onPress={openChangePassword}
-          disabled={saving}
-          activeOpacity={0.8}
-        >
-          <Text style={[styles.changePasswordText, rtlText]}>{t('app.editProfile.changePasswordBtn')}</Text>
-        </TouchableOpacity>
 
         <View style={styles.photoSection}>
           {photoUri ? (
@@ -319,18 +303,6 @@ const styles = StyleSheet.create({
     color: '#1f2430',
   },
   buttonDisabled: { opacity: 0.7 },
-  changePasswordButton: {
-    alignSelf: 'flex-start',
-    marginTop: 2,
-  },
-  changePasswordButtonRtl: {
-    alignSelf: 'flex-end',
-  },
-  changePasswordText: {
-    fontSize: 14,
-    color: theme.colors.primary,
-    fontWeight: '700',
-  },
   photoSection: {
     width: 120,
     height: 120,

@@ -15,6 +15,7 @@ import {
   changeTaskStatus,
   shareTasks as apiShareTasks,
   unshareUsers as apiUnshareUsers,
+  getTaskUsersSharedWith,
   shareTaskWithUser,
   unshareTaskWithUser,
   createTask as apiCreateTask,
@@ -22,6 +23,19 @@ import {
   deleteTask as apiDeleteTask,
   finaliseTask as apiFinaliseTask,
 } from '../api/tasks';
+
+type TaskReferenceEdit = Pick<
+  TaskCreateDTO,
+  'workOrderNumber' | 'notificationNumber' | 'projectNumber'
+>;
+
+function applyPendingTaskReferenceEdit<T extends TaskReadDTO>(
+  task: T,
+  pending: Record<string, TaskReferenceEdit>
+): T {
+  const edit = pending[task.id];
+  return edit ? { ...task, ...edit } : task;
+}
 
 /**
  * Match web task-share payload shape:
@@ -37,6 +51,100 @@ function normalizeTaskShareUser(user: FoundUserDTO): FoundUserDTO {
     companyTeam: null,
     isImplicitShare: user.isImplicitShare ?? null,
   };
+}
+
+function normalizeSharedUsers(data: unknown): FoundUserDTO[] {
+  const list = Array.isArray(data)
+    ? data
+    : Array.isArray((data as { usersSharedWith?: unknown } | null)?.usersSharedWith)
+      ? (data as { usersSharedWith: unknown[] }).usersSharedWith
+      : Array.isArray((data as { UsersSharedWith?: unknown } | null)?.UsersSharedWith)
+        ? (data as { UsersSharedWith: unknown[] }).UsersSharedWith
+        : Array.isArray((data as { sharedWithUsers?: unknown } | null)?.sharedWithUsers)
+          ? (data as { sharedWithUsers: unknown[] }).sharedWithUsers
+          : Array.isArray((data as { SharedWithUsers?: unknown } | null)?.SharedWithUsers)
+            ? (data as { SharedWithUsers: unknown[] }).SharedWithUsers
+            : [];
+
+  return list
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null;
+      const record = item as Record<string, unknown>;
+      const email =
+        typeof record.email === 'string'
+          ? record.email.trim()
+          : typeof record.Email === 'string'
+            ? record.Email.trim()
+            : '';
+      if (!email) return null;
+      const fullName =
+        typeof record.fullName === 'string' && record.fullName.trim()
+          ? record.fullName.trim()
+          : typeof record.FullName === 'string' && record.FullName.trim()
+            ? record.FullName.trim()
+            : null;
+      const userId =
+        typeof record.userId === 'string'
+          ? record.userId
+          : typeof record.id === 'string'
+            ? record.id
+            : typeof record.UserId === 'string'
+              ? record.UserId
+              : typeof record.Id === 'string'
+                ? record.Id
+                : null;
+      return {
+        fullName,
+        email,
+        userId,
+        companyTeam: null,
+        isImplicitShare:
+          typeof record.isImplicitShare === 'boolean' ? record.isImplicitShare : null,
+      };
+    })
+    .filter((user): user is FoundUserDTO => Boolean(user));
+}
+
+function hasSharedUsersPayload(data: unknown): boolean {
+  if (!data || typeof data !== 'object') return Array.isArray(data);
+  const record = data as Record<string, unknown>;
+  return (
+    Array.isArray(record.usersSharedWith) ||
+    Array.isArray(record.UsersSharedWith) ||
+    Array.isArray(record.sharedWithUsers) ||
+    Array.isArray(record.SharedWithUsers)
+  );
+}
+
+function mergeSharedUsersIntoTask<T extends TaskReadDTO>(
+  task: T,
+  users: FoundUserDTO[]
+): T {
+  return {
+    ...task,
+    usersSharedWith: users,
+  };
+}
+
+function dedupeSharedUsers(users: FoundUserDTO[]): FoundUserDTO[] {
+  const seen = new Set<string>();
+  return users.filter((user) => {
+    const key = (user.userId || user.email).toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function preserveSharedUsers<T extends TaskReadDTO>(
+  nextTask: T,
+  previousTask?: TaskReadDTO | null
+): T {
+  if (hasSharedUsersPayload(nextTask)) {
+    return mergeSharedUsersIntoTask(nextTask, normalizeSharedUsers(nextTask));
+  }
+  const previousUsers = normalizeSharedUsers(previousTask?.usersSharedWith);
+  return previousUsers.length > 0 ? mergeSharedUsersIntoTask(nextTask, previousUsers) : nextTask;
 }
 
 export const fetchTasks = createAsyncThunk<
@@ -114,7 +222,19 @@ export const fetchTaskById = createAsyncThunk<
 >('tasks/fetchById', async ({ versionId, taskId }, { rejectWithValue }) => {
   try {
     const res = await getTaskById(versionId, taskId);
-    return res.data;
+    // Web task detail uses apiGetTaskById(...) and reads response.data.usersSharedWith.
+    const detailUsers = normalizeSharedUsers(res.data);
+    let endpointUsers: FoundUserDTO[] = [];
+    try {
+      const sharedRes = await getTaskUsersSharedWith(versionId, taskId);
+      endpointUsers = normalizeSharedUsers(sharedRes.data);
+    } catch {
+      // Keep the web-compatible task-detail payload as the source of truth if this fails.
+    }
+    const usersSharedWith = dedupeSharedUsers([...detailUsers, ...endpointUsers]);
+    return usersSharedWith.length > 0 || hasSharedUsersPayload(res.data)
+      ? mergeSharedUsersIntoTask(res.data, usersSharedWith)
+      : res.data;
   } catch (e: any) {
     return rejectWithValue(e?.message ?? i18n.t('app.errors.loadTaskDetails'));
   }
@@ -350,6 +470,7 @@ type TasksState = {
   noMorePages: boolean;
   currentTask: TaskWithDetailsReadDTO | null;
   activeFetchRequestId: string | null;
+  pendingReferenceEdits: Record<string, TaskReferenceEdit>;
 };
 
 const initialState: TasksState = {
@@ -375,6 +496,7 @@ const initialState: TasksState = {
   noMorePages: false,
   currentTask: null,
   activeFetchRequestId: null,
+  pendingReferenceEdits: {},
 };
 
 const tasksSlice = createSlice({
@@ -411,7 +533,9 @@ const tasksSlice = createSlice({
         const { payload } = action;
         state.activeFetchRequestId = null;
         state.isLoading = false;
-        state.items = payload.items;
+        state.items = payload.items.map((task) =>
+          applyPendingTaskReferenceEdit(task, state.pendingReferenceEdits)
+        );
         state.totalCount = payload.totalCount;
         state.noMorePages =
           Math.ceil(payload.totalCount / state.filteringModel.pageSize) <=
@@ -432,7 +556,9 @@ const tasksSlice = createSlice({
       })
       .addCase(fetchMoreTasks.fulfilled, (state, { payload }) => {
         state.isLoading = false;
-        state.items = payload.items;
+        state.items = payload.items.map((task) =>
+          applyPendingTaskReferenceEdit(task, state.pendingReferenceEdits)
+        );
         state.totalCount = payload.totalCount;
         const nextPage = (payload as { nextPageNumber?: number }).nextPageNumber;
         if (typeof nextPage === 'number') state.filteringModel.pageNumber = nextPage;
@@ -452,7 +578,9 @@ const tasksSlice = createSlice({
       })
       .addCase(goToTasksPage.fulfilled, (state, { payload }) => {
         state.isLoading = false;
-        state.items = payload.items;
+        state.items = payload.items.map((task) =>
+          applyPendingTaskReferenceEdit(task, state.pendingReferenceEdits)
+        );
         state.totalCount = payload.totalCount;
         state.filteringModel.pageNumber = payload.pageNumber - 1;
         const totalPages = Math.ceil(payload.totalCount / state.filteringModel.pageSize);
@@ -470,9 +598,10 @@ const tasksSlice = createSlice({
       })
       .addCase(fetchTaskById.fulfilled, (state, { payload }) => {
         state.currentTaskLoading = false;
-        state.currentTask = payload;
+        const task = applyPendingTaskReferenceEdit(payload, state.pendingReferenceEdits);
+        state.currentTask = task;
         const i = state.items.findIndex((t) => t.id === payload.id);
-        if (i >= 0) state.items[i] = { ...state.items[i], ...payload };
+        if (i >= 0) state.items[i] = { ...state.items[i], ...task };
       })
       .addCase(fetchTaskById.rejected, (state, { payload }) => {
         state.currentTaskLoading = false;
@@ -485,9 +614,10 @@ const tasksSlice = createSlice({
       })
       .addCase(finaliseCurrentTask.fulfilled, (state, { payload }) => {
         state.isActionLoading = false;
-        state.currentTask = payload;
+        const task = preserveSharedUsers(payload, state.currentTask);
+        state.currentTask = task;
         const i = state.items.findIndex((t) => t.id === payload.id);
-        if (i >= 0) state.items[i] = { ...state.items[i], ...payload };
+        if (i >= 0) state.items[i] = { ...state.items[i], ...task };
       })
       .addCase(finaliseCurrentTask.rejected, (state, { payload }) => {
         state.isActionLoading = false;
@@ -498,9 +628,10 @@ const tasksSlice = createSlice({
       })
       .addCase(changeCurrentTaskStatus.fulfilled, (state, { payload }) => {
         state.isActionLoading = false;
-        state.currentTask = payload;
+        const task = preserveSharedUsers(payload, state.currentTask);
+        state.currentTask = task;
         const i = state.items.findIndex((t) => t.id === payload.id);
-        if (i >= 0) state.items[i] = { ...state.items[i], ...payload };
+        if (i >= 0) state.items[i] = { ...state.items[i], ...task };
       })
       .addCase(changeCurrentTaskStatus.rejected, (state, { payload }) => {
         state.isActionLoading = false;
@@ -514,14 +645,14 @@ const tasksSlice = createSlice({
       .addCase(shareCurrentTaskWithUser.fulfilled, (state, { payload }) => {
         state.isActionLoading = false;
         if (!state.currentTask) return;
-        const list = state.currentTask.usersSharedWith ?? [];
+        const list = normalizeSharedUsers(state.currentTask.usersSharedWith);
         const exists = list.some(
           (u) =>
             (u.userId && payload.userId && u.userId === payload.userId) ||
             u.email.toLowerCase() === payload.email.toLowerCase()
         );
         if (!exists) {
-          state.currentTask.usersSharedWith = [...list, payload];
+          state.currentTask.usersSharedWith = [...list, normalizeTaskShareUser(payload)];
         }
       })
       .addCase(shareCurrentTaskWithUser.rejected, (state, { payload }) => {
@@ -534,7 +665,7 @@ const tasksSlice = createSlice({
       .addCase(unshareCurrentTaskWithUser.fulfilled, (state, { payload }) => {
         state.isActionLoading = false;
         if (!state.currentTask?.usersSharedWith) return;
-        state.currentTask.usersSharedWith = state.currentTask.usersSharedWith.filter((u) => {
+        state.currentTask.usersSharedWith = normalizeSharedUsers(state.currentTask.usersSharedWith).filter((u) => {
           const byUserId =
             Boolean(u.userId) && Boolean(payload.userId) && u.userId === payload.userId;
           const byEmail = u.email.toLowerCase() === payload.email.toLowerCase();
@@ -561,11 +692,22 @@ const tasksSlice = createSlice({
       .addCase(editTaskEntry.pending, (state) => {
         state.isActionLoading = true;
       })
-      .addCase(editTaskEntry.fulfilled, (state, { payload }) => {
+      .addCase(editTaskEntry.fulfilled, (state, { payload, meta }) => {
         state.isActionLoading = false;
+        const referenceEdit: TaskReferenceEdit = {
+          workOrderNumber: meta.arg.model.workOrderNumber,
+          notificationNumber: meta.arg.model.notificationNumber,
+          projectNumber: meta.arg.model.projectNumber,
+        };
+        state.pendingReferenceEdits[meta.arg.taskId] = referenceEdit;
+        const editedTask = {
+          ...payload,
+          ...referenceEdit,
+          usersSharedWith: normalizeSharedUsers(meta.arg.model.usersSharedWith),
+        };
         const i = state.items.findIndex((t) => t.id === payload.id);
-        if (i >= 0) state.items[i] = { ...state.items[i], ...payload };
-        state.currentTask = payload;
+        if (i >= 0) state.items[i] = { ...state.items[i], ...editedTask };
+        state.currentTask = editedTask;
       })
       .addCase(editTaskEntry.rejected, (state, { payload }) => {
         state.isActionLoading = false;

@@ -112,7 +112,7 @@
       "notificationNumber": "Notification Number",
       "project": "Project",
       "assetId": "Asset ID",
-      "sharePh": "Enter users (for external users...",
+      "sharePh": "Enter users (for external users, type an email address and press Enter)",
       "usersToShare": "Users to share",
       "finaliseSuccess": "Task finalised successfully.",
       "documentTitle": "Document Title",
@@ -130,7 +130,12 @@
       "signatureRequired": "A signature is required to finalise this task.",
       "positionLabel": "Position (optional)",
       "positionPh": "Enter your position",
+      "finaliseSubtitle": "Review and confirm task completion",
+      "signOffSection": "Sign-Off Details",
+      "shareReportSection": "Share Completion Report",
       "shareDescription": "You will receive a task completion report. Add users to share the report with others:",
+      "shareWithLabel": "Share with",
+      "shareUsersPh": "Enter users to share the completion report",
       "attachToCrm": "Attach to {{crmName}}"
     },
     "users": {
@@ -369,7 +374,7 @@
       "shareDocs": "Share Documents",
       "shareSaveFail": "Failed to save share changes.",
       "shareDocNo": "Document No:",
-      "shareUsersPh": "Enter users (for external users...",
+      "shareUsersPh": "Enter users (for external users, type full email addresses)",
       "addEmail": "Add",
       "owner": "Owner",
       "ownerFallback": "Owner",
@@ -659,7 +664,9 @@
       "newRequired": "Enter a new password.",
       "mismatch": "New password and repeat do not match.",
       "failedChange": "Failed to change password",
-      "validationFailed": "Please check the password fields and make sure your current password is correct."
+      "validationFailed": "Please check the password fields and make sure your current password is correct.",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password"
     },
     "acceptInvitation": {
       "title": "Accept invitation",
@@ -697,7 +704,8 @@
       "noUsers": "No users",
       "user": "user",
       "users": "users",
-      "fillWorkOrderOrNotification": "Work Order Number and Notification Number are required.",
+      "fillWorkOrderOrNotification": "Either Work Order Number or Notification Number is required.",
+      "workOrderOrNotificationHint": "Work Order Number or Notification Number",
       "fillWorkOrderAndNotification": "Work Order Number and Notification Number are required.",
       "projectRequired": "Project Number is required.",
       "assetRequired": "Please tag an asset.",

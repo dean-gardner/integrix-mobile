@@ -433,9 +433,10 @@ export function StartTaskModal({
 
     if (
       taskReferencingType === DocumentTaskReferencing.WorkOrderAndNotificationNo &&
-      (!workOrder || !notification)
+      !workOrder &&
+      !notification
     ) {
-      setError(t('app.startTask.fillWorkOrderAndNotification'));
+      setError(t('app.startTask.fillWorkOrderOrNotification'));
       return;
     }
 
@@ -503,7 +504,7 @@ export function StartTaskModal({
 
                 {taskReferencingType === DocumentTaskReferencing.WorkOrderAndNotificationNo ? (
                   <>
-                    <Text style={[styles.label, rtlText]}>{`${t('app.task.workOrderNumber')} *`}</Text>
+                    <Text style={[styles.label, rtlText]}>{t('app.task.workOrderNumber')}</Text>
                     <TextInput
                       value={workOrderNumber}
                       onChangeText={(text) => { workOrderRef.current = text; setWorkOrderNumber(text); setError(null); }}
@@ -513,7 +514,7 @@ export function StartTaskModal({
                       placeholder=""
                     />
 
-                    <Text style={[styles.label, rtlText]}>{`${t('app.task.notificationNumber')} *`}</Text>
+                    <Text style={[styles.label, rtlText]}>{t('app.task.notificationNumber')}</Text>
                     <TextInput
                       value={notificationNumber}
                       onChangeText={(text) => { notificationRef.current = text; setNotificationNumber(text); setError(null); }}
@@ -522,6 +523,9 @@ export function StartTaskModal({
                       textAlign={rtlInput.textAlign}
                       placeholder=""
                     />
+                    <Text style={[styles.identifierHint, rtlText]}>
+                      {t('app.startTask.workOrderOrNotificationHint')}
+                    </Text>
                   </>
                 ) : null}
 
@@ -556,13 +560,13 @@ export function StartTaskModal({
                   placeholder=""
                 />
                 {assetLoading ? (
-                  <View style={styles.inlineLoader}>
+                  <View style={[styles.inlineLoader, isRtl && styles.inlineLoaderRtl]}>
                     <ActivityIndicator size="small" color={theme.colors.primary} />
                   </View>
                 ) : null}
 
                 {selectedAsset ? (
-                  <View style={[styles.selectedRow, rtlRow]}>
+                  <View style={[styles.selectedRow, rtlDirection, rtlRow]}>
                     <Text style={[styles.selectedText, rtlText]} numberOfLines={1}>
                       {selectedAsset.name}
                     </Text>
@@ -579,11 +583,11 @@ export function StartTaskModal({
                 ) : null}
 
                 {assetOptions.length > 0 ? (
-                  <View style={styles.optionsPanel}>
+                  <View style={[styles.optionsPanel, rtlDirection]}>
                     {assetOptions.slice(0, 6).map((asset) => (
                       <TouchableOpacity
                         key={`asset-${asset.id}`}
-                        style={styles.optionRow}
+                        style={[styles.optionRow, rtlDirection]}
                         onPress={() => handleSelectAsset(asset)}
                         disabled={submitting}
                       >
@@ -618,17 +622,17 @@ export function StartTaskModal({
                   placeholderTextColor="#6a6a6a"
                 />
                 {usersLoading ? (
-                  <View style={styles.inlineLoader}>
+                  <View style={[styles.inlineLoader, isRtl && styles.inlineLoaderRtl]}>
                     <ActivityIndicator size="small" color={theme.colors.primary} />
                   </View>
                 ) : null}
 
                 {userOptions.length > 0 ? (
-                  <View style={styles.optionsPanel}>
+                  <View style={[styles.optionsPanel, rtlDirection]}>
                     {userOptions.slice(0, 6).map((option) => (
                       <TouchableOpacity
                         key={option.key}
-                        style={styles.optionRow}
+                        style={[styles.optionRow, rtlDirection]}
                         onPress={() => addOption(option)}
                         disabled={submitting}
                       >
@@ -644,9 +648,9 @@ export function StartTaskModal({
                 ) : null}
 
                 {selectedUsers.length > 0 ? (
-                  <View style={[styles.selectedUsersWrap, rtlRow]}>
+                  <View style={[styles.selectedUsersWrap, rtlDirection, isRtl && styles.selectedUsersWrapRtl]}>
                     {selectedUsers.map((option) => (
-                      <View key={option.key} style={[styles.userChip, rtlRow]}>
+                      <View key={option.key} style={[styles.userChip, rtlDirection, rtlRow]}>
                         <Text style={[styles.userChipText, rtlText]} numberOfLines={1}>
                           {option.title}
                         </Text>
@@ -723,8 +727,9 @@ const styles = StyleSheet.create({
   },
   title: {
     color: '#252a33',
-    fontSize: 38,
+    fontSize: 22,
     fontWeight: '700',
+    lineHeight: 28,
     marginBottom: 10,
   },
   label: {
@@ -752,6 +757,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginBottom: 2,
   },
+  identifierHint: {
+    marginTop: 6,
+    color: '#1b8f3a',
+    fontSize: 13,
+    lineHeight: 18,
+  },
   underlineInput: {
     borderBottomWidth: 1,
     borderBottomColor: '#111111',
@@ -763,6 +774,9 @@ const styles = StyleSheet.create({
   inlineLoader: {
     marginTop: 6,
     alignItems: 'flex-start',
+  },
+  inlineLoaderRtl: {
+    alignItems: 'flex-end',
   },
   initialLoader: {
     minHeight: 120,
@@ -808,7 +822,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#1f2532',
     fontSize: 14,
-    paddingRight: 8,
+    paddingEnd: 8,
   },
   assetsWarning: {
     marginTop: 6,
@@ -826,6 +840,9 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 10,
   },
+  selectedUsersWrapRtl: {
+    flexDirection: 'row-reverse',
+  },
   userChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -833,13 +850,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#d0d6e4',
     borderRadius: 999,
-    paddingLeft: 10,
-    paddingRight: 6,
+    paddingStart: 10,
+    paddingEnd: 6,
     minHeight: 30,
     backgroundColor: '#f2f4fa',
     gap: 6,
   },
   userChipText: {
+    flexShrink: 1,
     maxWidth: 220,
     color: '#2a3247',
     fontSize: 12,

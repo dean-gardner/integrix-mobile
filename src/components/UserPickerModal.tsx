@@ -2,7 +2,7 @@
  * Reusable modal to search and pick a user (e.g. for share/assign flows).
  * Uses getUsersBySearch; on row tap calls onSelect(user) and onClose().
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import { useTranslation } from 'react-i18next';
 import { rtlAwareInputStyle, rtlAwareTextStyle, rtlDirectionStyle, rtlRowStyle } from '../utils/rtlLayout';
 
 const MIN_QUERY_LENGTH = 2;
+const SEARCH_DEBOUNCE_MS = 300;
 
 export type UserPickerModalProps = {
   visible: boolean;
@@ -51,36 +52,72 @@ export function UserPickerModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
+  const searchRequestIdRef = useRef(0);
 
   useEffect(() => {
     if (!visible) return;
-    const q = (initialQuery ?? '').trim();
-    if (q.length < MIN_QUERY_LENGTH) return;
-    setQuery(q);
+    setQuery((initialQuery ?? '').trim());
+    setResults([]);
+    setError(null);
+    setSearched(false);
+    setLoading(false);
+    searchRequestIdRef.current += 1;
+  }, [visible, initialQuery]);
+
+  useEffect(() => {
+    if (!visible) return;
+
+    const q = query.trim();
+    if (q.length < MIN_QUERY_LENGTH) {
+      searchRequestIdRef.current += 1;
+      setResults([]);
+      setSearched(false);
+      setLoading(false);
+      return;
+    }
+
+    let isActive = true;
+    const requestId = searchRequestIdRef.current + 1;
+    searchRequestIdRef.current = requestId;
     setError(null);
     setSearched(true);
     setLoading(true);
-    getUsersBySearch({
-      search: q,
-      shouldFindTeams: false,
-      onlyRegisteredUsers: false,
-      onlyCompanyTeamUsers: true,
-      includeOwnPerson: true,
-    })
-      .then((res) => setResults(res.data ?? []))
-      .catch((e: unknown) => {
-        setResults([]);
-        setError((e as { message?: string })?.message ?? t('app.userSearch.failed'));
+    const timer = setTimeout(() => {
+      getUsersBySearch({
+        search: q,
+        shouldFindTeams: false,
+        includeOwnPerson: true,
+        onlyRegisteredUsers: false,
+        onlyCompanyTeamUsers: true,
       })
-      .finally(() => setLoading(false));
-  }, [visible, initialQuery, t]);
+        .then((res) => {
+          if (isActive && searchRequestIdRef.current === requestId) setResults(res.data ?? []);
+        })
+        .catch((e: unknown) => {
+          if (!isActive || searchRequestIdRef.current !== requestId) return;
+          setResults([]);
+          setError((e as { message?: string })?.message ?? t('app.userSearch.failed'));
+        })
+        .finally(() => {
+          if (isActive && searchRequestIdRef.current === requestId) setLoading(false);
+        });
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      isActive = false;
+      clearTimeout(timer);
+    };
+  }, [query, t, visible]);
 
   const onSearch = useCallback(async () => {
     const q = (query ?? '').trim();
     if (q.length < MIN_QUERY_LENGTH) {
+      searchRequestIdRef.current += 1;
       setError(t('app.userSearch.minChars', { min: MIN_QUERY_LENGTH }));
       return;
     }
+    const requestId = searchRequestIdRef.current + 1;
+    searchRequestIdRef.current = requestId;
     setError(null);
     setSearched(true);
     setLoading(true);
@@ -92,17 +129,20 @@ export function UserPickerModal({
         onlyRegisteredUsers: false,
         onlyCompanyTeamUsers: true,
       });
-      setResults(res.data ?? []);
+      if (searchRequestIdRef.current === requestId) setResults(res.data ?? []);
     } catch (e: unknown) {
+      if (searchRequestIdRef.current !== requestId) return;
       setResults([]);
       setError((e as { message?: string })?.message ?? t('app.userSearch.failed'));
     } finally {
-      setLoading(false);
+      if (searchRequestIdRef.current === requestId) setLoading(false);
     }
   }, [query, t]);
 
   const handleSelect = useCallback(
     (u: FoundUserDTO) => {
+      searchRequestIdRef.current += 1;
+      setLoading(false);
       onSelect(u);
       onClose();
     },
@@ -110,6 +150,7 @@ export function UserPickerModal({
   );
 
   const handleClose = useCallback(() => {
+    searchRequestIdRef.current += 1;
     setQuery('');
     setResults([]);
     setError(null);
@@ -148,7 +189,6 @@ export function UserPickerModal({
                 autoCorrect={false}
                 returnKeyType="search"
                 onSubmitEditing={onSearch}
-                editable={!loading}
               />
               <TouchableOpacity
                 style={[styles.searchBtn, loading && styles.searchBtnDisabled]}

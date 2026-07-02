@@ -33,7 +33,7 @@ import {
   unshareCurrentTaskWithUser,
   editTaskEntry,
 } from '../store/tasksSlice';
-import { changeTaskStepStatus, getTaskSectionsWithTaskSteps } from '../api/tasks';
+import { changeTaskStepStatus, getTaskSectionsWithTaskSteps, getTaskUsersSharedWith } from '../api/tasks';
 import { getDocumentById } from '../api/documents';
 import { createDefect as apiCreateDefect, getTaskStepDefects } from '../api/defects';
 import { createObservation as apiCreateObservation } from '../api/observations';
@@ -117,6 +117,75 @@ type CompletionPhotoFile = {
   type: string;
   name: string;
 };
+
+function normalizeTaskSharedUsers(data: unknown): FoundUserDTO[] {
+  const list = Array.isArray(data)
+    ? data
+    : Array.isArray((data as { usersSharedWith?: unknown } | null)?.usersSharedWith)
+      ? (data as { usersSharedWith: unknown[] }).usersSharedWith
+      : Array.isArray((data as { UsersSharedWith?: unknown } | null)?.UsersSharedWith)
+        ? (data as { UsersSharedWith: unknown[] }).UsersSharedWith
+        : Array.isArray((data as { sharedWithUsers?: unknown } | null)?.sharedWithUsers)
+          ? (data as { sharedWithUsers: unknown[] }).sharedWithUsers
+          : Array.isArray((data as { SharedWithUsers?: unknown } | null)?.SharedWithUsers)
+            ? (data as { SharedWithUsers: unknown[] }).SharedWithUsers
+            : Array.isArray((data as { $values?: unknown } | null)?.$values)
+              ? (data as { $values: unknown[] }).$values
+              : [];
+
+  return list
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null;
+      const record = item as Record<string, unknown>;
+      const email =
+        typeof record.email === 'string'
+          ? record.email.trim()
+          : typeof record.Email === 'string'
+            ? record.Email.trim()
+            : typeof record.userEmail === 'string'
+              ? record.userEmail.trim()
+              : typeof record.UserEmail === 'string'
+                ? record.UserEmail.trim()
+                : '';
+      if (!email) return null;
+      const fullName =
+        typeof record.fullName === 'string' && record.fullName.trim()
+          ? record.fullName.trim()
+          : typeof record.FullName === 'string' && record.FullName.trim()
+            ? record.FullName.trim()
+            : null;
+      const userId =
+        typeof record.userId === 'string'
+          ? record.userId
+          : typeof record.UserId === 'string'
+            ? record.UserId
+            : typeof record.id === 'string'
+              ? record.id
+              : typeof record.Id === 'string'
+                ? record.Id
+                : null;
+
+      return {
+        fullName,
+        email,
+        userId,
+        companyTeam: null,
+        isImplicitShare:
+          typeof record.isImplicitShare === 'boolean' ? record.isImplicitShare : null,
+      };
+    })
+    .filter((user): user is FoundUserDTO => Boolean(user));
+}
+
+function mergeTaskSharedUsers(users: FoundUserDTO[]): FoundUserDTO[] {
+  const seen = new Set<string>();
+  return users.filter((user) => {
+    const key = (user.userId || user.email).toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
@@ -289,6 +358,8 @@ export default function TaskDetailScreen() {
   const [shareQuery, setShareQuery] = useState('');
   const [shareSearchResults, setShareSearchResults] = useState<FoundUserDTO[]>([]);
   const [shareSearchLoading, setShareSearchLoading] = useState(false);
+  const [shareSearchSearched, setShareSearchSearched] = useState(false);
+  const [taskSharedUsers, setTaskSharedUsers] = useState<FoundUserDTO[]>([]);
   const [editVisible, setEditVisible] = useState(false);
   const [workOrderNumber, setWorkOrderNumber] = useState('');
   const [notificationNumber, setNotificationNumber] = useState('');
@@ -326,13 +397,13 @@ export default function TaskDetailScreen() {
   const [taskStepsOffsetInPanel, setTaskStepsOffsetInPanel] = useState<number | null>(null);
 
   useEffect(() => {
-    if (routeTask?.versionId && routeTask?.id) {
-      dispatch(fetchTaskById({ versionId: routeTask.versionId, taskId: routeTask.id }));
+    if (task?.versionId && task?.id) {
+      dispatch(fetchTaskById({ versionId: task.versionId, taskId: task.id }));
     }
     return () => {
       dispatch(clearCurrentTask());
     };
-  }, [dispatch, routeTask?.id, routeTask?.versionId]);
+  }, [dispatch, task?.id, task?.versionId]);
 
   const documentNumberFromTask = useMemo(() => getTaskDocumentNumber(task), [task]);
 
@@ -565,9 +636,42 @@ export default function TaskDetailScreen() {
       });
   }, [task?.id]);
 
+  useEffect(() => {
+    if (!task?.versionId || !task?.id) {
+      setTaskSharedUsers([]);
+      return;
+    }
+    let cancelled = false;
+    getTaskUsersSharedWith(task.versionId, task.id)
+      .then((res) => {
+        if (cancelled) return;
+        setTaskSharedUsers(normalizeTaskSharedUsers(res.data));
+      })
+      .catch(() => {
+        if (!cancelled) setTaskSharedUsers([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [task?.id, task?.versionId]);
+
+  const sharedUsers = useMemo(
+    () =>
+      mergeTaskSharedUsers([
+        ...normalizeTaskSharedUsers(task?.usersSharedWith),
+        ...taskSharedUsers,
+      ]),
+    [task?.usersSharedWith, taskSharedUsers]
+  );
+
   const sharedUserEmails = useMemo(
-    () => new Set((task?.usersSharedWith ?? []).map((u) => u.email.toLowerCase())),
-    [task?.usersSharedWith]
+    () =>
+      new Set(
+        sharedUsers
+          .filter((u) => typeof u?.email === 'string' && u.email.trim().length > 0)
+          .map((u) => u.email.toLowerCase())
+      ),
+    [sharedUsers]
   );
 
   useEffect(() => {
@@ -575,10 +679,12 @@ export default function TaskDetailScreen() {
     if (trimmed.length < 2) {
       setShareSearchResults([]);
       setShareSearchLoading(false);
+      setShareSearchSearched(false);
       return;
     }
     let cancelled = false;
     setShareSearchLoading(true);
+    setShareSearchSearched(true);
     const timer = setTimeout(async () => {
       try {
         const res = await getUsersBySearch({
@@ -590,7 +696,7 @@ export default function TaskDetailScreen() {
         });
         if (cancelled) return;
         const list = (res.data ?? []).filter(
-          (u) => !sharedUserEmails.has((u.email ?? '').toLowerCase())
+          (u) => typeof u?.email === 'string' && !sharedUserEmails.has(u.email.toLowerCase())
         );
         setShareSearchResults(list);
       } catch {
@@ -696,7 +802,6 @@ export default function TaskDetailScreen() {
   const canChangeStatus = Boolean(task.documentId && task.versionId && task.id);
   const taskStatusLabel = getTaskStatusLabel(task.status, t);
   const statusAction = getTaskStatusAction(task.status, t);
-  const sharedUsers = task.usersSharedWith ?? [];
   const attachmentFiles: TaskFileDTO[] = Array.isArray(task.documentFiles) ? task.documentFiles : [];
   const allStepsRecorded =
     allTaskStepIds.length > 0 &&
@@ -848,8 +953,10 @@ export default function TaskDetailScreen() {
           user,
         })
       ).unwrap();
+      setTaskSharedUsers((prev) => mergeTaskSharedUsers([...prev, user]));
       setShareQuery('');
       setShareSearchResults([]);
+      setShareSearchSearched(false);
     } catch (e) {
       Alert.alert(t('app.alerts.task'), (e as string) || t('app.task.shareFailed'));
     }
@@ -866,6 +973,14 @@ export default function TaskDetailScreen() {
           user,
         })
       ).unwrap();
+      setTaskSharedUsers((prev) =>
+        prev.filter((sharedUser) => {
+          const byUserId =
+            Boolean(sharedUser.userId) && Boolean(user.userId) && sharedUser.userId === user.userId;
+          const byEmail = sharedUser.email.toLowerCase() === user.email.toLowerCase();
+          return !(byUserId || byEmail);
+        })
+      );
     } catch (e) {
       Alert.alert(t('app.alerts.task'), (e as string) || t('app.task.unshareFailed'));
     }
@@ -901,12 +1016,12 @@ export default function TaskDetailScreen() {
           versionId: task.versionId,
           taskId: task.id,
           model: {
-            workOrderNumber: (workOrderNumber ?? '').trim() || null,
-            notificationNumber: (notificationNumber ?? '').trim() || null,
-            projectNumber: (projectNumber ?? '').trim() || null,
+            workOrderNumber: (workOrderNumber ?? '').trim(),
+            notificationNumber: (notificationNumber ?? '').trim(),
+            projectNumber: (projectNumber ?? '').trim(),
             assetId: assetId.trim() ? Number(assetId) : null,
             asset: task.asset ? { id: task.asset.id, name: task.asset.name } : null,
-            usersSharedWith: task.usersSharedWith ?? [],
+            usersSharedWith: sharedUsers,
           },
         })
       ).unwrap();
@@ -1339,32 +1454,39 @@ export default function TaskDetailScreen() {
                 <ActivityIndicator size="small" color={theme.colors.primary} />
               </View>
             ) : null}
-            {!shareSearchLoading && shareSearchResults.length > 0 ? (
-              <View style={[styles.shareSearchResults, styles.shareSearchFloating]}>
+            {!shareSearchLoading && shareSearchSearched && shareQuery.trim().length >= 2 ? (
+              <View style={[styles.shareSearchResults, styles.shareSearchFloating, rtlDirection]}>
                 <ScrollView
                   style={styles.shareSearchResultsScroll}
                   nestedScrollEnabled
                   keyboardShouldPersistTaps="handled"
                 >
-                  {shareSearchResults.map((user, idx) => (
-                    <TouchableOpacity
-                      key={`${user.email}-${user.userId ?? idx}`}
-                      style={styles.shareSearchResultRow}
-                      onPress={() => {
-                        handleUserPick(user);
-                        setShareQuery('');
-                        setShareSearchResults([]);
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.shareSearchResultName, rtlText]}>
-                        {user.fullName || user.email}
-                      </Text>
-                      {user.fullName ? (
-                        <Text style={[styles.shareSearchResultEmail, rtlText]}>{user.email}</Text>
-                      ) : null}
-                    </TouchableOpacity>
-                  ))}
+                  {shareSearchResults.length === 0 ? (
+                    <Text style={[styles.shareSearchNoResults, rtlText]}>
+                      {t('app.userSearch.noResults')}
+                    </Text>
+                  ) : (
+                    shareSearchResults.map((user, idx) => (
+                      <TouchableOpacity
+                        key={`${user.email}-${user.userId ?? idx}`}
+                        style={styles.shareSearchResultRow}
+                        onPress={() => {
+                          handleUserPick(user);
+                          setShareQuery('');
+                          setShareSearchResults([]);
+                          setShareSearchSearched(false);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={[styles.shareSearchResultName, rtlText]}>
+                          {user.fullName || user.email}
+                        </Text>
+                        {user.fullName ? (
+                          <Text style={[styles.shareSearchResultEmail, rtlText]}>{user.email}</Text>
+                        ) : null}
+                      </TouchableOpacity>
+                    ))
+                  )}
                 </ScrollView>
               </View>
             ) : null}
@@ -1915,6 +2037,12 @@ const styles = StyleSheet.create({
   shareSearchResultEmail: {
     fontSize: 13,
     color: '#6c757d',
+  },
+  shareSearchNoResults: {
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    color: '#6c757d',
+    fontSize: 14,
   },
   sharedWithTitle: {
     color: '#14151c',

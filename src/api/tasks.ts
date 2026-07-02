@@ -105,6 +105,13 @@ export function unshareUsers(
   );
 }
 
+export function getTaskUsersSharedWith(
+  versionId: string,
+  taskId: string
+): Promise<AxiosResponse<FoundUserDTO[]>> {
+  return axios.get<FoundUserDTO[]>(`api/versions/${versionId}/tasks/${taskId}/get-users-shared-with`);
+}
+
 export function createTask(
   documentId: string,
   versionId: string,

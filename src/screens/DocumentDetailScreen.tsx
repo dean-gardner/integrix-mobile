@@ -18,6 +18,7 @@ import type { AppDispatch, RootState } from '../store';
 import { fetchDocumentById, editDocument } from '../store/documentsSlice';
 import {
   generateDocumentReport,
+  getDocumentById as apiGetDocumentById,
   getDocumentHistory,
   getDocumentSectionTaskSteps,
   getDocumentSections,
@@ -201,6 +202,12 @@ export default function DocumentDetailScreen() {
   }, [doc]);
 
   const exportRequestInFlight = downloadingPdf || downloadingLargePdf;
+  const currentExportReportUrl = doc?.exportReportUrl ?? exportReportUrl;
+  const currentExportLargeReportUrl = doc?.exportLargeReportUrl ?? exportLargeReportUrl;
+  const isPdfExportPending = !currentExportReportUrl;
+  const isLargePdfExportPending = !currentExportLargeReportUrl;
+  const isPdfDownloadDisabled = exportRequestInFlight || isPdfExportPending;
+  const isLargePdfDownloadDisabled = exportRequestInFlight || isLargePdfExportPending;
 
   useEffect(() => {
     if (paramDoc?.documentId && paramDoc?.id) {
@@ -224,6 +231,32 @@ export default function DocumentDetailScreen() {
   useEffect(() => {
     setShareAutoOpened(false);
   }, [paramDoc?.id]);
+
+  useEffect(() => {
+    if (!doc?.documentId || !doc?.id) return;
+    if (currentExportReportUrl && currentExportLargeReportUrl) return;
+
+    let isCancelled = false;
+    const refreshExportUrls = async () => {
+      try {
+        const response = await apiGetDocumentById(doc.documentId, doc.id);
+        if (isCancelled) return;
+        setExportReportUrl(response.data?.exportReportUrl ?? null);
+        setExportLargeReportUrl(response.data?.exportLargeReportUrl ?? null);
+      } catch {
+        // Keep the pending UI; a later poll or screen refresh can update the URLs.
+      }
+    };
+
+    const intervalId = setInterval(() => {
+      refreshExportUrls().catch(() => {});
+    }, 10000);
+
+    return () => {
+      isCancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [currentExportLargeReportUrl, currentExportReportUrl, doc?.documentId, doc?.id]);
 
   useEffect(() => {
     if (!route.params?.openShare || shareAutoOpened) return;
@@ -425,9 +458,7 @@ export default function DocumentDetailScreen() {
       }
 
       try {
-        const existingUrl = isLarge
-          ? doc.exportLargeReportUrl ?? exportLargeReportUrl ?? doc.exportReportUrl ?? exportReportUrl
-          : doc.exportReportUrl ?? exportReportUrl ?? doc.exportLargeReportUrl ?? exportLargeReportUrl;
+        const existingUrl = isLarge ? currentExportLargeReportUrl : currentExportReportUrl;
 
         if (existingUrl) {
           const opened = await openExternalUrl(existingUrl);
@@ -466,7 +497,7 @@ export default function DocumentDetailScreen() {
         }
       }
     },
-    [doc, exportLargeReportUrl, exportReportUrl, t]
+    [currentExportLargeReportUrl, currentExportReportUrl, doc, t]
   );
 
   const openPostForTaskStep = useCallback(
@@ -882,32 +913,70 @@ export default function DocumentDetailScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.downloadButton, exportRequestInFlight && styles.buttonDisabled]}
+          style={[styles.downloadButton, isPdfDownloadDisabled && styles.downloadButtonDisabled]}
           onPress={() => {
+            if (isPdfDownloadDisabled) return;
             handleDownloadReport(false).catch(() => { });
           }}
-          disabled={exportRequestInFlight}
+          disabled={isPdfDownloadDisabled}
         >
-          {downloadingPdf ? (
-            <ActivityIndicator size="small" color="#ffffff" />
+          {downloadingPdf || isPdfExportPending ? (
+            <View style={[styles.downloadButtonInner, isRtl && styles.rowRtl]}>
+              <ActivityIndicator
+                size="small"
+                color={isPdfExportPending ? '#5d6780' : '#ffffff'}
+              />
+              <Text
+                style={[
+                  styles.downloadButtonText,
+                  isPdfExportPending && styles.downloadButtonTextDisabled,
+                  directionTextStyle,
+                ]}
+              >
+                {t('app.documentDetail.downloadPdf')}
+              </Text>
+            </View>
           ) : (
             <Text style={styles.downloadButtonText}>{t('app.documentDetail.downloadPdf')}</Text>
           )}
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.downloadButton, exportRequestInFlight && styles.buttonDisabled]}
+          style={[styles.downloadButton, isLargePdfDownloadDisabled && styles.downloadButtonDisabled]}
           onPress={() => {
+            if (isLargePdfDownloadDisabled) return;
             handleDownloadReport(true).catch(() => { });
           }}
-          disabled={exportRequestInFlight}
+          disabled={isLargePdfDownloadDisabled}
         >
-          {downloadingLargePdf ? (
-            <ActivityIndicator size="small" color="#ffffff" />
+          {downloadingLargePdf || isLargePdfExportPending ? (
+            <View style={[styles.downloadButtonInner, isRtl && styles.rowRtl]}>
+              <ActivityIndicator
+                size="small"
+                color={isLargePdfExportPending ? '#5d6780' : '#ffffff'}
+              />
+              <Text
+                style={[
+                  styles.downloadButtonText,
+                  isLargePdfExportPending && styles.downloadButtonTextDisabled,
+                  directionTextStyle,
+                ]}
+              >
+                {t('app.documentDetail.downloadLargePdf')}
+              </Text>
+            </View>
           ) : (
             <Text style={styles.downloadButtonText}>{t('app.documentDetail.downloadLargePdf')}</Text>
           )}
         </TouchableOpacity>
+
+        {isPdfExportPending || isLargePdfExportPending ? (
+          <View style={styles.exportPendingNotice}>
+            <Text style={[styles.exportPendingText, directionTextStyle]}>
+              {t('app.document.exportProgress')}
+            </Text>
+          </View>
+        ) : null}
 
         {exportFeedback ? (
           <View
@@ -1102,10 +1171,32 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     paddingHorizontal: 12,
   },
+  downloadButtonDisabled: {
+    backgroundColor: '#d8deea',
+  },
+  downloadButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
   downloadButtonText: {
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  downloadButtonTextDisabled: {
+    color: '#5d6780',
+  },
+  exportPendingNotice: {
+    width: 200,
+    marginTop: -2,
+    marginBottom: 10,
+  },
+  exportPendingText: {
+    color: '#5d6780',
+    fontSize: 13,
+    lineHeight: 18,
   },
   exportFeedback: {
     borderRadius: 4,

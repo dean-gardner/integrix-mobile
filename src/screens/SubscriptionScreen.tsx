@@ -104,9 +104,9 @@ export default function SubscriptionScreen() {
         return;
       }
     } catch {
-      // ignore
+      // Fall through to the copy/manual fallback below.
     }
-    Alert.alert(t('common.error'), t('subscription.noMailClient'));
+    copySupportEmail();
   };
 
   const copySupportEmail = () => {

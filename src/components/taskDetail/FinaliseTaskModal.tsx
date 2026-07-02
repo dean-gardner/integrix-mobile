@@ -15,10 +15,10 @@ import { MaterialIcons } from '@react-native-vector-icons/material-icons';
 import { useTranslation } from 'react-i18next';
 import type { TaskWithDetailsReadDTO } from '../../types/task';
 import type { FoundUserDTO } from '../../types/user';
-import type { FinaliseTaskDTO, TaskSignatureMode } from '../../types/finaliseTask';
+import type { FinaliseTaskDTO } from '../../types/finaliseTask';
 import { getUsersBySearch } from '../../api/users';
 import { theme } from '../../theme';
-import { buildSignaturePadHtml, stripDataUrlPrefix } from '../../utils/signaturePadHtml';
+import { buildSignaturePadHtml } from '../../utils/signaturePadHtml';
 import { UserPickerModal } from '../UserPickerModal';
 import {
   isRtlLayout,
@@ -38,6 +38,10 @@ export type FinaliseTaskModalProps = {
 };
 
 type SignatureTab = 'draw' | 'type';
+type FinaliseFieldErrors = {
+  signature?: string;
+  fullName?: string;
+};
 
 function normalizeShareUser(user: FoundUserDTO): FoundUserDTO {
   return {
@@ -47,6 +51,24 @@ function normalizeShareUser(user: FoundUserDTO): FoundUserDTO {
     companyTeam: null,
     isImplicitShare: user.isImplicitShare ?? null,
   };
+}
+
+function buildTypedSignatureDataUrl(value: string): string {
+  const escapedText = value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+  const svg = [
+    '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="100" viewBox="0 0 400 100">',
+    '<rect width="400" height="100" fill="#ffffff"/>',
+    '<text x="16" y="58" fill="#1a1a2e" font-size="42" font-style="italic"',
+    ' font-family="Brush Script MT, cursive, serif">',
+    escapedText,
+    '</text>',
+    '</svg>',
+  ].join('');
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
 export function FinaliseTaskModal({
@@ -75,7 +97,7 @@ export function FinaliseTaskModal({
   const [shareResults, setShareResults] = useState<FoundUserDTO[]>([]);
   const [shareSearching, setShareSearching] = useState(false);
   const [pickerVisible, setPickerVisible] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FinaliseFieldErrors>({});
 
   const signaturePadHtml = useMemo(() => ({ html: buildSignaturePadHtml() }), []);
 
@@ -94,7 +116,7 @@ export function FinaliseTaskModal({
     setShareUsers([]);
     setShareQuery('');
     setShareResults([]);
-    setFormError(null);
+    setFieldErrors({});
     webViewRef.current?.injectJavaScript(
       `window.postMessage(JSON.stringify({type:'clear'}), '*'); true;`
     );
@@ -146,6 +168,7 @@ export function FinaliseTaskModal({
           setDrawnSignature(null);
         } else {
           setDrawnSignature(data.signature);
+          setFieldErrors((current) => ({ ...current, signature: undefined }));
         }
       }
     } catch {
@@ -176,45 +199,34 @@ export function FinaliseTaskModal({
     setShareUsers((prev) => prev.filter((u) => u.email.toLowerCase() !== email.toLowerCase()));
   };
 
-  const resolveSignaturePayload = (): {
-    signature: string;
-    signatureType: TaskSignatureMode;
-  } | null => {
+  const resolveSignatureImage = (): string | null => {
     if (signatureTab === 'draw') {
       if (!drawnSignature) return null;
-      return {
-        signature: stripDataUrlPrefix(drawnSignature),
-        signatureType: 'Draw',
-      };
+      return drawnSignature;
     }
     const typed = typedSignature.trim();
     if (!typed) return null;
-    return { signature: typed, signatureType: 'Type' };
+    return buildTypedSignatureDataUrl(typed);
   };
 
   const handleFinalise = () => {
-    setFormError(null);
+    setFieldErrors({});
     if (requireSignature) {
       const name = fullName.trim();
-      if (!name) {
-        setFormError(t('app.taskFinalise.fullNameRequired'));
-        return;
-      }
-      const sig = resolveSignaturePayload();
-      if (!sig) {
-        setFormError(t('app.taskFinalise.signatureRequired'));
+      const signatureImage = resolveSignatureImage();
+      const nextErrors: FinaliseFieldErrors = {};
+      if (!signatureImage) nextErrors.signature = t('app.taskFinalise.signatureRequired');
+      if (!name) nextErrors.fullName = t('app.taskFinalise.fullNameRequired');
+      if (nextErrors.signature || nextErrors.fullName) {
+        setFieldErrors(nextErrors);
         return;
       }
       onSubmit({
         users: shareUsers,
         shouldBeSentToCrm,
-        signature: sig.signature,
-        fullName: name,
-        position: position.trim() || null,
-        signatureType: sig.signatureType,
-        signatureImage: sig.signature,
+        signatureImage,
         signatureFullName: name,
-        signaturePosition: position.trim() || null,
+        ...(position.trim() ? { signaturePosition: position.trim() } : {}),
       });
       return;
     }
@@ -232,7 +244,10 @@ export function FinaliseTaskModal({
       <View style={styles.backdrop}>
         <View style={[styles.card, rtlDirection]}>
           <View style={[styles.headerRow, rtlRow]}>
-            <Text style={[styles.title, rtlText]}>{t('app.task.finaliseTitle')}</Text>
+            <View style={[styles.titleBlock, rtlDirection]}>
+              <Text style={[styles.title, rtlText]}>{t('app.task.finaliseTitle')}</Text>
+              <Text style={[styles.subtitle, rtlText]}>{t('app.taskFinalise.finaliseSubtitle')}</Text>
+            </View>
             <TouchableOpacity onPress={onClose} disabled={submitting} hitSlop={12}>
               <MaterialIcons name="close" size={22} color="#2f3444" />
             </TouchableOpacity>
@@ -246,7 +261,10 @@ export function FinaliseTaskModal({
           >
             {requireSignature ? (
               <View style={styles.section}>
-                <Text style={[styles.sectionLabel, rtlText]}>{t('app.taskFinalise.signatureLabel')}</Text>
+                <Text style={[styles.sectionHeading, rtlText]}>{t('app.taskFinalise.signOffSection')}</Text>
+                <Text style={[styles.sectionLabel, rtlText]}>
+                  {`${t('app.taskFinalise.signatureLabel')} *`}
+                </Text>
                 <View style={[styles.tabRow, rtlRow]}>
                   <TouchableOpacity
                     style={[styles.tabBtn, signatureTab === 'draw' && styles.tabBtnActive]}
@@ -269,7 +287,7 @@ export function FinaliseTaskModal({
                 </View>
 
                 {signatureTab === 'draw' ? (
-                  <View style={styles.signaturePadWrap}>
+                  <View style={[styles.signaturePadWrap, fieldErrors.signature && styles.inputInvalid]}>
                     <WebView
                       ref={webViewRef}
                       source={signaturePadHtml}
@@ -284,15 +302,27 @@ export function FinaliseTaskModal({
                   </View>
                 ) : (
                   <TextInput
-                    style={[styles.typedSignatureInput, rtlInput]}
+                    style={[
+                      styles.typedSignatureInput,
+                      rtlInput,
+                      fieldErrors.signature && styles.inputInvalid,
+                    ]}
                     textAlign={rtlInput.textAlign}
                     value={typedSignature}
-                    onChangeText={setTypedSignature}
+                    onChangeText={(text) => {
+                      setTypedSignature(text);
+                      if (text.trim()) {
+                        setFieldErrors((current) => ({ ...current, signature: undefined }));
+                      }
+                    }}
                     placeholder={t('app.taskFinalise.typeSignaturePh')}
                     placeholderTextColor="#a0a6b6"
                     editable={!submitting}
                   />
                 )}
+                {fieldErrors.signature ? (
+                  <Text style={[styles.fieldError, rtlText]}>* {fieldErrors.signature}</Text>
+                ) : null}
 
                 <TouchableOpacity
                   style={[styles.clearSignatureBtn, isRtl && styles.clearSignatureBtnRtl]}
@@ -302,17 +332,30 @@ export function FinaliseTaskModal({
                   <Text style={[styles.clearSignatureText, rtlText]}>{t('app.taskFinalise.clearSignature')}</Text>
                 </TouchableOpacity>
 
-                <Text style={[styles.fieldLabel, rtlText]}>{t('app.taskFinalise.fullNameLabel')}</Text>
+                <Text style={[styles.fieldLabel, rtlText]}>{`${t('app.taskFinalise.fullNameLabel')} *`}</Text>
                 <TextInput
-                  style={[styles.fieldInput, rtlInput]}
+                  style={[
+                    styles.fieldInput,
+                    rtlInput,
+                    fieldErrors.fullName && styles.inputInvalid,
+                    fieldErrors.fullName && styles.fieldInputWithError,
+                  ]}
                   textAlign={rtlInput.textAlign}
                   value={fullName}
-                  onChangeText={setFullName}
+                  onChangeText={(text) => {
+                    setFullName(text);
+                    if (text.trim()) {
+                      setFieldErrors((current) => ({ ...current, fullName: undefined }));
+                    }
+                  }}
                   placeholder={t('app.taskFinalise.fullNamePh')}
                   placeholderTextColor="#a0a6b6"
                   editable={!submitting}
                   autoCapitalize="words"
                 />
+                {fieldErrors.fullName ? (
+                  <Text style={[styles.fieldError, rtlText]}>* {fieldErrors.fullName}</Text>
+                ) : null}
 
                 <Text style={[styles.fieldLabel, rtlText]}>{t('app.taskFinalise.positionLabel')}</Text>
                 <TextInput
@@ -327,44 +370,52 @@ export function FinaliseTaskModal({
               </View>
             ) : null}
 
-            <Text style={[styles.description, rtlText]}>{t('app.taskFinalise.shareDescription')}</Text>
+            <View style={styles.section}>
+              {requireSignature ? (
+                <Text style={[styles.sectionHeading, rtlText]}>{t('app.taskFinalise.shareReportSection')}</Text>
+              ) : null}
 
-            {showCrmAttach ? (
-              <TouchableOpacity
-                style={[styles.crmRow, rtlRow]}
-                onPress={() => setShouldBeSentToCrm((v) => !v)}
-                disabled={submitting}
-              >
-                <MaterialIcons
-                  name={shouldBeSentToCrm ? 'check-box' : 'check-box-outline-blank'}
-                  size={22}
-                  color={theme.colors.primary}
+              <Text style={[styles.description, rtlText]}>{t('app.taskFinalise.shareDescription')}</Text>
+
+              {showCrmAttach ? (
+                <TouchableOpacity
+                  style={[styles.crmRow, rtlRow]}
+                  onPress={() => setShouldBeSentToCrm((v) => !v)}
+                  disabled={submitting}
+                >
+                  <MaterialIcons
+                    name={shouldBeSentToCrm ? 'check-box' : 'check-box-outline-blank'}
+                    size={22}
+                    color={theme.colors.primary}
+                  />
+                  <Text style={[styles.crmLabel, rtlText]}>
+                    {t('app.taskFinalise.attachToCrm', { crmName: task.integratedCrmName })}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
+
+              <Text style={[styles.fieldLabel, rtlText]}>{t('app.taskFinalise.shareWithLabel')}</Text>
+              <View style={[styles.shareInputRow, rtlRow]}>
+                <TextInput
+                  style={[styles.fieldInput, rtlInput, styles.shareInput]}
+                  textAlign={rtlInput.textAlign}
+                  value={shareQuery}
+                  onChangeText={setShareQuery}
+                  placeholder={t('app.taskFinalise.shareUsersPh')}
+                  placeholderTextColor="#a0a6b6"
+                  editable={!submitting}
+                  autoCapitalize="none"
                 />
-                <Text style={[styles.crmLabel, rtlText]}>
-                  {t('app.taskFinalise.attachToCrm', { crmName: task.integratedCrmName })}
-                </Text>
-              </TouchableOpacity>
-            ) : null}
-
-            <Text style={[styles.fieldLabel, rtlText]}>{t('app.task.usersToShare')}</Text>
-            <View style={[styles.shareInputRow, rtlRow]}>
-              <TextInput
-                style={[styles.fieldInput, rtlInput, styles.shareInput]}
-                textAlign={rtlInput.textAlign}
-                value={shareQuery}
-                onChangeText={setShareQuery}
-                placeholder={t('app.task.sharePh')}
-                placeholderTextColor="#a0a6b6"
-                editable={!submitting}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity
-                style={styles.addUserBtn}
-                onPress={() => setPickerVisible(true)}
-                disabled={submitting}
-              >
-                <MaterialIcons name="person-add" size={22} color="#fff" />
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.addUserBtn}
+                  onPress={() => setPickerVisible(true)}
+                  disabled={submitting}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('app.taskDetail.shareWithUserTitle')}
+                >
+                  <MaterialIcons name="person-add" size={22} color="#fff" />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {shareSearching ? (
@@ -374,7 +425,7 @@ export function FinaliseTaskModal({
             {shareResults.slice(0, 5).map((user) => (
               <TouchableOpacity
                 key={user.email}
-                style={styles.shareResultRow}
+                style={[styles.shareResultRow, rtlDirection]}
                 onPress={() => addShareUser(user)}
                 disabled={submitting}
               >
@@ -384,7 +435,7 @@ export function FinaliseTaskModal({
             ))}
 
             {shareUsers.length > 0 ? (
-              <View style={styles.selectedUsersWrap}>
+              <View style={[styles.selectedUsersWrap, rtlDirection]}>
                 {shareUsers.map((user) => (
                   <View key={user.email} style={[styles.selectedUserRow, rtlRow]}>
                     <View style={styles.selectedUserText}>
@@ -405,7 +456,6 @@ export function FinaliseTaskModal({
               </View>
             ) : null}
 
-            {formError ? <Text style={[styles.formError, rtlText]}>* {formError}</Text> : null}
           </ScrollView>
 
           <View style={[styles.actions, rtlRow]}>
@@ -461,11 +511,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 8,
+    gap: 12,
+  },
+  titleBlock: {
+    flex: 1,
   },
   title: {
     fontSize: 18,
     fontWeight: '700',
     color: '#1f2233',
+  },
+  subtitle: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 2,
   },
   scroll: {
     maxHeight: 480,
@@ -476,6 +535,12 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: 12,
+  },
+  sectionHeading: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1f2233',
+    marginBottom: 8,
   },
   sectionLabel: {
     fontSize: 14,
@@ -510,6 +575,8 @@ const styles = StyleSheet.create({
   },
   signaturePadWrap: {
     height: 160,
+    borderWidth: 1,
+    borderColor: 'transparent',
     borderRadius: 8,
     overflow: 'hidden',
   },
@@ -555,6 +622,18 @@ const styles = StyleSheet.create({
     paddingVertical: Platform.OS === 'ios' ? 10 : 8,
     fontSize: 15,
     color: '#1f2233',
+    marginBottom: 8,
+  },
+  fieldInputWithError: {
+    marginBottom: 0,
+  },
+  inputInvalid: {
+    borderColor: '#c62828',
+  },
+  fieldError: {
+    color: '#c62828',
+    fontSize: 13,
+    marginTop: 4,
     marginBottom: 8,
   },
   description: {
@@ -629,11 +708,6 @@ const styles = StyleSheet.create({
   selectedUserEmail: {
     fontSize: 12,
     color: '#6b7280',
-  },
-  formError: {
-    color: '#c62828',
-    fontSize: 13,
-    marginTop: 8,
   },
   actions: {
     flexDirection: 'row',

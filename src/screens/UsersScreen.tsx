@@ -49,7 +49,7 @@ type UsersTableRow = {
 
 /** Fixed column widths so the table overflows horizontally and can scroll (web parity). */
 const COL_FULL_NAME_W = 190;
-const COL_EMAIL_W = 238;
+const COL_EMAIL_W = 320;
 const COL_TEAM_W = 148;
 const COL_LICENSE_W = 96;
 const COL_ROLE_W = 104;
@@ -363,10 +363,12 @@ export default function UsersScreen() {
             nestedScrollEnabled
             showsHorizontalScrollIndicator
             keyboardShouldPersistTaps="handled"
+            directionalLockEnabled
+            alwaysBounceHorizontal={false}
             style={styles.tableHScroll}
-            contentContainerStyle={styles.tableHScrollContent}
+            contentContainerStyle={[styles.tableHScrollContent, { width: tableMinWidth }]}
           >
-            <View style={[styles.tableSheet, { minWidth: tableMinWidth }]}>
+            <View style={[styles.tableSheet, { width: tableMinWidth }]}>
               <View style={[styles.tableHeader, rtlRow]}>
                 <Text style={[styles.headerText, rtlText, styles.colFullNameHeader]}>
                   {t('app.users.colFullName')}
@@ -401,7 +403,7 @@ export default function UsersScreen() {
                     <Text style={[styles.rowText, rtlText, styles.colFullNameCell]} numberOfLines={1}>
                       {row.fullName}
                     </Text>
-                    <Text style={[styles.rowText, rtlText, styles.colEmailCell]} numberOfLines={1}>
+                    <Text style={[styles.rowText, rtlText, styles.colEmailCell]} numberOfLines={2} selectable>
                       {row.email}
                     </Text>
                     <Text style={[styles.rowText, rtlText, styles.colTeamCell]} numberOfLines={1}>
@@ -575,9 +577,12 @@ const styles = StyleSheet.create({
   tableHScroll: {
     marginTop: 10,
     flexGrow: 0,
+    alignSelf: 'stretch',
+    width: '100%',
   },
   tableHScrollContent: {
     paddingBottom: 4,
+    flexGrow: 0,
   },
   tableSheet: {
     flexDirection: 'column',
@@ -628,7 +633,7 @@ const styles = StyleSheet.create({
     paddingStart: 10,
   },
   dataRow: {
-    minHeight: 48,
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     borderBottomWidth: 1,

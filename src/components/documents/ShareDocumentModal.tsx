@@ -69,10 +69,44 @@ function dedupeUsers(users: FoundUserDTO[]): FoundUserDTO[] {
   return Array.from(map.values());
 }
 
+function normalizeDocumentShareUser(user: FoundUserDTO): FoundUserDTO {
+  return {
+    fullName: user.fullName ?? null,
+    email: (user.email ?? '').trim(),
+    userId: user.userId ?? null,
+    companyTeam: null,
+    isImplicitShare: user.isImplicitShare ?? null,
+  };
+}
+
+function readStringField(source: unknown, key: string): string | null {
+  if (!source || typeof source !== 'object') return null;
+  const value = (source as Record<string, unknown>)[key];
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function readStringOrNestedId(source: unknown, key: string): string | null {
+  if (!source || typeof source !== 'object') return null;
+  const value = (source as Record<string, unknown>)[key];
+  if (typeof value === 'string' && value.trim()) return value.trim();
+  return readStringField(value, 'id') ?? readStringField(value, 'Id');
+}
+
 function getDocumentShareIds(document: DocumentVersionReadDTO): string[] {
   const ids = [
-    document.id,
-    typeof document.documentId === 'string' ? document.documentId : null,
+    // Web shares DocumentVersionReadDTO.id. Keep all known version aliases first.
+    readStringField(document, 'id'),
+    readStringField(document, 'versionId'),
+    readStringField(document, 'VersionId'),
+    readStringField(document, 'documentVersionId'),
+    readStringField(document, 'DocumentVersionId'),
+    readStringField(document, 'documentVersionID'),
+    readStringField(document, 'DocumentVersionID'),
+    readStringOrNestedId(document, 'version'),
+    readStringOrNestedId(document, 'Version'),
+    // Parent document id is a fallback for archived documents in some API responses.
+    readStringField(document, 'documentId'),
+    readStringField(document, 'DocumentId'),
   ];
   return ids.filter((id, index): id is string =>
     Boolean(id && id.trim()) && ids.findIndex((candidate) => candidate === id) === index
@@ -80,15 +114,41 @@ function getDocumentShareIds(document: DocumentVersionReadDTO): string[] {
 }
 
 function getShareErrorMessage(error: unknown): string | null {
-  const err = error as { response?: { data?: { message?: string } | string } };
-  if (typeof err?.response?.data === 'string') return err.response.data;
-  if (
-    typeof err?.response?.data === 'object' &&
-    err?.response?.data &&
-    'message' in err.response.data &&
-    typeof (err.response.data as { message?: string }).message === 'string'
-  ) {
-    return (err.response.data as { message?: string }).message ?? null;
+  const err = error as {
+    message?: unknown;
+    data?: unknown;
+    response?: { data?: unknown; status?: number };
+  };
+
+  const extractFromData = (data: unknown): string | null => {
+    if (typeof data === 'string' && data.trim()) return data;
+    if (data && typeof data === 'object') {
+      const record = data as Record<string, unknown>;
+      if (typeof record.message === 'string' && record.message.trim()) return record.message;
+      if (typeof record.title === 'string' && record.title.trim()) return record.title;
+      if (record.errors && typeof record.errors === 'object') {
+        const values = Object.values(record.errors as Record<string, unknown>)
+          .flatMap((value) => Array.isArray(value) ? value : [value])
+          .filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+        if (values.length > 0) return values.join('\n');
+      }
+      try {
+        const text = JSON.stringify(data);
+        if (text && text !== '{}') return text;
+      } catch {
+        // Fall through to generic error handling.
+      }
+    }
+    return null;
+  };
+
+  const responseMessage = extractFromData(err?.response?.data);
+  if (responseMessage) return responseMessage;
+  const directDataMessage = extractFromData(err?.data);
+  if (directDataMessage) return directDataMessage;
+  if (typeof err?.message === 'string' && err.message.trim()) return err.message;
+  if (typeof err?.response?.status === 'number') {
+    return `Request failed with status code ${err.response.status}`;
   }
   return null;
 }
@@ -96,6 +156,10 @@ function getShareErrorMessage(error: unknown): string | null {
 function isDocumentIdLookupError(error: unknown): boolean {
   const message = getShareErrorMessage(error)?.toLowerCase() ?? '';
   return message.includes('not all documents') && message.includes('found');
+}
+
+function buildShareResponseError(response: { data?: unknown; status?: number }): unknown {
+  return { response: { data: response.data }, status: response.status };
 }
 
 export function ShareDocumentModal({ visible, document, onClose }: ShareDocumentModalProps) {
@@ -130,7 +194,7 @@ export function ShareDocumentModal({ visible, document, onClose }: ShareDocument
       .filter((email) => !ownerEmailLower || email !== ownerEmailLower)
       .filter((email) => !sharedUsers.some((u) => u.email.toLowerCase() === email))
       .filter((email) => !usersToShare.some((u) => u.email.toLowerCase() === email))
-      .map((email) => ({ fullName: null, email, userId: null, companyTeam: null } as FoundUserDTO));
+      .map((email) => normalizeDocumentShareUser({ fullName: null, email, userId: null, companyTeam: null }));
   }, [ownerEmail, query, sharedUsers, usersToShare]);
 
   const canSave = usersToShare.length > 0 || usersToUnshare.length > 0 || queryUsersToShare.length > 0;
@@ -221,20 +285,22 @@ export function ShareDocumentModal({ visible, document, onClose }: ShareDocument
   const addUserToShare = useCallback(
     (user: FoundUserDTO) => {
       if (ownerEmail && user.email.toLowerCase() === ownerEmail.toLowerCase()) return;
+      const normalizedUser = normalizeDocumentShareUser(user);
       setUsersToUnshare((prev) => prev.filter((u) => !usersEqual(u, user)));
       setUsersToShare((prev) => {
-        if (prev.some((u) => usersEqual(u, user))) return prev;
-        if (sharedUsers.some((u) => usersEqual(u, user))) return prev;
-        return [...prev, user];
+        if (prev.some((u) => usersEqual(u, normalizedUser))) return prev;
+        if (sharedUsers.some((u) => usersEqual(u, normalizedUser))) return prev;
+        return [...prev, normalizedUser];
       });
     },
     [ownerEmail, sharedUsers]
   );
 
   const removeSharedUser = useCallback((user: FoundUserDTO) => {
+    const normalizedUser = normalizeDocumentShareUser(user);
     setUsersToUnshare((prev) => {
-      if (prev.some((u) => usersEqual(u, user))) return prev;
-      return [...prev, user];
+      if (prev.some((u) => usersEqual(u, normalizedUser))) return prev;
+      return [...prev, normalizedUser];
     });
   }, []);
 
@@ -250,9 +316,10 @@ export function ShareDocumentModal({ visible, document, onClose }: ShareDocument
         const next = [...prev];
         users.forEach((user) => {
           if (ownerEmail && user.email.toLowerCase() === ownerEmail.toLowerCase()) return;
-          if (next.some((u) => usersEqual(u, user))) return;
-          if (sharedUsers.some((u) => usersEqual(u, user))) return;
-          next.push(user);
+          const normalizedUser = normalizeDocumentShareUser(user);
+          if (next.some((u) => usersEqual(u, normalizedUser))) return;
+          if (sharedUsers.some((u) => usersEqual(u, normalizedUser))) return;
+          next.push(normalizedUser);
         });
         return next;
       });
@@ -266,7 +333,7 @@ export function ShareDocumentModal({ visible, document, onClose }: ShareDocument
       const lastChar = value.charAt(value.length - 1);
       if (![' ', ',', ';'].includes(lastChar)) return;
       const usersFromInput = extractEmails(value).map(
-        (email) => ({ fullName: null, email, userId: null, companyTeam: null } as FoundUserDTO)
+        (email) => normalizeDocumentShareUser({ fullName: null, email, userId: null, companyTeam: null })
       );
       if (usersFromInput.length === 0) return;
       addUsersToShare(usersFromInput);
@@ -278,7 +345,7 @@ export function ShareDocumentModal({ visible, document, onClose }: ShareDocument
 
   const handleQuerySubmit = useCallback(() => {
     const usersFromInput = extractEmails(query).map(
-      (email) => ({ fullName: null, email, userId: null, companyTeam: null } as FoundUserDTO)
+      (email) => normalizeDocumentShareUser({ fullName: null, email, userId: null, companyTeam: null })
     );
     if (usersFromInput.length === 0) return;
     addUsersToShare(usersFromInput);
@@ -290,7 +357,8 @@ export function ShareDocumentModal({ visible, document, onClose }: ShareDocument
     if (!document?.id) return;
     setSaving(true);
     try {
-      const usersToSharePayload = dedupeUsers([...usersToShare, ...queryUsersToShare]);
+      const usersToSharePayload = dedupeUsers([...usersToShare, ...queryUsersToShare].map(normalizeDocumentShareUser));
+      const usersToUnsharePayload = dedupeUsers(usersToUnshare.map(normalizeDocumentShareUser));
       const documentShareIds = getDocumentShareIds(document);
       let resolvedDocumentId = documentShareIds[0];
       const runWithFallback = async (operation: (documentId: string) => Promise<void>) => {
@@ -312,12 +380,16 @@ export function ShareDocumentModal({ visible, document, onClose }: ShareDocument
         throw lastError;
       };
 
-      if (usersToUnshare.length > 0) {
-        await runWithFallback((documentId) => unshareDocumentUsers(documentId, usersToUnshare));
+      if (usersToUnsharePayload.length > 0) {
+        await runWithFallback((documentId) => unshareDocumentUsers(documentId, usersToUnsharePayload));
       }
       if (usersToSharePayload.length > 0) {
         await runWithFallback((documentId) =>
-          shareDocuments({ itemsIds: [documentId], usersToShare: usersToSharePayload }).then(() => {})
+          shareDocuments({ itemsIds: [documentId], usersToShare: usersToSharePayload }).then((response) => {
+            if (response.status === 202) {
+              throw buildShareResponseError(response);
+            }
+          })
         );
       }
       closeModal();

@@ -12,7 +12,6 @@ import {
   Modal,
   TextInput,
   Linking,
-  InteractionManager,
   Image,
   Platform,
   type KeyboardEvent,
@@ -33,7 +32,12 @@ import {
   unshareCurrentTaskWithUser,
   editTaskEntry,
 } from '../store/tasksSlice';
-import { changeTaskStepStatus, getTaskSectionsWithTaskSteps, getTaskUsersSharedWith } from '../api/tasks';
+import {
+  changeTaskStepStatus,
+  getDocumentTaskUsersSharedWith,
+  getTaskSectionsWithTaskSteps,
+  getTaskUsersSharedWith,
+} from '../api/tasks';
 import { getDocumentById } from '../api/documents';
 import { createDefect as apiCreateDefect, getTaskStepDefects } from '../api/defects';
 import { createObservation as apiCreateObservation } from '../api/observations';
@@ -185,6 +189,50 @@ function mergeTaskSharedUsers(users: FoundUserDTO[]): FoundUserDTO[] {
     seen.add(key);
     return true;
   });
+}
+
+function runWhenIdle(callback: () => void): { cancel?: () => void } {
+  const idleCallback = globalThis.requestIdleCallback;
+  if (typeof idleCallback === 'function') {
+    const handle = idleCallback(callback);
+    return {
+      cancel: () => globalThis.cancelIdleCallback?.(handle),
+    };
+  }
+  const timeoutId = setTimeout(callback, 0);
+  return {
+    cancel: () => clearTimeout(timeoutId),
+  };
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (typeof error === 'string' && error.trim()) return error;
+  if (error instanceof Error && error.message.trim()) return error.message;
+  if (error && typeof error === 'object') {
+    const record = error as {
+      message?: unknown;
+      response?: { data?: unknown };
+    };
+    const responseData = record.response?.data;
+    if (typeof responseData === 'string' && responseData.trim()) return responseData;
+    if (responseData && typeof responseData === 'object') {
+      const responseRecord = responseData as { message?: unknown; title?: unknown };
+      if (typeof responseRecord.message === 'string' && responseRecord.message.trim()) {
+        return responseRecord.message;
+      }
+      if (typeof responseRecord.title === 'string' && responseRecord.title.trim()) {
+        return responseRecord.title;
+      }
+      try {
+        const text = JSON.stringify(responseData);
+        if (text && text !== '{}') return text;
+      } catch {
+        // Fall through to the generic error message.
+      }
+    }
+    if (typeof record.message === 'string' && record.message.trim()) return record.message;
+  }
+  return fallback;
 }
 
 function isValidEmail(value: string): boolean {
@@ -398,12 +446,12 @@ export default function TaskDetailScreen() {
 
   useEffect(() => {
     if (task?.versionId && task?.id) {
-      dispatch(fetchTaskById({ versionId: task.versionId, taskId: task.id }));
+      dispatch(fetchTaskById({ documentId: task.documentId, versionId: task.versionId, taskId: task.id }));
     }
     return () => {
       dispatch(clearCurrentTask());
     };
-  }, [dispatch, task?.id, task?.versionId]);
+  }, [dispatch, task?.documentId, task?.id, task?.versionId]);
 
   const documentNumberFromTask = useMemo(() => getTaskDocumentNumber(task), [task]);
 
@@ -560,7 +608,7 @@ export default function TaskDetailScreen() {
         // stepY is relative to taskStepsPanel, which is inside panel.
         // Add panelOffsetY + taskStepsOffsetInPanel to get absolute scroll Y.
         const base = (panelOffsetY ?? 0) + (taskStepsOffsetInPanel ?? 0);
-        InteractionManager.runAfterInteractions(() => {
+        runWhenIdle(() => {
           scrollRef.current?.scrollTo({ y: Math.max(0, base + stepY - 60), animated: true });
         });
       }
@@ -590,9 +638,9 @@ export default function TaskDetailScreen() {
     if (panelOffsetY == null || taskStepsOffsetInPanel == null) return;
 
     const y = panelOffsetY + taskStepsOffsetInPanel;
-    let interaction: { cancel?: () => void } | null = null;
+    let idleTask: { cancel?: () => void } | null = null;
     const timerId = setTimeout(() => {
-      interaction = InteractionManager.runAfterInteractions(() => {
+      idleTask = runWhenIdle(() => {
         didScrollToSteps.current = true;
         scrollRef.current?.scrollTo({ y, animated: true });
       });
@@ -600,7 +648,7 @@ export default function TaskDetailScreen() {
 
     return () => {
       clearTimeout(timerId);
-      interaction?.cancel?.();
+      idleTask?.cancel?.();
     };
   }, [
     scrollToSteps,
@@ -642,7 +690,10 @@ export default function TaskDetailScreen() {
       return;
     }
     let cancelled = false;
-    getTaskUsersSharedWith(task.versionId, task.id)
+    const loadSharedUsers = task.documentId
+      ? getDocumentTaskUsersSharedWith(task.documentId, task.versionId, task.id)
+      : getTaskUsersSharedWith(task.versionId, task.id);
+    loadSharedUsers
       .then((res) => {
         if (cancelled) return;
         setTaskSharedUsers(normalizeTaskSharedUsers(res.data));
@@ -653,7 +704,7 @@ export default function TaskDetailScreen() {
     return () => {
       cancelled = true;
     };
-  }, [task?.id, task?.versionId]);
+  }, [task?.documentId, task?.id, task?.versionId]);
 
   const sharedUsers = useMemo(
     () =>
@@ -894,7 +945,7 @@ export default function TaskDetailScreen() {
       ).unwrap();
       return true;
     } catch (e) {
-      Alert.alert(t('app.alerts.task'), (e as string) || t('app.task.statusFailed'));
+      Alert.alert(t('app.alerts.task'), getErrorMessage(e, t('app.task.statusFailed')));
       return false;
     }
   };
@@ -924,13 +975,13 @@ export default function TaskDetailScreen() {
       ).unwrap();
       setFinaliseModalVisible(false);
       if (task.versionId && task.id) {
-        dispatch(fetchTaskById({ versionId: task.versionId, taskId: task.id })).catch(() => {});
+        dispatch(fetchTaskById({ documentId: task.documentId, versionId: task.versionId, taskId: task.id })).catch(() => {});
       }
       dispatch(fetchTasks()).catch(() => {});
       Alert.alert(t('app.alerts.success'), t('app.task.finaliseSuccess'));
       navigation.navigate('Tasks' as never);
     } catch (e) {
-      Alert.alert(t('app.alerts.task'), (e as string) || t('app.errors.finaliseTask'));
+      Alert.alert(t('app.alerts.task'), getErrorMessage(e, t('app.errors.finaliseTask')));
     }
   };
 
@@ -958,7 +1009,7 @@ export default function TaskDetailScreen() {
       setShareSearchResults([]);
       setShareSearchSearched(false);
     } catch (e) {
-      Alert.alert(t('app.alerts.task'), (e as string) || t('app.task.shareFailed'));
+      Alert.alert(t('app.alerts.task'), getErrorMessage(e, t('app.task.shareFailed')));
     }
   };
 
@@ -982,7 +1033,7 @@ export default function TaskDetailScreen() {
         })
       );
     } catch (e) {
-      Alert.alert(t('app.alerts.task'), (e as string) || t('app.task.unshareFailed'));
+      Alert.alert(t('app.alerts.task'), getErrorMessage(e, t('app.task.unshareFailed')));
     }
   };
 
@@ -1027,7 +1078,7 @@ export default function TaskDetailScreen() {
       ).unwrap();
       setEditVisible(false);
     } catch (e) {
-      setEditError((e as string) || t('app.errors.editTask'));
+      setEditError(getErrorMessage(e, t('app.errors.editTask')));
     }
   };
 
@@ -1161,7 +1212,9 @@ export default function TaskDetailScreen() {
       await apiCreateObservation(formData);
     }
 
-    await dispatch(fetchTaskById({ versionId: task.versionId, taskId: task.id })).unwrap();
+    dispatch(
+      fetchTaskById({ documentId: task.documentId, versionId: task.versionId, taskId: task.id })
+    ).catch(() => {});
     try {
       const orderedSections = await fetchSections(task.id);
       setSections(orderedSections);
@@ -1193,12 +1246,14 @@ export default function TaskDetailScreen() {
         taskStepId,
         verificationStatusToApiString(targetStatus)
       );
-      const updatedTaskStepId = res.data.taskStepId ?? taskStepId;
-      const updatedStatus = parseVerificationStatus(res.data.verificationStatusCode);
+      const updatedTaskStepId = res.data?.taskStepId ?? taskStepId;
+      const updatedStatus = res.data
+        ? parseVerificationStatus(res.data.verificationStatusCode)
+        : targetStatus;
       setStepStatuses((prev) => ({ ...prev, [updatedTaskStepId]: updatedStatus }));
-      await dispatch(fetchTaskById({ versionId, taskId })).unwrap();
+      dispatch(fetchTaskById({ documentId, versionId, taskId })).catch(() => {});
     } catch (e) {
-      Alert.alert(t('app.alerts.task'), (e as string) || t('app.task.stepStatusFailed'));
+      Alert.alert(t('app.alerts.task'), getErrorMessage(e, t('app.task.stepStatusFailed')));
     } finally {
       setStatusUpdatingStepId(null);
       setStatusUpdatingAction(null);
@@ -1229,7 +1284,7 @@ export default function TaskDetailScreen() {
       setDoneConfirmDescription('');
       setDoneConfirmFiles([]);
     } catch (e) {
-      setDoneConfirmError((e as string) || t('app.taskDetail.stepDoneFail'));
+      setDoneConfirmError(getErrorMessage(e, t('app.taskDetail.stepDoneFail')));
     } finally {
       setDoneConfirmSubmitting(false);
     }

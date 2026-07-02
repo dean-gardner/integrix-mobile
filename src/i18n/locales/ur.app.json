@@ -363,6 +363,8 @@
       "deleteConfirm": "یہ ورژن حذف کریں؟",
       "downloadFail": "لنک نہیں کھل سکا۔",
       "exportProgress": "برآمد جاری ہے۔ بعد میں کوشش کریں۔",
+      "pdfExportInProgress": "براہ کرم انتظار کریں، PDF برآمد جاری ہے۔",
+      "largePdfExportInProgress": "براہ کرم انتظار کریں، بڑی PDF برآمد جاری ہے۔",
       "exportFail": "رپورٹ بنانے میں ناکامی۔",
       "taskRef": "کام کا حوالہ",
       "createDoc": "دستاویز بنائیں",

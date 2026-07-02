@@ -12,10 +12,12 @@ import i18n from '../i18n';
 import {
   getTasks,
   getTaskById,
+  getDocumentTaskById,
   changeTaskStatus,
   shareTasks as apiShareTasks,
   unshareUsers as apiUnshareUsers,
   getTaskUsersSharedWith,
+  getDocumentTaskUsersSharedWith,
   shareTaskWithUser,
   unshareTaskWithUser,
   createTask as apiCreateTask,
@@ -31,10 +33,24 @@ type TaskReferenceEdit = Pick<
 
 function applyPendingTaskReferenceEdit<T extends TaskReadDTO>(
   task: T,
-  pending: Record<string, TaskReferenceEdit>
+  pending?: Record<string, TaskReferenceEdit>
 ): T {
-  const edit = pending[task.id];
+  if (!task?.id) return task;
+  const edit = pending?.[task.id];
   return edit ? { ...task, ...edit } : task;
+}
+
+function isTaskReadDTO(value: unknown): value is TaskReadDTO {
+  return (
+    Boolean(value) &&
+    typeof value === 'object' &&
+    typeof (value as { id?: unknown }).id === 'string' &&
+    (value as { id: string }).id.trim().length > 0
+  );
+}
+
+function normalizeTaskItems(items: unknown): TaskReadDTO[] {
+  return Array.isArray(items) ? items.filter(isTaskReadDTO) : [];
 }
 
 /**
@@ -156,7 +172,7 @@ export const fetchTasks = createAsyncThunk<
   async (_, { getState, rejectWithValue }) => {
     try {
       const res = await getTasks(getState().tasks.filteringModel);
-      return { items: res.data.items, totalCount: res.data.totalCount };
+      return { items: normalizeTaskItems(res.data?.items), totalCount: res.data?.totalCount ?? 0 };
     } catch (e: any) {
       return rejectWithValue(e?.message ?? i18n.t('app.errors.loadTasks'));
     }
@@ -188,8 +204,8 @@ export const fetchMoreTasks = createAsyncThunk<
       };
       const res = await getTasks(next);
       return {
-        items: items.concat(res.data.items),
-        totalCount: res.data.totalCount,
+        items: items.concat(normalizeTaskItems(res.data?.items)),
+        totalCount: res.data?.totalCount ?? items.length,
         nextPageNumber: next.pageNumber,
       };
     } catch (e: any) {
@@ -208,7 +224,11 @@ export const goToTasksPage = createAsyncThunk<
     try {
       const { filteringModel } = getState().tasks;
       const res = await getTasks({ ...filteringModel, pageNumber: pageNumber - 1 });
-      return { items: res.data.items, totalCount: res.data.totalCount, pageNumber };
+      return {
+        items: normalizeTaskItems(res.data?.items),
+        totalCount: res.data?.totalCount ?? 0,
+        pageNumber,
+      };
     } catch (e: any) {
       return rejectWithValue(e?.message ?? i18n.t('app.errors.loadTasks'));
     }
@@ -217,24 +237,44 @@ export const goToTasksPage = createAsyncThunk<
 
 export const fetchTaskById = createAsyncThunk<
   TaskWithDetailsReadDTO,
-  { versionId: string; taskId: string },
+  { documentId?: string | null; versionId: string; taskId: string },
   { rejectValue: string }
->('tasks/fetchById', async ({ versionId, taskId }, { rejectWithValue }) => {
+>('tasks/fetchById', async ({ documentId, versionId, taskId }, { rejectWithValue }) => {
   try {
-    const res = await getTaskById(versionId, taskId);
+    let res: Awaited<ReturnType<typeof getTaskById>>;
+    if (documentId) {
+      try {
+        res = await getDocumentTaskById(documentId, versionId, taskId);
+      } catch {
+        res = await getTaskById(versionId, taskId);
+      }
+    } else {
+      res = await getTaskById(versionId, taskId);
+    }
+    const taskData = res.data;
+    if (!isTaskReadDTO(taskData)) {
+      return rejectWithValue(i18n.t('app.errors.loadTaskDetails'));
+    }
     // Web task detail uses apiGetTaskById(...) and reads response.data.usersSharedWith.
-    const detailUsers = normalizeSharedUsers(res.data);
+    const detailUsers = normalizeSharedUsers(taskData);
     let endpointUsers: FoundUserDTO[] = [];
     try {
-      const sharedRes = await getTaskUsersSharedWith(versionId, taskId);
+      const sharedRes = documentId
+        ? await getDocumentTaskUsersSharedWith(documentId, versionId, taskId)
+        : await getTaskUsersSharedWith(versionId, taskId);
       endpointUsers = normalizeSharedUsers(sharedRes.data);
     } catch {
-      // Keep the web-compatible task-detail payload as the source of truth if this fails.
+      try {
+        const sharedRes = await getTaskUsersSharedWith(versionId, taskId);
+        endpointUsers = normalizeSharedUsers(sharedRes.data);
+      } catch {
+        // Keep the web-compatible task-detail payload as the source of truth if this fails.
+      }
     }
     const usersSharedWith = dedupeSharedUsers([...detailUsers, ...endpointUsers]);
-    return usersSharedWith.length > 0 || hasSharedUsersPayload(res.data)
-      ? mergeSharedUsersIntoTask(res.data, usersSharedWith)
-      : res.data;
+    return usersSharedWith.length > 0 || hasSharedUsersPayload(taskData)
+      ? mergeSharedUsersIntoTask(taskData, usersSharedWith)
+      : taskData;
   } catch (e: any) {
     return rejectWithValue(e?.message ?? i18n.t('app.errors.loadTaskDetails'));
   }
@@ -598,6 +638,7 @@ const tasksSlice = createSlice({
       })
       .addCase(fetchTaskById.fulfilled, (state, { payload }) => {
         state.currentTaskLoading = false;
+        if (!isTaskReadDTO(payload)) return;
         const task = applyPendingTaskReferenceEdit(payload, state.pendingReferenceEdits);
         state.currentTask = task;
         const i = state.items.findIndex((t) => t.id === payload.id);
@@ -614,6 +655,7 @@ const tasksSlice = createSlice({
       })
       .addCase(finaliseCurrentTask.fulfilled, (state, { payload }) => {
         state.isActionLoading = false;
+        if (!isTaskReadDTO(payload)) return;
         const task = preserveSharedUsers(payload, state.currentTask);
         state.currentTask = task;
         const i = state.items.findIndex((t) => t.id === payload.id);
@@ -628,6 +670,7 @@ const tasksSlice = createSlice({
       })
       .addCase(changeCurrentTaskStatus.fulfilled, (state, { payload }) => {
         state.isActionLoading = false;
+        if (!isTaskReadDTO(payload)) return;
         const task = preserveSharedUsers(payload, state.currentTask);
         state.currentTask = task;
         const i = state.items.findIndex((t) => t.id === payload.id);
@@ -681,6 +724,7 @@ const tasksSlice = createSlice({
       })
       .addCase(createTaskEntry.fulfilled, (state, { payload }) => {
         state.isActionLoading = false;
+        if (!isTaskReadDTO(payload)) return;
         state.items = [payload, ...state.items];
         state.totalCount = (state.totalCount ?? 0) + 1;
         state.currentTask = payload;
@@ -694,11 +738,13 @@ const tasksSlice = createSlice({
       })
       .addCase(editTaskEntry.fulfilled, (state, { payload, meta }) => {
         state.isActionLoading = false;
+        if (!isTaskReadDTO(payload)) return;
         const referenceEdit: TaskReferenceEdit = {
           workOrderNumber: meta.arg.model.workOrderNumber,
           notificationNumber: meta.arg.model.notificationNumber,
           projectNumber: meta.arg.model.projectNumber,
         };
+        state.pendingReferenceEdits ??= {};
         state.pendingReferenceEdits[meta.arg.taskId] = referenceEdit;
         const editedTask = {
           ...payload,

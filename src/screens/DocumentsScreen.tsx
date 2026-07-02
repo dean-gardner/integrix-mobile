@@ -166,6 +166,8 @@ export default function DocumentsScreen() {
   };
 
   const openShareDocument = (document: DocumentVersionReadDTO) => {
+    const status = String(document.versionStatusCode ?? '').trim().toLowerCase();
+    if (status !== 'draft' && status !== 'published') return;
     setShareModalDocument(document);
     setShareModalVisible(true);
   };

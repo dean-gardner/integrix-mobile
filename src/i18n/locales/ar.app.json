@@ -367,6 +367,8 @@
       "deleteConfirm": "حذف إصدار المستند هذا؟",
       "downloadFail": "تعذر فتح رابط المستند.",
       "exportProgress": "التصدير قيد التنفيذ. حاول لاحقاً.",
+      "pdfExportInProgress": "يرجى الانتظار، جاري تصدير PDF.",
+      "largePdfExportInProgress": "يرجى الانتظار، جاري تصدير PDF الكبير.",
       "exportFail": "فشل إنشاء تقرير المستند.",
       "taskRef": "إحالة المهمة",
       "createDoc": "إنشاء مستند",

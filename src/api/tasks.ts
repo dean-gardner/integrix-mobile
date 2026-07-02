@@ -32,6 +32,16 @@ export function getTaskById(
   return axios.get<TaskWithDetailsReadDTO>(`api/versions/${versionId}/tasks/${taskId}`);
 }
 
+export function getDocumentTaskById(
+  documentId: string,
+  versionId: string,
+  taskId: string
+): Promise<AxiosResponse<TaskWithDetailsReadDTO>> {
+  return axios.get<TaskWithDetailsReadDTO>(
+    `api/documents/${documentId}/versions/${versionId}/tasks/${taskId}`
+  );
+}
+
 /** Map numeric status to API enum name (matches web app). */
 const TASK_STATUS_TO_API: Record<number, string> = {
   0: 'JInProgress',
@@ -110,6 +120,16 @@ export function getTaskUsersSharedWith(
   taskId: string
 ): Promise<AxiosResponse<FoundUserDTO[]>> {
   return axios.get<FoundUserDTO[]>(`api/versions/${versionId}/tasks/${taskId}/get-users-shared-with`);
+}
+
+export function getDocumentTaskUsersSharedWith(
+  documentId: string,
+  versionId: string,
+  taskId: string
+): Promise<AxiosResponse<FoundUserDTO[]>> {
+  return axios.get<FoundUserDTO[]>(
+    `api/documents/${documentId}/versions/${versionId}/tasks/${taskId}/get-users-shared-with`
+  );
 }
 
 export function createTask(

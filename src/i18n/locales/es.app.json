@@ -363,6 +363,8 @@
       "deleteConfirm": "¿Eliminar esta versión?",
       "downloadFail": "No se pudo abrir el enlace.",
       "exportProgress": "Exportación en curso.",
+      "pdfExportInProgress": "Espere, la exportación de PDF está en curso.",
+      "largePdfExportInProgress": "Espere, la exportación de PDF grande está en curso.",
       "exportFail": "Error al generar informe.",
       "taskRef": "Referencia de tarea",
       "createDoc": "Crear documento",

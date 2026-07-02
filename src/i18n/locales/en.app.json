@@ -367,6 +367,8 @@
       "deleteConfirm": "Delete this document version?",
       "downloadFail": "Could not open the document link.",
       "exportProgress": "Export is still in progress. Try again shortly.",
+      "pdfExportInProgress": "Please wait, a PDF export is in progress.",
+      "largePdfExportInProgress": "Please wait, a large PDF export is in progress.",
       "exportFail": "Failed to generate document report.",
       "taskRef": "Task referencing",
       "createDoc": "Create document",

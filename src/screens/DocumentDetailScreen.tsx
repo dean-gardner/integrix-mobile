@@ -204,6 +204,8 @@ export default function DocumentDetailScreen() {
   const exportRequestInFlight = downloadingPdf || downloadingLargePdf;
   const currentExportReportUrl = doc?.exportReportUrl ?? exportReportUrl;
   const currentExportLargeReportUrl = doc?.exportLargeReportUrl ?? exportLargeReportUrl;
+  const normalizedDocumentStatus = String(doc?.versionStatusCode ?? '').trim().toLowerCase();
+  const canShareDocument = normalizedDocumentStatus === 'draft' || normalizedDocumentStatus === 'published';
   const isPdfExportPending = !currentExportReportUrl;
   const isLargePdfExportPending = !currentExportLargeReportUrl;
   const isPdfDownloadDisabled = exportRequestInFlight || isPdfExportPending;
@@ -259,10 +261,10 @@ export default function DocumentDetailScreen() {
   }, [currentExportLargeReportUrl, currentExportReportUrl, doc?.documentId, doc?.id]);
 
   useEffect(() => {
-    if (!route.params?.openShare || shareAutoOpened) return;
+    if (!route.params?.openShare || shareAutoOpened || !canShareDocument) return;
     setShareModalVisible(true);
     setShareAutoOpened(true);
-  }, [route.params?.openShare, shareAutoOpened]);
+  }, [canShareDocument, route.params?.openShare, shareAutoOpened]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -891,11 +893,13 @@ export default function DocumentDetailScreen() {
       <View style={styles.card}>
         <Text style={[styles.pageTitle, directionTextStyle]}>{t('app.documentDetail.pageTitle')}</Text>
 
-        <View style={[styles.actionsRow, isRtl && styles.actionsRowRtl]}>
-          <TouchableOpacity style={styles.iconButton} onPress={() => setShareModalVisible(true)}>
-            <MaterialIcons name="share" size={21} color="#111111" />
-          </TouchableOpacity>
-        </View>
+        {canShareDocument ? (
+          <View style={[styles.actionsRow, isRtl && styles.actionsRowRtl]}>
+            <TouchableOpacity style={styles.iconButton} onPress={() => setShareModalVisible(true)}>
+              <MaterialIcons name="share" size={21} color="#111111" />
+            </TouchableOpacity>
+          </View>
+        ) : null}
 
         <View style={styles.documentMetaWrap}>
           <Text style={[styles.metaText, directionTextStyle]}>
@@ -912,71 +916,65 @@ export default function DocumentDetailScreen() {
           </Text>
         </View>
 
-        <TouchableOpacity
-          style={[styles.downloadButton, isPdfDownloadDisabled && styles.downloadButtonDisabled]}
-          onPress={() => {
-            if (isPdfDownloadDisabled) return;
-            handleDownloadReport(false).catch(() => { });
-          }}
-          disabled={isPdfDownloadDisabled}
-        >
-          {downloadingPdf || isPdfExportPending ? (
-            <View style={[styles.downloadButtonInner, isRtl && styles.rowRtl]}>
-              <ActivityIndicator
-                size="small"
-                color={isPdfExportPending ? '#5d6780' : '#ffffff'}
-              />
-              <Text
-                style={[
-                  styles.downloadButtonText,
-                  isPdfExportPending && styles.downloadButtonTextDisabled,
-                  directionTextStyle,
-                ]}
-              >
+        {currentExportReportUrl ? (
+          <TouchableOpacity
+            style={[styles.downloadButton, isPdfDownloadDisabled && styles.downloadButtonDisabled]}
+            onPress={() => {
+              if (isPdfDownloadDisabled) return;
+              handleDownloadReport(false).catch(() => { });
+            }}
+            disabled={isPdfDownloadDisabled}
+          >
+            {downloadingPdf ? (
+              <View style={[styles.downloadButtonInner, isRtl && styles.rowRtl]}>
+                <ActivityIndicator size="small" color="#ffffff" />
+                <Text style={[styles.downloadButtonText, directionTextStyle]}>
+                  {t('app.documentDetail.downloadPdf')}
+                </Text>
+              </View>
+            ) : (
+              <Text style={[styles.downloadButtonText, directionTextStyle]}>
                 {t('app.documentDetail.downloadPdf')}
               </Text>
-            </View>
-          ) : (
-            <Text style={styles.downloadButtonText}>{t('app.documentDetail.downloadPdf')}</Text>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.downloadButton, isLargePdfDownloadDisabled && styles.downloadButtonDisabled]}
-          onPress={() => {
-            if (isLargePdfDownloadDisabled) return;
-            handleDownloadReport(true).catch(() => { });
-          }}
-          disabled={isLargePdfDownloadDisabled}
-        >
-          {downloadingLargePdf || isLargePdfExportPending ? (
-            <View style={[styles.downloadButtonInner, isRtl && styles.rowRtl]}>
-              <ActivityIndicator
-                size="small"
-                color={isLargePdfExportPending ? '#5d6780' : '#ffffff'}
-              />
-              <Text
-                style={[
-                  styles.downloadButtonText,
-                  isLargePdfExportPending && styles.downloadButtonTextDisabled,
-                  directionTextStyle,
-                ]}
-              >
-                {t('app.documentDetail.downloadLargePdf')}
-              </Text>
-            </View>
-          ) : (
-            <Text style={styles.downloadButtonText}>{t('app.documentDetail.downloadLargePdf')}</Text>
-          )}
-        </TouchableOpacity>
-
-        {isPdfExportPending || isLargePdfExportPending ? (
+            )}
+          </TouchableOpacity>
+        ) : (
           <View style={styles.exportPendingNotice}>
             <Text style={[styles.exportPendingText, directionTextStyle]}>
-              {t('app.document.exportProgress')}
+              {t('app.document.pdfExportInProgress')}
             </Text>
           </View>
-        ) : null}
+        )}
+
+        {currentExportLargeReportUrl ? (
+          <TouchableOpacity
+            style={[styles.downloadButton, isLargePdfDownloadDisabled && styles.downloadButtonDisabled]}
+            onPress={() => {
+              if (isLargePdfDownloadDisabled) return;
+              handleDownloadReport(true).catch(() => { });
+            }}
+            disabled={isLargePdfDownloadDisabled}
+          >
+            {downloadingLargePdf ? (
+              <View style={[styles.downloadButtonInner, isRtl && styles.rowRtl]}>
+                <ActivityIndicator size="small" color="#ffffff" />
+                <Text style={[styles.downloadButtonText, directionTextStyle]}>
+                  {t('app.documentDetail.downloadLargePdf')}
+                </Text>
+              </View>
+            ) : (
+              <Text style={[styles.downloadButtonText, directionTextStyle]}>
+                {t('app.documentDetail.downloadLargePdf')}
+              </Text>
+            )}
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.exportPendingNotice}>
+            <Text style={[styles.exportPendingText, directionTextStyle]}>
+              {t('app.document.largePdfExportInProgress')}
+            </Text>
+          </View>
+        )}
 
         {exportFeedback ? (
           <View
@@ -1075,7 +1073,7 @@ export default function DocumentDetailScreen() {
       />
 
       <ShareDocumentModal
-        visible={shareModalVisible}
+        visible={shareModalVisible && canShareDocument}
         document={doc}
         onClose={() => setShareModalVisible(false)}
       />
@@ -1164,7 +1162,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#2438ad',
     borderRadius: 4,
     minHeight: 44,
-    width: 200,
+    minWidth: 220,
+    maxWidth: '100%',
     alignSelf: 'flex-start',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1184,12 +1183,11 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
-  },
-  downloadButtonTextDisabled: {
-    color: '#5d6780',
+    textAlign: 'center',
   },
   exportPendingNotice: {
-    width: 200,
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
     marginTop: -2,
     marginBottom: 10,
   },

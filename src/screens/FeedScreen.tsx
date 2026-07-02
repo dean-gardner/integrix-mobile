@@ -52,6 +52,23 @@ type TaskWithFeedMeta = TaskReadDTO & {
   isSharedWithMe?: boolean;
 };
 
+function hasOwnValue(source: object, key: keyof TaskReadDTO): boolean {
+  return Object.prototype.hasOwnProperty.call(source, key);
+}
+
+function pickTaskReferenceValue(
+  task: TaskReadDTO | null | undefined,
+  post: FeedItemDTO,
+  key: 'workOrderNumber' | 'notificationNumber' | 'projectNumber'
+): string | null {
+  if (task && hasOwnValue(task, key)) {
+    const value = task[key];
+    return typeof value === 'string' ? value : null;
+  }
+  const value = post[key];
+  return typeof value === 'string' ? value : null;
+}
+
 export default function FeedScreen() {
   const { t, i18n } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
@@ -155,46 +172,42 @@ export default function FeedScreen() {
       if (!post.taskId) return;
 
       const taskFromList = tasksState.items.find((task) => task.id === post.taskId);
+      const latestTask =
+        tasksState.currentTask?.id === post.taskId ? tasksState.currentTask : taskFromList;
       const versionId =
         (typeof post.versionId === 'string' ? post.versionId : null) ??
-        (typeof taskFromList?.versionId === 'string' ? taskFromList.versionId : null);
+        (typeof latestTask?.versionId === 'string' ? latestTask.versionId : null);
 
       if (!versionId) return;
 
       const mergedTask: TaskReadDTO = {
-        ...(taskFromList ?? {}),
+        ...(latestTask ?? {}),
         id: post.taskId,
         taskNumber:
-          (typeof taskFromList?.taskNumber === 'string' ? taskFromList.taskNumber : null) ??
+          (typeof latestTask?.taskNumber === 'string' ? latestTask.taskNumber : null) ??
           (typeof post.taskNo === 'string' ? post.taskNo : null) ??
           post.taskId,
         versionId,
         documentId:
           (typeof post.documentId === 'string' ? post.documentId : null) ??
-          (typeof taskFromList?.documentId === 'string' ? taskFromList.documentId : undefined),
+          (typeof latestTask?.documentId === 'string' ? latestTask.documentId : undefined),
         description:
+          (typeof latestTask?.description === 'string' ? latestTask.description : null) ??
           (typeof post.taskTitle === 'string' ? post.taskTitle : null) ??
-          (typeof post.description === 'string' ? post.description : null) ??
-          (typeof taskFromList?.description === 'string' ? taskFromList.description : undefined),
-        workOrderNumber:
-          (typeof post.workOrderNumber === 'string' ? post.workOrderNumber : null) ??
-          (typeof taskFromList?.workOrderNumber === 'string' ? taskFromList.workOrderNumber : null),
-        notificationNumber:
-          (typeof post.notificationNumber === 'string' ? post.notificationNumber : null) ??
-          (typeof taskFromList?.notificationNumber === 'string' ? taskFromList.notificationNumber : null),
-        projectNumber:
-          (typeof post.projectNumber === 'string' ? post.projectNumber : null) ??
-          (typeof taskFromList?.projectNumber === 'string' ? taskFromList.projectNumber : null),
+          (typeof post.description === 'string' ? post.description : undefined),
+        workOrderNumber: pickTaskReferenceValue(latestTask, post, 'workOrderNumber'),
+        notificationNumber: pickTaskReferenceValue(latestTask, post, 'notificationNumber'),
+        projectNumber: pickTaskReferenceValue(latestTask, post, 'projectNumber'),
         asset:
           typeof post.assetName === 'string'
             ? { id: 0, name: post.assetName }
-            : (taskFromList?.asset as TaskReadDTO['asset']),
+            : (latestTask?.asset as TaskReadDTO['asset']),
       };
 
       const stepId = typeof post.taskStepId === 'string' ? post.taskStepId : undefined;
       openTaskDetail(mergedTask, stepId, true);
     },
-    [openTaskDetail, tasksState.items]
+    [openTaskDetail, tasksState.currentTask, tasksState.items]
   );
 
   const onScroll = useCallback((event: { nativeEvent: { contentOffset: { y: number } } }) => {

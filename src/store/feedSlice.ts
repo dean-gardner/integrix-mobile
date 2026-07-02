@@ -2,6 +2,21 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { FeedItemDTO, FilteringModel } from '../types/feed';
 import { getFeed } from '../api/feed';
 import i18n from '../i18n';
+import { editTaskEntry } from './tasksSlice';
+
+type TaskReferenceEdit = Pick<
+  FeedItemDTO,
+  'workOrderNumber' | 'notificationNumber' | 'projectNumber'
+>;
+
+function applyPendingTaskReferenceEdit(
+  item: FeedItemDTO,
+  pending: Record<string, TaskReferenceEdit>
+): FeedItemDTO {
+  if (!item.taskId) return item;
+  const edit = pending[item.taskId];
+  return edit ? { ...item, ...edit } : item;
+}
 
 export const fetchFeedItems = createAsyncThunk<
   { items: FeedItemDTO[]; totalCount: number },
@@ -53,6 +68,7 @@ type FeedState = {
   filteringModel: FilteringModel;
   totalCount: number;
   noMorePages: boolean;
+  pendingReferenceEdits: Record<string, TaskReferenceEdit>;
 };
 
 const initialState: FeedState = {
@@ -62,6 +78,7 @@ const initialState: FeedState = {
   filteringModel: { pageNumber: 0, pageSize: 10 },
   totalCount: 0,
   noMorePages: false,
+  pendingReferenceEdits: {},
 };
 
 const feedSlice = createSlice({
@@ -84,7 +101,9 @@ const feedSlice = createSlice({
       })
       .addCase(fetchFeedItems.fulfilled, (state, { payload }) => {
         state.isLoading = false;
-        state.items = payload.items;
+        state.items = payload.items.map((item) =>
+          applyPendingTaskReferenceEdit(item, state.pendingReferenceEdits)
+        );
         state.totalCount = payload.totalCount;
         state.filteringModel.pageNumber = 0;
         state.noMorePages =
@@ -102,7 +121,9 @@ const feedSlice = createSlice({
       })
       .addCase(fetchMoreFeedItems.fulfilled, (state, { payload }) => {
         state.isLoading = false;
-        state.items = payload.items;
+        state.items = payload.items.map((item) =>
+          applyPendingTaskReferenceEdit(item, state.pendingReferenceEdits)
+        );
         state.totalCount = payload.totalCount;
         state.filteringModel.pageNumber = payload.nextPageNumber;
         state.noMorePages =
@@ -112,6 +133,17 @@ const feedSlice = createSlice({
       .addCase(fetchMoreFeedItems.rejected, (state, { payload }) => {
         state.isLoading = false;
         if (payload !== 'no_more') state.error = payload ?? null;
+      })
+      .addCase(editTaskEntry.fulfilled, (state, { meta }) => {
+        const referenceEdit: TaskReferenceEdit = {
+          workOrderNumber: meta.arg.model.workOrderNumber,
+          notificationNumber: meta.arg.model.notificationNumber,
+          projectNumber: meta.arg.model.projectNumber,
+        };
+        state.pendingReferenceEdits[meta.arg.taskId] = referenceEdit;
+        state.items = state.items.map((item) =>
+          item.taskId === meta.arg.taskId ? { ...item, ...referenceEdit } : item
+        );
       });
   },
 });

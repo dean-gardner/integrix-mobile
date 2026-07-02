@@ -9,6 +9,22 @@ import {
   getDashboardObservations,
 } from '../api/dashboard';
 import { DashboardViewEnum as ViewEnum } from '../types/dashboard';
+import { editTaskEntry } from './tasksSlice';
+
+type TaskReferenceEdit = Pick<
+  DashboardTaskItem,
+  'workOrderNumber' | 'notificationNumber' | 'projectNumber'
+>;
+
+function applyPendingTaskReferenceEdits(
+  items: DashboardTaskItem[],
+  pending: Record<string, TaskReferenceEdit>
+): DashboardTaskItem[] {
+  return items.map((item) => {
+    const edit = pending[item.id];
+    return edit ? { ...item, ...edit } : item;
+  });
+}
 
 export const fetchDashboardStats = createAsyncThunk<
   DashboardStatsDTO,
@@ -113,12 +129,14 @@ type DashboardState = {
   stats: DashboardStatsDTO | null;
   isLoading: boolean;
   error: string | null;
+  pendingReferenceEdits: Record<string, TaskReferenceEdit>;
 };
 
 const initialState: DashboardState = {
   stats: null,
   isLoading: false,
   error: null,
+  pendingReferenceEdits: {},
 };
 
 const dashboardSlice = createSlice({
@@ -153,7 +171,10 @@ const dashboardSlice = createSlice({
       if (state.stats) {
         state.stats = {
           ...state.stats,
-          tasks: { items: payload.items, totalCount: payload.totalCount },
+          tasks: {
+            items: applyPendingTaskReferenceEdits(payload.items, state.pendingReferenceEdits),
+            totalCount: payload.totalCount,
+          },
         };
       }
     });
@@ -182,6 +203,19 @@ const dashboardSlice = createSlice({
           ...state.stats,
           observations: { items: payload.items, totalCount: payload.totalCount },
         };
+      }
+    });
+    builder.addCase(editTaskEntry.fulfilled, (state, { meta }) => {
+      const referenceEdit: TaskReferenceEdit = {
+        workOrderNumber: meta.arg.model.workOrderNumber,
+        notificationNumber: meta.arg.model.notificationNumber,
+        projectNumber: meta.arg.model.projectNumber,
+      };
+      state.pendingReferenceEdits[meta.arg.taskId] = referenceEdit;
+      if (state.stats?.tasks?.items) {
+        state.stats.tasks.items = state.stats.tasks.items.map((item) =>
+          item.id === meta.arg.taskId ? { ...item, ...referenceEdit } : item
+        );
       }
     });
   },

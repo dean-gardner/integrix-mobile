@@ -40,6 +40,9 @@ export type DashboardTaskItem = {
   id: string;
   taskNumber: string;
   description?: string;
+  workOrderNumber?: string | null;
+  notificationNumber?: string | null;
+  projectNumber?: string | null;
   status?: number | string;
   createdOnUtc?: string;
   createdBy?: string;

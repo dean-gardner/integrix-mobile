@@ -58,7 +58,9 @@ export function DocumentsListCard({
   const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
   const rtlRow = useMemo(() => rtlRowStyle(i18n), [i18n]);
   const rtlDirection = useMemo(() => rtlDirectionStyle(i18n), [i18n]);
-  const isPublished = String(document.versionStatusCode ?? '').trim().toLowerCase() === 'published';
+  const normalizedStatus = String(document.versionStatusCode ?? '').trim().toLowerCase();
+  const isPublished = normalizedStatus === 'published';
+  const canShare = normalizedStatus === 'draft' || normalizedStatus === 'published';
   const actionsRef = useRef<any>(null);
   const [actionsVisible, setActionsVisible] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number; width: number; height: number } | null>(
@@ -120,16 +122,18 @@ export function DocumentsListCard({
           <View style={styles.menuBackdrop}>
             <TouchableWithoutFeedback onPress={() => {}}>
               <View style={[styles.menuCard, rtlDirection, { top: menuTop, left: menuLeft, width: menuWidth }]}>
-                <TouchableOpacity
-                  style={[styles.menuItem, rtlRow]}
-                  onPress={() => {
-                    closeActions();
-                    onShare(document);
-                  }}
-                >
-                  <MaterialIcons name="share" size={20} color="#2b3550" />
-                  <Text style={[styles.menuItemText, rtlText]}>{t('app.common.share')}</Text>
-                </TouchableOpacity>
+                {canShare ? (
+                  <TouchableOpacity
+                    style={[styles.menuItem, rtlRow]}
+                    onPress={() => {
+                      closeActions();
+                      onShare(document);
+                    }}
+                  >
+                    <MaterialIcons name="share" size={20} color="#2b3550" />
+                    <Text style={[styles.menuItemText, rtlText]}>{t('app.common.share')}</Text>
+                  </TouchableOpacity>
+                ) : null}
                 <TouchableOpacity
                   style={[styles.menuItem, rtlRow]}
                   onPress={() => {

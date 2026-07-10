@@ -109,6 +109,9 @@ export type TaskStepPostPayload =
       remediationDetails: string;
       template: DefectFieldsTemplateDTO | null;
       fieldValues: Record<string, string>;
+      gpsCoordinates: GpsCoordinates | null;
+      /** Matches web `IsAutoSetPosition`: true = device/auto GPS; false = user moved the pin. */
+      isAutoSetPosition: boolean;
       files: UploadFile[];
     };
 
@@ -118,7 +121,7 @@ type TaskStepPostModalProps = {
   taskId?: string | null;
   assetName?: string | null;
   onClose: () => void;
-  onSubmit: (payload: TaskStepPostPayload, taskStep: TaskStepReadDTO) => Promise<void>;
+  onSubmit: (payload: TaskStepPostPayload, taskStep: TaskStepReadDTO) => Promise<DefectReadDTO | void>;
 };
 
 function isDescriptionField(field: DefectFieldReadDTO): boolean {
@@ -130,7 +133,9 @@ function isAssetField(field: DefectFieldReadDTO): boolean {
 }
 
 function isGpsField(field: DefectFieldReadDTO): boolean {
-  return field.type === DEFECT_FIELD_TYPES.Map || field.name.toLowerCase().includes('gps');
+  const type = typeof field.type === 'number' ? field.type : Number(field.type);
+  const lowerName = field.name.toLowerCase();
+  return type === DEFECT_FIELD_TYPES.Map || lowerName.includes('gps') || lowerName.includes('position');
 }
 
 function toReadableText(value: unknown): string {
@@ -198,8 +203,16 @@ function parseGpsCoordinates(value: unknown): GpsCoordinates | null {
   if (value == null) return null;
   if (typeof value === 'object') {
     const record = value as Record<string, unknown>;
-    const rawLat = record.lat ?? record.latitude;
-    const rawLng = record.lng ?? record.lon ?? record.long ?? record.longitude;
+    const rawLat = record.lat ?? record.Lat ?? record.latitude ?? record.Latitude;
+    const rawLng =
+      record.lng ??
+      record.Lng ??
+      record.lon ??
+      record.Lon ??
+      record.long ??
+      record.Long ??
+      record.longitude ??
+      record.Longitude;
     const lat = typeof rawLat === 'number' ? rawLat : Number(rawLat);
     const lng = typeof rawLng === 'number' ? rawLng : Number(rawLng);
     return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
@@ -225,8 +238,8 @@ function getDefectGpsCoordinates(defect: DefectReadDTO): GpsCoordinates | null {
 
   for (const fieldValue of rawFieldValues) {
     const name = (fieldValue.name ?? '').toLowerCase();
-    const type = typeof fieldValue.type === 'number' ? fieldValue.type : null;
-    if (type === DEFECT_FIELD_TYPES.Map || name.includes('gps')) {
+    const type = typeof fieldValue.type === 'number' ? fieldValue.type : Number(fieldValue.type);
+    if (type === DEFECT_FIELD_TYPES.Map || name.includes('gps') || name.includes('position')) {
       const coords = parseGpsCoordinates(fieldValue.value);
       if (coords) return coords;
     }
@@ -358,19 +371,43 @@ export function TaskStepPostModal({
   const [error, setError] = useState<string | null>(null);
 
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
+  /** Mirrors web `isAutoSetMarkerPosition`: false only after the user applies a pin on the map. */
+  const [isAutoSetPosition, setIsAutoSetPosition] = useState(true);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsPinPickerOpen, setGpsPinPickerOpen] = useState(false);
   const [gpsPinPickerInitial, setGpsPinPickerInitial] = useState<GpsCoordinates | null>(null);
   const [gpsPinPickerTarget, setGpsPinPickerTarget] = useState<GpsPinPickerTarget>('composer');
+  const gpsRequestIdRef = React.useRef(0);
+  const gpsCoordsRef = React.useRef<GpsCoordinates | null>(null);
+  const manualGpsCoordsRef = React.useRef<GpsCoordinates | null>(null);
+  const isAutoSetPositionRef = React.useRef(true);
+  const autoGpsAttemptedRef = React.useRef(false);
+  const templateLoadingRef = React.useRef(false);
+  const modalOpenKeyRef = React.useRef<string | null>(null);
 
   const selectedTemplate = taskStep?.defectFieldsTemplate ?? defaultTemplate;
+  const gpsFieldIdsKey = useMemo(
+    () =>
+      selectedTemplate?.fields
+        ?.filter(isGpsField)
+        .map((field) => field.id)
+        .sort()
+        .join('|') ?? '',
+    [selectedTemplate?.fields]
+  );
 
-  const resetComposer = useCallback(() => {
+  const resetComposer = useCallback((options?: { preventAutoGps?: boolean }) => {
+    gpsRequestIdRef.current += 1;
+    autoGpsAttemptedRef.current = options?.preventAutoGps === true;
     setDescription('');
     setRemediationDetails('');
     setFieldValues({});
     setFiles([]);
+    gpsCoordsRef.current = null;
+    manualGpsCoordsRef.current = null;
     setGpsCoords(null);
+    setIsAutoSetPosition(true);
+    isAutoSetPositionRef.current = true;
     setGpsLoading(false);
     setGpsPinPickerOpen(false);
     setGpsPinPickerInitial(null);
@@ -389,7 +426,7 @@ export function TaskStepPostModal({
       return;
     }
 
-    setPostsLoading(true);
+    setPostsLoading((prev) => (prev ? prev : true));
     setPostsError(null);
     try {
       const response = await getTaskPosts(taskId, taskStep.id, TASK_POSTS_FILTERING_MODEL);
@@ -416,7 +453,7 @@ export function TaskStepPostModal({
         setPostsError(i18n.t('app.taskStepPost.loadPostsFail'));
       }
     } finally {
-      setPostsLoading(false);
+      setPostsLoading((prev) => (prev ? false : prev));
     }
   }, [taskId, taskStep?.id]);
 
@@ -427,7 +464,7 @@ export function TaskStepPostModal({
       return;
     }
 
-    setDefectsLoading(true);
+    setDefectsLoading((prev) => (prev ? prev : true));
     setDefectsError(null);
     try {
       const response = await getTaskStepDefects(taskId, taskStep.id, TASK_STEP_DEFECTS_FILTERING_MODEL);
@@ -462,15 +499,21 @@ export function TaskStepPostModal({
         setDefectsError(i18n.t('app.taskStepPost.loadDefectsFail'));
       }
     } finally {
-      setDefectsLoading(false);
+      setDefectsLoading((prev) => (prev ? false : prev));
     }
   }, [taskId, taskStep?.id]);
 
   useEffect(() => {
-    if (!visible) return;
-    setActiveTab('posts');
-    setIsDefect(false);
-    setDefaultTemplate(null);
+    if (!visible) {
+      modalOpenKeyRef.current = null;
+      return;
+    }
+    const openKey = `${taskStep?.id ?? 'none'}:open`;
+    if (modalOpenKeyRef.current === openKey) return;
+    modalOpenKeyRef.current = openKey;
+    setActiveTab((prev) => (prev === 'posts' ? prev : 'posts'));
+    setIsDefect((prev) => (prev ? false : prev));
+    setDefaultTemplate((prev) => (prev === null ? prev : null));
     resetComposer();
   }, [resetComposer, taskStep?.id, visible]);
 
@@ -486,10 +529,11 @@ export function TaskStepPostModal({
 
   useEffect(() => {
     if (!visible || !isDefect || !canCreateDefect) return;
-    if (taskStep?.defectFieldsTemplate || defaultTemplate || templateLoading) return;
+    if (taskStep?.defectFieldsTemplate || defaultTemplate || templateLoadingRef.current) return;
 
     let mounted = true;
-    setTemplateLoading(true);
+    templateLoadingRef.current = true;
+    setTemplateLoading((prev) => (prev ? prev : true));
     getDefaultDefectFieldsTemplate()
       .then((response) => {
         if (!mounted) return;
@@ -501,7 +545,8 @@ export function TaskStepPostModal({
       })
       .finally(() => {
         if (!mounted) return;
-        setTemplateLoading(false);
+        templateLoadingRef.current = false;
+        setTemplateLoading((prev) => (prev ? false : prev));
       });
 
     return () => {
@@ -512,7 +557,6 @@ export function TaskStepPostModal({
     defaultTemplate,
     isDefect,
     taskStep?.defectFieldsTemplate,
-    templateLoading,
     visible,
   ]);
 
@@ -612,9 +656,11 @@ export function TaskStepPostModal({
       return;
     }
 
+    const manualGpsCoords = manualGpsCoordsRef.current;
+    const submitGpsCoords = manualGpsCoords ?? gpsCoordsRef.current ?? gpsCoords;
     const valuesForSubmit: Record<string, DefectFieldValue> = { ...fieldValues };
-    if (isDefect && gpsCoords) {
-      const serializedGpsCoords = JSON.stringify(gpsCoords);
+    if (isDefect && submitGpsCoords) {
+      const serializedGpsCoords = JSON.stringify(submitGpsCoords);
       selectedTemplate?.fields?.filter(isGpsField).forEach((field) => {
         valuesForSubmit[field.id] = serializedGpsCoords;
       });
@@ -624,23 +670,30 @@ export function TaskStepPostModal({
     Object.entries(valuesForSubmit).forEach(([fieldId, value]) => {
       serializedFieldValues[fieldId] = valueToString(value);
     });
+    const submitIsAutoSetPosition = manualGpsCoords ? false : isAutoSetPositionRef.current;
 
     setSubmitting(true);
     setError(null);
 
     try {
+      let submittedDefect: DefectReadDTO | null = null;
       if (isDefect) {
-        await onSubmit(
+        const result = await onSubmit(
           {
             kind: 'defect',
             description: cleanDescription,
             remediationDetails: remediationDetails.trim(),
             template: selectedTemplate,
             fieldValues: serializedFieldValues,
+            gpsCoordinates: submitGpsCoords,
+            isAutoSetPosition: submitIsAutoSetPosition,
             files,
           },
           taskStep
         );
+        if (result && typeof result === 'object' && 'id' in result) {
+          submittedDefect = result as DefectReadDTO;
+        }
       } else {
         await onSubmit(
           {
@@ -652,10 +705,30 @@ export function TaskStepPostModal({
         );
       }
 
-      resetComposer();
-      await loadPosts();
       if (isDefect) {
+        setActiveTab('defects');
+        resetComposer({ preventAutoGps: true });
+        await loadPosts();
         await loadDefects();
+        if (submittedDefect?.id) {
+          try {
+            const { data: fullDefect } = await getDefectById(submittedDefect.id);
+            setDefects((prev) => [
+              fullDefect,
+              ...prev.filter((defect) => defect.id !== fullDefect.id),
+            ]);
+            setExpandedDefectId(fullDefect.id);
+          } catch {
+            setDefects((prev) => [
+              submittedDefect,
+              ...prev.filter((defect) => defect.id !== submittedDefect.id),
+            ]);
+            setExpandedDefectId(submittedDefect.id);
+          }
+        }
+      } else {
+        resetComposer({ preventAutoGps: true });
+        await loadPosts();
       }
     } catch (submitError) {
       const fallbackMessage = i18n.t('app.taskStepPost.createPostFail');
@@ -678,18 +751,22 @@ export function TaskStepPostModal({
 
   const updateGpsFieldValues = useCallback(
     (coords: GpsCoordinates) => {
-      const gpsFieldIds = selectedTemplate?.fields?.filter(isGpsField).map((field) => field.id) ?? [];
+      const gpsFieldIds = gpsFieldIdsKey ? gpsFieldIdsKey.split('|') : [];
       if (gpsFieldIds.length === 0) return;
       const serializedCoords = JSON.stringify(coords);
       setFieldValues((current) => {
+        let changed = false;
         const next = { ...current };
         gpsFieldIds.forEach((fieldId) => {
+          if (next[fieldId] !== serializedCoords) {
+            changed = true;
+          }
           next[fieldId] = serializedCoords;
         });
-        return next;
+        return changed ? next : current;
       });
     },
-    [selectedTemplate?.fields]
+    [gpsFieldIdsKey]
   );
 
   useEffect(() => {
@@ -698,7 +775,26 @@ export function TaskStepPostModal({
   }, [gpsCoords, updateGpsFieldValues]);
 
   const requestCurrentGpsPosition = useCallback(async (): Promise<GpsCoordinates | null> => {
-    setGpsLoading(true);
+    const readCurrentPosition = (enableHighAccuracy: boolean, timeout: number): Promise<GpsCoordinates> =>
+      new Promise((resolve, reject) => {
+        Geolocation.getCurrentPosition(
+          ({ coords }) => {
+            resolve({ lat: coords.latitude, lng: coords.longitude });
+          },
+          (positionError: GeolocationError) => {
+            reject(positionError);
+          },
+          {
+            enableHighAccuracy,
+            timeout,
+            maximumAge: enableHighAccuracy ? 30000 : 120000,
+          }
+        );
+      });
+
+    const requestId = ++gpsRequestIdRef.current;
+    autoGpsAttemptedRef.current = true;
+    setGpsLoading((prev) => (prev ? prev : true));
     setError(null);
     try {
       const hasPermission =
@@ -707,42 +803,62 @@ export function TaskStepPostModal({
           : await requestAndroidLocationPermission();
 
       if (!hasPermission) {
-        setGpsLoading(false);
-        setError(t('app.taskStepPost.gpsPermissionDenied'));
+        if (gpsRequestIdRef.current === requestId) {
+          setGpsLoading(false);
+          setError(t('app.taskStepPost.gpsPermissionDenied'));
+        }
         return null;
       }
 
-      return await new Promise<GpsCoordinates | null>((resolve) => {
-        Geolocation.getCurrentPosition(
-          ({ coords }) => {
-            const nextCoords = { lat: coords.latitude, lng: coords.longitude };
-            setGpsCoords(nextCoords);
-            updateGpsFieldValues(nextCoords);
+      let nextCoords: GpsCoordinates;
+      try {
+        nextCoords = await readCurrentPosition(true, 12000);
+      } catch (positionError) {
+        const permissionDenied =
+          typeof positionError === 'object' &&
+          positionError !== null &&
+          'code' in positionError &&
+          (positionError as GeolocationError).code === (positionError as GeolocationError).PERMISSION_DENIED;
+        if (permissionDenied) {
+          if (gpsRequestIdRef.current === requestId) {
             setGpsLoading(false);
-            resolve(nextCoords);
-          },
-          (positionError: GeolocationError) => {
-            setGpsLoading(false);
-            const permissionDenied = positionError.code === positionError.PERMISSION_DENIED;
-            setError(
-              permissionDenied
-                ? t('app.taskStepPost.gpsPermissionDenied')
-                : t('app.taskStepPost.gpsUnavailable')
-            );
-            resolve(null);
-          },
-          { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 }
-        );
-      });
-    } catch {
+            setError(t('app.taskStepPost.gpsPermissionDenied'));
+          }
+          return null;
+        }
+        nextCoords = await readCurrentPosition(false, 8000);
+      }
+
+      // Ignore stale callbacks after reset, close, or a manual pin apply.
+      if (gpsRequestIdRef.current !== requestId || !isAutoSetPositionRef.current) {
+        return null;
+      }
+      gpsCoordsRef.current = nextCoords;
+      setGpsCoords(nextCoords);
+      setIsAutoSetPosition(true);
+      isAutoSetPositionRef.current = true;
+      updateGpsFieldValues(nextCoords);
       setGpsLoading(false);
-      setError(t('app.taskStepPost.gpsUnavailable'));
+      return nextCoords;
+    } catch {
+      if (gpsRequestIdRef.current === requestId) {
+        setGpsLoading(false);
+        setError(t('app.taskStepPost.gpsUnavailable'));
+      }
       return null;
     }
   }, [t, updateGpsFieldValues]);
 
   useEffect(() => {
-    if (!visible || !isDefect || gpsCoords || gpsLoading) return;
+    if (
+      !visible ||
+      !isDefect ||
+      gpsCoords ||
+      gpsLoading ||
+      autoGpsAttemptedRef.current ||
+      !isAutoSetPositionRef.current
+    ) return;
+    autoGpsAttemptedRef.current = true;
     requestCurrentGpsPosition().catch(() => {
         setGpsLoading(false);
         setError(t('app.taskStepPost.gpsUnavailable'));
@@ -758,7 +874,15 @@ export function TaskStepPostModal({
   const handleGpsPinApplied = useCallback(
     (coords: GpsCoordinates) => {
       if (gpsPinPickerTarget === 'composer') {
+        // Invalidate any in-flight auto GPS request so it cannot overwrite the manual pin.
+        gpsRequestIdRef.current += 1;
+        autoGpsAttemptedRef.current = true;
+        setGpsLoading(false);
+        gpsCoordsRef.current = coords;
+        manualGpsCoordsRef.current = coords;
         setGpsCoords(coords);
+        setIsAutoSetPosition(false);
+        isAutoSetPositionRef.current = false;
         updateGpsFieldValues(coords);
       }
       closeGpsPinPicker();
@@ -798,6 +922,22 @@ export function TaskStepPostModal({
     }
     Alert.alert(t('common.info'), t('app.taskStepPost.gpsCoordinatesUnavailable'));
   }, [t]);
+
+  const toggleDefectExpanded = useCallback((defect: DefectReadDTO) => {
+    const nextExpandedId = expandedDefectId === defect.id ? null : defect.id;
+    setExpandedDefectId(nextExpandedId);
+    if (!nextExpandedId) return;
+
+    getDefectById(defect.id)
+      .then(({ data: fullDefect }) => {
+        setDefects((prev) =>
+          prev.map((item) => (item.id === fullDefect.id ? fullDefect : item))
+        );
+      })
+      .catch(() => {
+        // Keep the list item visible if the full defect fetch fails.
+      });
+  }, [expandedDefectId]);
 
   const openUpdateDefect = useCallback(async (defect: DefectReadDTO) => {
     // Set with list data immediately so the form opens without delay.
@@ -1231,7 +1371,7 @@ export function TaskStepPostModal({
         {/* Accordion header row */}
         <TouchableOpacity
           style={[styles.defectAccordionHeader, rtlRow]}
-          onPress={() => setExpandedDefectId(isExpanded ? null : defect.id)}
+          onPress={() => toggleDefectExpanded(defect)}
           activeOpacity={0.7}
         >
           <Text style={[styles.defectAccordionTitle, rtlText]} numberOfLines={1} ellipsizeMode="tail">
@@ -1721,7 +1861,7 @@ export function TaskStepPostModal({
                 {error ? <Text style={[styles.errorText, rtlText]}>{error}</Text> : null}
 
                 <View style={[styles.actionButtons, rtlRow]}>
-                  <TouchableOpacity style={styles.cancelButton} onPress={resetComposer} disabled={submitting}>
+                  <TouchableOpacity style={styles.cancelButton} onPress={() => resetComposer()} disabled={submitting}>
                     <Text style={[styles.cancelButtonText, rtlText]}>{t('app.modal.cancel')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -2060,13 +2200,18 @@ const styles = StyleSheet.create({
   },
   actionButtons: {
     marginTop: 10,
-    gap: 8,
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 10,
   },
   actionButtonsUpdate: {
     marginTop: 14,
   },
   cancelButton: {
-    minHeight: 40,
+    flex: 1,
+    minHeight: 44,
+    paddingHorizontal: 12,
     borderRadius: 3,
     backgroundColor: '#7380a2',
     alignItems: 'center',
@@ -2074,11 +2219,14 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     color: '#ffffff',
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
   },
   postButton: {
-    minHeight: 40,
+    flex: 1,
+    minHeight: 44,
+    paddingHorizontal: 12,
     borderRadius: 3,
     backgroundColor: '#243aa8',
     alignItems: 'center',
@@ -2086,8 +2234,9 @@ const styles = StyleSheet.create({
   },
   postButtonText: {
     color: '#ffffff',
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
   },
   buttonDisabled: {
     opacity: 0.75,

@@ -31,6 +31,7 @@ import { openNotificationLinkInApp } from '../utils/notificationLinking';
 import { setAppLanguage, SUPPORTED_LANGUAGES } from '../i18n';
 import {
   isRtlLayout,
+  needsManualRtlRowMirror,
   rtlAwareTextStyle,
   rtlDirectionStyle,
   rtlEdgePosition,
@@ -61,11 +62,13 @@ export function AppHeader({ title, showMenu = true }: AppHeaderProps) {
     if (unread.length > 0) return unread.slice(0, 4);
     return items.slice(0, 4);
   }, [items]);
-  const isRtl = useMemo(() => isRtlLayout(i18n), [i18n]);
   const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
   const rtlRow = useMemo(() => rtlRowStyle(i18n), [i18n]);
   const rtlDirection = useMemo(() => rtlDirectionStyle(i18n), [i18n]);
   const headerBadgeEdge = useMemo(() => rtlEdgePosition(i18n, 1), [i18n]);
+  const isRtl = useMemo(() => isRtlLayout(i18n), [i18n]);
+  // Anchor language/profile menus to the profile side without double-mirroring under native RTL.
+  const dropdownNeedsManualRtlAnchor = needsManualRtlRowMirror(i18n);
   const currentLanguage = (i18n.resolvedLanguage ?? i18n.language ?? 'en').split('-')[0];
   const currentLanguageOption =
     SUPPORTED_LANGUAGES.find((language) => language.code === currentLanguage) ?? SUPPORTED_LANGUAGES[0];
@@ -139,8 +142,10 @@ export function AppHeader({ title, showMenu = true }: AppHeaderProps) {
     dispatch(signOut());
   };
 
-  const formatDate = (dateUtc?: string): string =>
-    formatLocaleDateTime(dateUtc, i18n.language, 'notifications');
+  const formatDate = (dateUtc?: string): string => {
+    const formatted = formatLocaleDateTime(dateUtc, i18n.language, 'notifications');
+    return isRtl && formatted ? `\u200F${formatted}\u200F` : formatted;
+  };
 
   const onOpenFromNotification = (notification: NotificationDTO) => {
     if (notification.link?.trim()) {
@@ -214,7 +219,7 @@ export function AppHeader({ title, showMenu = true }: AppHeaderProps) {
 
       <Modal visible={languageVisible} transparent animationType="fade" onRequestClose={() => setLanguageVisible(false)}>
         <TouchableWithoutFeedback onPress={() => setLanguageVisible(false)}>
-          <View style={[styles.dropdownBackdrop, isRtl && styles.dropdownBackdropRtl]}>
+          <View style={[styles.dropdownBackdrop, dropdownNeedsManualRtlAnchor && styles.dropdownBackdropRtl]}>
             <TouchableWithoutFeedback onPress={() => {}}>
               <View style={[styles.languageCard, rtlDirection]}>
                 <Text style={[styles.dropdownTitle, rtlText]}>{t('language.title')}</Text>
@@ -246,7 +251,7 @@ export function AppHeader({ title, showMenu = true }: AppHeaderProps) {
 
       <Modal visible={profileVisible} transparent animationType="fade" onRequestClose={() => setProfileVisible(false)}>
         <TouchableWithoutFeedback onPress={() => setProfileVisible(false)}>
-          <View style={[styles.dropdownBackdrop, isRtl && styles.dropdownBackdropRtl]}>
+          <View style={[styles.dropdownBackdrop, dropdownNeedsManualRtlAnchor && styles.dropdownBackdropRtl]}>
             <TouchableWithoutFeedback onPress={() => {}}>
               <View style={[styles.profileCard, rtlDirection]}>
                 <View style={[styles.profileHeader, rtlRow]}>
@@ -328,13 +333,14 @@ export function AppHeader({ title, showMenu = true }: AppHeaderProps) {
                         t,
                         i18n.language
                       );
+                      const messageText = bodyText.trim() || t('app.notificationsScreen.openActionHint');
 
                       return (
                         <TouchableOpacity
                           key={notification.id}
                           style={[
                             styles.previewItem,
-                            rtlRow,
+                            isRtl && styles.previewItemRtl,
                             !notification.isRead && styles.previewItemUnread,
                           ]}
                           onPress={() => onPressPreviewItem(notification)}
@@ -343,23 +349,25 @@ export function AppHeader({ title, showMenu = true }: AppHeaderProps) {
                           <View style={styles.previewItemIconWrap}>
                             <MaterialIcons name="mail-outline" size={22} color="#2f3b57" />
                           </View>
-                          <View style={styles.previewItemBody}>
-                            <Text style={[styles.previewItemMessage, rtlText]}>
-                              {bodyText.trim() || t('app.notificationsScreen.openActionHint')}
-                            </Text>
-                            {showActionLink ? (
-                              <Text
-                                style={[styles.previewItemLink, rtlText]}
-                                onPress={() => {
-                                  onPressPreviewLink(notification);
-                                }}
-                              >
-                                {actionLabel}
+                          <View style={[styles.previewItemBody, isRtl ? styles.previewItemBodyRtl : rtlDirection]}>
+                            <View style={[styles.previewItemTextColumn, isRtl && styles.previewItemTextColumnRtl]}>
+                              <Text style={[styles.previewItemMessage, rtlText, isRtl && styles.previewItemTextRtl]}>
+                                {isRtl ? `\u200F${messageText}\u200F` : messageText}
                               </Text>
-                            ) : null}
-                            <Text style={[styles.previewItemDate, rtlText]}>
-                              {formatDate(notification.createdOnUtc)}
-                            </Text>
+                              {showActionLink ? (
+                                <Text
+                                  style={[styles.previewItemLink, rtlText, isRtl && styles.previewItemTextRtl]}
+                                  onPress={() => {
+                                    onPressPreviewLink(notification);
+                                  }}
+                                >
+                                  {actionLabel}
+                                </Text>
+                              ) : null}
+                              <Text style={[styles.previewItemDate, rtlText, isRtl && styles.previewItemTextRtl]}>
+                                {formatDate(notification.createdOnUtc)}
+                              </Text>
+                            </View>
                           </View>
                         </TouchableOpacity>
                       );
@@ -381,7 +389,7 @@ export function AppHeader({ title, showMenu = true }: AppHeaderProps) {
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
+    // Direction comes from rtlRow (swap-aware). Keep align/spacing only here.
     alignItems: 'center',
     justifyContent: 'space-between',
     height: theme.spacing.headerHeight,
@@ -413,7 +421,7 @@ const styles = StyleSheet.create({
     height: 40,
   },
   headerActions: {
-    flexDirection: 'row',
+    // Direction comes from rtlRow (swap-aware).
     alignItems: 'center',
     justifyContent: 'flex-end',
     gap: 4,
@@ -694,12 +702,17 @@ const styles = StyleSheet.create({
   previewItem: {
     minHeight: 86,
     flexDirection: 'row',
+    direction: 'ltr',
     borderBottomWidth: 1,
     borderBottomColor: '#d8dbe2',
     backgroundColor: '#ffffff',
     paddingHorizontal: 10,
     paddingVertical: 10,
     gap: 10,
+  },
+  previewItemRtl: {
+    flexDirection: 'row-reverse',
+    direction: 'ltr',
   },
   previewItemUnread: {
     backgroundColor: '#d6dbe8',
@@ -712,10 +725,37 @@ const styles = StyleSheet.create({
   previewItemBody: {
     flex: 1,
   },
+  previewItemBodyRtl: {
+    flex: 1,
+    direction: 'ltr',
+    alignItems: 'flex-end',
+  },
+  previewItemTextColumn: {
+    width: '100%',
+  },
+  previewItemTextColumnRtl: {
+    width: '100%',
+    alignItems: 'flex-end',
+  },
   previewItemMessage: {
     color: '#212633',
     fontSize: 14,
     lineHeight: 22,
+    width: '100%',
+  },
+  previewItemTextRtl: {
+    maxWidth: '100%',
+    textAlign: 'right',
+    writingDirection: 'rtl',
+    direction: 'rtl',
+    alignSelf: 'flex-end',
+    marginLeft: 'auto',
+  },
+  previewItemMetaText: {
+    textAlign: 'left',
+    writingDirection: 'ltr',
+    direction: 'ltr',
+    alignSelf: 'stretch',
   },
   previewItemLinkInline: {
     color: '#243aa8',

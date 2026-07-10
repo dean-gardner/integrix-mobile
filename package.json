@@ -3,10 +3,11 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "android": "react-native run-android",
+    "android": "sh scripts/run-android.sh",
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "deapk": "sh -c 'BUILD_NO=\"$1\"; if [ -z \"$BUILD_NO\" ]; then BUILD_NO=\"$(env | awk -F= '\\''/^npm_config_[0-9]+=/{ sub(/^npm_config_/, \"\", $1); print $1; exit }'\\'')\"; fi; BUILD_NO=\"${BUILD_NO#--}\"; if [ -z \"$BUILD_NO\" ]; then echo \"Usage: npm run deapk --20 or npm run deapk -- 20\"; exit 1; fi; rm -f android/app/src/main/assets/index.android.bundle && npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res && cd android && ./gradlew assembleDebug && cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/integrix-${BUILD_NO}.apk && echo \"APK: android/app/build/outputs/apk/debug/integrix-${BUILD_NO}.apk\"' --",
+    "bsapk": "sh -c 'BUILD_NO=\"$1\"; if [ -z \"$BUILD_NO\" ]; then BUILD_NO=\"$(env | awk -F= '\\''/^npm_config_[0-9]+=/{ sub(/^npm_config_/, \"\", $1); print $1; exit }'\\'')\"; fi; BUILD_NO=\"${BUILD_NO#--}\"; if [ -z \"$BUILD_NO\" ]; then echo \"Usage: npm run bsapk --20 or npm run bsapk -- 20\"; exit 1; fi; rm -f android/app/src/main/assets/index.android.bundle && cd android && ./gradlew assembleRelease && cp app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/integrix-${BUILD_NO}.apk && echo \"APK: android/app/build/outputs/apk/release/integrix-${BUILD_NO}.apk\"' --",
     "commit": "sh -c 'MSG=\"$*\"; if [ -z \"$MSG\" ]; then echo \"Usage: npm run commit \\\"commit message\\\"\"; exit 1; fi; git add . && git commit -m \"$MSG\"' --",
     "push": "sh -c 'MSG=\"$*\"; if [ -z \"$MSG\" ]; then echo \"Usage: npm run push \\\"commit message\\\"\"; exit 1; fi; git add . && git commit -m \"$MSG\" && git push origin HEAD' --",
     "start": "react-native start",

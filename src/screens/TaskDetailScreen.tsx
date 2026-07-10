@@ -7,13 +7,16 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   ActivityIndicator,
   Alert,
   Modal,
   TextInput,
+  InputAccessoryView,
   Linking,
   Image,
   Platform,
+  Pressable,
   type KeyboardEvent,
 } from 'react-native';
 import { launchCamera, launchImageLibrary, type Asset as ImagePickerAsset } from 'react-native-image-picker';
@@ -39,7 +42,8 @@ import {
   getTaskUsersSharedWith,
 } from '../api/tasks';
 import { getDocumentById } from '../api/documents';
-import { createDefect as apiCreateDefect, getTaskStepDefects } from '../api/defects';
+import { DocumentTaskReferencing } from '../config/documentCreate';
+import { createDefect as apiCreateDefect, editDefect as apiEditDefect, getTaskStepDefects } from '../api/defects';
 import { createObservation as apiCreateObservation } from '../api/observations';
 import { getUsersBySearch } from '../api/users';
 import { getTaskPosts } from '../api/feed';
@@ -76,6 +80,8 @@ import {
   TASK_STATUS_COMPLETE,
   TASK_STEP_COMPLETED_WITH_RECORD,
   TASK_STEP_NOT_COMPLETED,
+  getTaskDocumentId,
+  getTaskVersionId,
   mergeTaskWithRoute,
 } from '../config/taskDetail';
 import { useTranslation } from 'react-i18next';
@@ -85,6 +91,7 @@ import { FinaliseTaskModal } from '../components/taskDetail/FinaliseTaskModal';
 import type { FinaliseTaskDTO } from '../types/finaliseTask';
 import { isSignatureRequiredOnTaskCompletion } from '../utils/taskCompletionRequirements';
 import { translateKnownDocumentSectionTitle } from '../utils/systemDisplayText';
+import { getHttpErrorMessage } from '../utils/httpErrorMessage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   rtlAwareInputStyle,
@@ -95,6 +102,70 @@ import {
 } from '../utils/rtlLayout';
 
 type TaskDetailParams = { task: TaskReadDTO; taskStepId?: string | null; scrollToSteps?: boolean };
+
+const EDIT_TASK_KEYBOARD_ACCESSORY_ID = 'edit-task-keyboard-accessory';
+
+function pickSectionString(...values: unknown[]): string {
+  for (const value of values) {
+    if (value == null) continue;
+    const text = String(value).trim();
+    if (text) return text;
+  }
+  return '';
+}
+
+function pickSectionNumber(...values: unknown[]): number {
+  for (const value of values) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string' && value.trim()) {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+  }
+  return 0;
+}
+
+/** Normalize camelCase / PascalCase section payloads from sections-task-steps. */
+function normalizeTaskSections(data: unknown): TaskSectionWithStepsDTO[] {
+  if (!Array.isArray(data)) return [];
+  return data
+    .map((raw) => {
+      if (!raw || typeof raw !== 'object') return null;
+      const record = raw as Record<string, unknown>;
+      const id = pickSectionString(record.id, record.Id);
+      if (!id) return null;
+      const stepsRaw = record.taskSteps ?? record.TaskSteps;
+      const taskSteps = Array.isArray(stepsRaw)
+        ? stepsRaw
+            .map((stepRaw) => {
+              if (!stepRaw || typeof stepRaw !== 'object') return null;
+              const step = stepRaw as Record<string, unknown>;
+              const stepId = pickSectionString(step.id, step.Id);
+              if (!stepId) return null;
+              return {
+                ...(step as TaskStepReadDTO),
+                id: stepId,
+                sortOrder: pickSectionNumber(step.sortOrder, step.SortOrder),
+                taskDescription: pickSectionString(
+                  step.taskDescription,
+                  step.TaskDescription,
+                  step.description,
+                  step.Description
+                ),
+              } as TaskStepReadDTO;
+            })
+            .filter((step): step is TaskStepReadDTO => step != null)
+            .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+        : [];
+      return {
+        id,
+        sectionTitle: pickSectionString(record.sectionTitle, record.SectionTitle),
+        sortOrder: pickSectionNumber(record.sortOrder, record.SortOrder),
+        taskSteps,
+      } satisfies TaskSectionWithStepsDTO;
+    })
+    .filter((section): section is TaskSectionWithStepsDTO => section != null);
+}
 
 const OFFLINE_POSTS_FILTER_MODEL: FilteringModel = {
   pageNumber: 0,
@@ -206,33 +277,10 @@ function runWhenIdle(callback: () => void): { cancel?: () => void } {
 }
 
 function getErrorMessage(error: unknown, fallback: string): string {
-  if (typeof error === 'string' && error.trim()) return error;
-  if (error instanceof Error && error.message.trim()) return error.message;
-  if (error && typeof error === 'object') {
-    const record = error as {
-      message?: unknown;
-      response?: { data?: unknown };
-    };
-    const responseData = record.response?.data;
-    if (typeof responseData === 'string' && responseData.trim()) return responseData;
-    if (responseData && typeof responseData === 'object') {
-      const responseRecord = responseData as { message?: unknown; title?: unknown };
-      if (typeof responseRecord.message === 'string' && responseRecord.message.trim()) {
-        return responseRecord.message;
-      }
-      if (typeof responseRecord.title === 'string' && responseRecord.title.trim()) {
-        return responseRecord.title;
-      }
-      try {
-        const text = JSON.stringify(responseData);
-        if (text && text !== '{}') return text;
-      } catch {
-        // Fall through to the generic error message.
-      }
-    }
-    if (typeof record.message === 'string' && record.message.trim()) return record.message;
+  if (typeof error === 'string' && error.trim()) {
+    return getHttpErrorMessage({ message: error }, fallback) || fallback;
   }
-  return fallback;
+  return getHttpErrorMessage(error, fallback) || fallback;
 }
 
 function isValidEmail(value: string): boolean {
@@ -295,17 +343,6 @@ function getTaskDocumentNumber(task: TaskReadDTO | null | undefined): string {
     documentRecord?.documentNumberStr,
     documentRecord?.documentNo,
     documentRecord?.documentNumber
-  );
-}
-
-function hasSubmittedGpsCoordinates(payload: Extract<TaskStepPostPayload, { kind: 'defect' }>): boolean {
-  return Boolean(
-    payload.template?.fields?.some((field) => {
-      const isGpsField = field.type === 3 || field.name.toLowerCase().includes('gps');
-      if (!isGpsField) return false;
-      const value = (payload.fieldValues[field.id] ?? '').trim();
-      return Boolean(value && value.toLowerCase() !== 'auto');
-    })
   );
 }
 
@@ -391,14 +428,16 @@ export default function TaskDetailScreen() {
   const shareAutocompleteYRef = useRef<number | null>(null);
   const shareInputLayoutRef = useRef<{ y: number; height: number } | null>(null);
   const shareKeyboardScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shareSearchRequestIdRef = useRef(0);
   const stepLayoutMap = useRef<Record<string, number>>({});
   const targetStepId = route.params?.taskStepId ?? null;
   const scrollToSteps = route.params?.scrollToSteps ?? !targetStepId;
-  const { currentTask, currentTaskLoading, isActionLoading } = useSelector(
-    (s: RootState) => s.tasks
-  );
+  const { currentTask, isActionLoading } = useSelector((s: RootState) => s.tasks);
   const routeTask = route.params?.task;
-  const task = mergeTaskWithRoute(currentTask, routeTask);
+  const task = useMemo(
+    () => mergeTaskWithRoute(currentTask, routeTask),
+    [currentTask, routeTask]
+  );
 
   const [pickerVisible, setPickerVisible] = useState(false);
   const [finaliseModalVisible, setFinaliseModalVisible] = useState(false);
@@ -414,6 +453,11 @@ export default function TaskDetailScreen() {
   const [projectNumber, setProjectNumber] = useState('');
   const [assetId, setAssetId] = useState('');
   const [editError, setEditError] = useState<string | null>(null);
+  const [editFieldErrors, setEditFieldErrors] = useState<{
+    project?: string;
+    assetId?: string;
+    workOrderOrNotification?: string;
+  }>({});
   const [sections, setSections] = useState<TaskSectionWithStepsDTO[]>([]);
   const [sectionsLoading, setSectionsLoading] = useState(false);
   const [expandedSectionId, setExpandedSectionId] = useState<string | null>(null);
@@ -434,7 +478,7 @@ export default function TaskDetailScreen() {
 
   const fetchSections = useCallback(async (taskId: string) => {
     const res = await getTaskSectionsWithTaskSteps(taskId);
-    return (res.data ?? []).slice().sort((a, b) => a.sortOrder - b.sortOrder);
+    return normalizeTaskSections(res.data).sort((a, b) => a.sortOrder - b.sortOrder);
   }, []);
 
   const allTaskStepIds = useMemo(
@@ -444,14 +488,26 @@ export default function TaskDetailScreen() {
   const [panelOffsetY, setPanelOffsetY] = useState<number | null>(null);
   const [taskStepsOffsetInPanel, setTaskStepsOffsetInPanel] = useState<number | null>(null);
 
+  // Pin fetch args to the navigation task so a fulfilled detail response cannot
+  // change documentId/versionId, re-run this effect, clearCurrentTask, and loop.
+  const routeTaskId = routeTask?.id;
+  const routeVersionId = useMemo(() => getTaskVersionId(routeTask), [routeTask]);
+  const routeDocumentId = useMemo(() => getTaskDocumentId(routeTask), [routeTask]);
+
   useEffect(() => {
-    if (task?.versionId && task?.id) {
-      dispatch(fetchTaskById({ documentId: task.documentId, versionId: task.versionId, taskId: task.id }));
+    if (routeVersionId && routeTaskId) {
+      dispatch(
+        fetchTaskById({
+          documentId: routeDocumentId,
+          versionId: routeVersionId,
+          taskId: routeTaskId,
+        })
+      );
     }
     return () => {
       dispatch(clearCurrentTask());
     };
-  }, [dispatch, task?.documentId, task?.id, task?.versionId]);
+  }, [dispatch, routeDocumentId, routeTaskId, routeVersionId]);
 
   const documentNumberFromTask = useMemo(() => getTaskDocumentNumber(task), [task]);
 
@@ -461,6 +517,7 @@ export default function TaskDetailScreen() {
     description?: string;
     documentNumberStr?: string;
     documentNo?: string;
+    taskReferencingType?: number;
   } | null>(null);
 
   const signatureRequiredOnCompletion = useMemo(
@@ -478,15 +535,6 @@ export default function TaskDetailScreen() {
       setDocRequiresSignature(false);
       return;
     }
-    const needNumber = !documentNumberFromTask;
-    const needTitle = !documentTitleFromTask;
-    const needSignatureFlag = !isSignatureRequiredOnTaskCompletion(
-      task as Record<string, unknown> | undefined
-    );
-    if (!needNumber && !needTitle && !needSignatureFlag) {
-      setFetchedDocMeta(null);
-      return;
-    }
     let cancelled = false;
     getDocumentById(docId, verId)
       .then((res) => {
@@ -495,10 +543,13 @@ export default function TaskDetailScreen() {
         const desc = d.description != null ? String(d.description).trim() : '';
         const numStr = d.documentNumberStr != null ? String(d.documentNumberStr).trim() : '';
         const numNo = d.documentNo != null ? String(d.documentNo).trim() : '';
+        const referencing =
+          typeof d.taskReferencingType === 'number' ? d.taskReferencingType : undefined;
         setFetchedDocMeta({
           description: desc || undefined,
           documentNumberStr: numStr || undefined,
           documentNo: numNo || undefined,
+          taskReferencingType: referencing,
         });
         setDocRequiresSignature(
           isSignatureRequiredOnTaskCompletion(undefined, d as Record<string, unknown>)
@@ -513,7 +564,7 @@ export default function TaskDetailScreen() {
     return () => {
       cancelled = true;
     };
-  }, [task, documentNumberFromTask, documentTitleFromTask]);
+  }, [task?.documentId, task?.versionId]);
 
   const documentTitleDisplay = useMemo(() => {
     if (documentTitleFromTask) return documentTitleFromTask;
@@ -547,17 +598,24 @@ export default function TaskDetailScreen() {
   useEffect(() => {
     let cancelled = false;
     const loadSections = async () => {
-      if (!task?.id) return;
+      const taskId = routeTaskId ?? task?.id;
+      if (!taskId) {
+        setSections([]);
+        setExpandedSectionId(null);
+        setSectionsLoading(false);
+        return;
+      }
       setSectionsLoading(true);
       setExpandedSectionId(null);
       try {
-        const ordered = await fetchSections(task.id);
+        const ordered = await fetchSections(taskId);
         if (cancelled) return;
         setSections(ordered);
         setExpandedSectionId(resolveSectionToExpand(ordered));
-        await setCachedTaskSections(task.id, ordered);
+        // Cache in the background — never block clearing the spinner on AsyncStorage.
+        void setCachedTaskSections(taskId, ordered);
       } catch {
-        const cachedSections = await getCachedTaskSections(task.id);
+        const cachedSections = await getCachedTaskSections(taskId).catch(() => []);
         if (cancelled) return;
         if (cachedSections.length > 0) {
           setSections(cachedSections);
@@ -573,11 +631,23 @@ export default function TaskDetailScreen() {
       }
     };
 
-    loadSections().catch(() => {});
+    loadSections().catch(() => {
+      if (!cancelled) setSectionsLoading(false);
+    });
     return () => {
       cancelled = true;
     };
-  }, [fetchSections, resolveSectionToExpand, task?.id]);
+  }, [fetchSections, resolveSectionToExpand, routeTaskId, task?.id]);
+
+  const taskStepsVerificationsKey = useMemo(() => {
+    const taskStepVerifications = Array.isArray(task?.taskStepsVerifications)
+      ? task.taskStepsVerifications
+      : [];
+    return taskStepVerifications
+      .map((verification) => `${verification.taskStepId ?? ''}:${verification.verificationStatusCode ?? ''}`)
+      .sort()
+      .join('|');
+  }, [task?.taskStepsVerifications]);
 
   useEffect(() => {
     const initialMap: Record<string, number | null> = {};
@@ -594,8 +664,18 @@ export default function TaskDetailScreen() {
       if (!(verification.taskStepId in initialMap)) return;
       initialMap[verification.taskStepId] = parseVerificationStatus(verification.verificationStatusCode);
     });
-    setStepStatuses(initialMap);
-  }, [sections, task?.taskStepsVerifications]);
+    setStepStatuses((prev) => {
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(initialMap);
+      if (
+        prevKeys.length === nextKeys.length &&
+        nextKeys.every((key) => prev[key] === initialMap[key])
+      ) {
+        return prev;
+      }
+      return initialMap;
+    });
+  }, [sections, taskStepsVerificationsKey]);
 
   useEffect(() => {
     if (!targetStepId || sectionsLoading) return;
@@ -715,27 +795,36 @@ export default function TaskDetailScreen() {
     [task?.usersSharedWith, taskSharedUsers]
   );
 
-  const sharedUserEmails = useMemo(
+  const sharedUserEmailsKey = useMemo(
     () =>
-      new Set(
-        sharedUsers
-          .filter((u) => typeof u?.email === 'string' && u.email.trim().length > 0)
-          .map((u) => u.email.toLowerCase())
-      ),
+      sharedUsers
+        .filter((u) => typeof u?.email === 'string' && u.email.trim().length > 0)
+        .map((u) => u.email.toLowerCase())
+        .sort()
+        .join('\n'),
     [sharedUsers]
   );
+  const sharedUserEmailsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    sharedUserEmailsRef.current = new Set(
+      sharedUserEmailsKey ? sharedUserEmailsKey.split('\n') : []
+    );
+  }, [sharedUserEmailsKey]);
 
   useEffect(() => {
     const trimmed = shareQuery.trim();
     if (trimmed.length < 2) {
-      setShareSearchResults([]);
-      setShareSearchLoading(false);
-      setShareSearchSearched(false);
+      shareSearchRequestIdRef.current += 1;
+      setShareSearchResults((prev) => (prev.length === 0 ? prev : []));
+      setShareSearchLoading((prev) => (prev ? false : prev));
+      setShareSearchSearched((prev) => (prev ? false : prev));
       return;
     }
-    let cancelled = false;
-    setShareSearchLoading(true);
-    setShareSearchSearched(true);
+    const requestId = shareSearchRequestIdRef.current + 1;
+    shareSearchRequestIdRef.current = requestId;
+    setShareSearchLoading((prev) => (prev ? prev : true));
+    setShareSearchSearched((prev) => (prev ? prev : true));
     const timer = setTimeout(async () => {
       try {
         const res = await getUsersBySearch({
@@ -745,22 +834,26 @@ export default function TaskDetailScreen() {
           onlyCompanyTeamUsers: true,
           includeOwnPerson: true,
         });
-        if (cancelled) return;
-        const list = (res.data ?? []).filter(
-          (u) => typeof u?.email === 'string' && !sharedUserEmails.has(u.email.toLowerCase())
+        if (shareSearchRequestIdRef.current !== requestId) return;
+        const excludedEmails = sharedUserEmailsRef.current;
+        const list = (Array.isArray(res.data) ? res.data : []).filter(
+          (u) => typeof u?.email === 'string' && !excludedEmails.has(u.email.toLowerCase())
         );
         setShareSearchResults(list);
       } catch {
-        if (!cancelled) setShareSearchResults([]);
+        if (shareSearchRequestIdRef.current === requestId) {
+          setShareSearchResults((prev) => (prev.length === 0 ? prev : []));
+        }
       } finally {
-        if (!cancelled) setShareSearchLoading(false);
+        if (shareSearchRequestIdRef.current === requestId) {
+          setShareSearchLoading((prev) => (prev ? false : prev));
+        }
       }
     }, 300);
     return () => {
-      cancelled = true;
       clearTimeout(timer);
     };
-  }, [shareQuery, sharedUserEmails]);
+  }, [shareQuery, sharedUserEmailsKey]);
 
   const scrollShareInputIntoView = useCallback((keyboardTop: number | null = keyboardTopRef.current) => {
     const scroll = scrollRef.current;
@@ -1052,6 +1145,7 @@ export default function TaskDetailScreen() {
     setProjectNumber(task.projectNumber ?? '');
     setAssetId(task.asset?.id != null ? String(task.asset.id) : '');
     setEditError(null);
+    setEditFieldErrors({});
     setEditVisible(true);
   };
 
@@ -1060,6 +1154,44 @@ export default function TaskDetailScreen() {
       setEditError(t('app.taskDetail.editMissingContext'));
       return;
     }
+
+    const workOrder = (workOrderNumber ?? '').trim();
+    const notification = (notificationNumber ?? '').trim();
+    const project = (projectNumber ?? '').trim();
+    const assetIdTrimmed = assetId.trim();
+    const assetIdNumber = assetIdTrimmed ? Number(assetIdTrimmed) : NaN;
+    const referencingType = fetchedDocMeta?.taskReferencingType;
+    const fieldErrors: {
+      project?: string;
+      assetId?: string;
+      workOrderOrNotification?: string;
+    } = {};
+
+    if (
+      referencingType === DocumentTaskReferencing.WorkOrderAndNotificationNo &&
+      !workOrder &&
+      !notification
+    ) {
+      fieldErrors.workOrderOrNotification = t('app.startTask.fillWorkOrderOrNotification');
+    }
+
+    if (referencingType === DocumentTaskReferencing.ProjectNumber && !project) {
+      fieldErrors.project = t('app.task.fieldRequired');
+    }
+
+    if (!assetIdTrimmed || !Number.isFinite(assetIdNumber) || assetIdNumber <= 0) {
+      fieldErrors.assetId = t('app.task.fieldRequired');
+    }
+
+    if (Object.keys(fieldErrors).length > 0) {
+      setEditFieldErrors(fieldErrors);
+      setEditError(t('app.task.fillRequiredBeforeSave'));
+      return;
+    }
+
+    setEditFieldErrors({});
+    setEditError(null);
+
     try {
       await dispatch(
         editTaskEntry({
@@ -1067,11 +1199,13 @@ export default function TaskDetailScreen() {
           versionId: task.versionId,
           taskId: task.id,
           model: {
-            workOrderNumber: (workOrderNumber ?? '').trim(),
-            notificationNumber: (notificationNumber ?? '').trim(),
-            projectNumber: (projectNumber ?? '').trim(),
-            assetId: assetId.trim() ? Number(assetId) : null,
-            asset: task.asset ? { id: task.asset.id, name: task.asset.name } : null,
+            workOrderNumber: workOrder,
+            notificationNumber: notification,
+            projectNumber: project,
+            assetId: assetIdNumber,
+            asset: task.asset
+              ? { id: assetIdNumber, name: task.asset.name }
+              : { id: assetIdNumber, name: String(assetIdNumber) },
             usersSharedWith: sharedUsers,
           },
         })
@@ -1080,6 +1214,15 @@ export default function TaskDetailScreen() {
     } catch (e) {
       setEditError(getErrorMessage(e, t('app.errors.editTask')));
     }
+  };
+
+  const dismissEditKeyboard = () => {
+    Keyboard.dismiss();
+  };
+
+  const closeEditModal = () => {
+    Keyboard.dismiss();
+    setEditVisible(false);
   };
 
   const handleSubmitEditPress = () => {
@@ -1177,8 +1320,10 @@ export default function TaskDetailScreen() {
       } as unknown as Blob);
     });
 
+    let createdDefect: Awaited<ReturnType<typeof apiCreateDefect>>['data'] | undefined;
+
     if (payload.kind === 'defect') {
-      formData.append('IsAutoSetPosition', hasSubmittedGpsCoordinates(payload) ? 'false' : 'true');
+      formData.append('IsAutoSetPosition', payload.isAutoSetPosition ? 'true' : 'false');
       formData.append('RemediationDetails', payload.remediationDetails);
 
       if (payload.template) {
@@ -1191,23 +1336,90 @@ export default function TaskDetailScreen() {
           );
           formData.append(`DefectFieldsValues[${index}].Id`, field.id);
 
-          let value = payload.fieldValues[field.id] ?? '';
-          const lowerFieldName = field.name.toLowerCase();
-          if (lowerFieldName.includes('description')) {
-            value = payload.description;
-          } else if (lowerFieldName.includes('asset') && task.asset?.name) {
-            value = task.asset.name;
-          } else if (lowerFieldName.includes('gps') && !value) {
-            value = 'auto';
-          } else if (field.type === 1 && !value) {
-            value = 'false';
-          }
+              let value = payload.fieldValues[field.id] ?? '';
+              const lowerFieldName = field.name.toLowerCase();
+              const fieldType = typeof field.type === 'number' ? field.type : Number(field.type);
+              const isGps =
+                fieldType === 3 || lowerFieldName.includes('gps') || lowerFieldName.includes('position');
+              if (lowerFieldName.includes('description')) {
+                value = payload.description;
+              } else if (lowerFieldName.includes('asset') && task.asset?.name) {
+                value = task.asset.name;
+              } else if (isGps) {
+                value = payload.gpsCoordinates
+                  ? JSON.stringify(payload.gpsCoordinates)
+                  : (payload.isAutoSetPosition ? 'auto' : value);
+              } else if (field.type === 1 && !value) {
+                value = 'false';
+              }
 
           formData.append(`DefectFieldsValues[${index}].Value`, value);
         });
       }
 
-      await apiCreateDefect(formData);
+      const { data } = await apiCreateDefect(formData);
+      createdDefect = data;
+
+      if (payload.gpsCoordinates && payload.template && createdDefect?.id) {
+        const submittedGpsValue = JSON.stringify(payload.gpsCoordinates);
+        const createdFieldValues =
+          ((createdDefect as {
+            fieldValues?: Array<{
+              id?: string;
+              name?: string;
+              type?: number | null;
+              value?: unknown;
+              valueId?: string | number | null;
+              defectFieldId?: string;
+            }>;
+          }).fieldValues ?? []);
+        const createdGpsValue = createdFieldValues.find((fieldValue) => {
+          const name = (fieldValue.name ?? '').toLowerCase();
+          const type = typeof fieldValue.type === 'number' ? fieldValue.type : Number(fieldValue.type);
+          return type === 3 || name.includes('gps') || name.includes('position');
+        })?.value;
+
+        if (String(createdGpsValue ?? '') !== submittedGpsValue) {
+          const correctionFormData = new FormData();
+          correctionFormData.append('Description', payload.description);
+          correctionFormData.append('StatusCode', String(createdDefect.statusCode ?? 'Open'));
+          correctionFormData.append('RemediationDetails', payload.remediationDetails);
+          correctionFormData.append('Mode', '2');
+
+          const fieldValueByTemplateId = new Map(
+            createdFieldValues.map((fieldValue) => [fieldValue.defectFieldId ?? fieldValue.id ?? '', fieldValue])
+          );
+
+          payload.template.fields.forEach((field, index) => {
+            const existingFieldValue = fieldValueByTemplateId.get(field.id);
+            const lowerFieldName = field.name.toLowerCase();
+            const fieldType = typeof field.type === 'number' ? field.type : Number(field.type);
+            const isGps = fieldType === 3 || lowerFieldName.includes('gps') || lowerFieldName.includes('position');
+            let value = String(existingFieldValue?.value ?? payload.fieldValues[field.id] ?? '');
+            if (lowerFieldName.includes('description')) {
+              value = payload.description;
+            } else if (lowerFieldName.includes('asset') && task.asset?.name) {
+              value = task.asset.name;
+            } else if (isGps) {
+              value = submittedGpsValue;
+            } else if (field.type === 1 && !value) {
+              value = 'false';
+            }
+
+            correctionFormData.append(`DefectFieldsValues[${index}].Name`, field.name);
+            correctionFormData.append(`DefectFieldsValues[${index}].Type`, field.type != null ? String(field.type) : '');
+            correctionFormData.append(`DefectFieldsValues[${index}].Id`, field.id);
+            correctionFormData.append(`DefectFieldsValues[${index}].Value`, value);
+            const valueId = existingFieldValue?.valueId;
+            if (valueId != null && String(valueId).trim()) {
+              correctionFormData.append(`DefectFieldsValues[${index}].ValueId`, String(valueId));
+            }
+          });
+
+          const { data: correctedDefect } = await apiEditDefect(createdDefect.id, correctionFormData);
+          createdDefect = correctedDefect;
+        }
+      }
     } else {
       await apiCreateObservation(formData);
     }
@@ -1226,6 +1438,7 @@ export default function TaskDetailScreen() {
     } catch {
       // Keep current accordion state if sections refresh fails.
     }
+    return createdDefect;
   };
 
   const handleToggleTaskStepStatus = async (taskStepId: string, targetStatus: number | null) => {
@@ -1320,7 +1533,7 @@ export default function TaskDetailScreen() {
     <View style={styles.screenRoot}>
       <KeyboardAvoidingView
         style={styles.screenRoot}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' && !postModalVisible && !editVisible ? 'padding' : undefined}
       >
         <ScrollView
           ref={scrollRef}
@@ -1511,22 +1724,23 @@ export default function TaskDetailScreen() {
             ) : null}
             {!shareSearchLoading && shareSearchSearched && shareQuery.trim().length >= 2 ? (
               <View style={[styles.shareSearchResults, styles.shareSearchFloating, rtlDirection]}>
-                <ScrollView
-                  style={styles.shareSearchResultsScroll}
-                  nestedScrollEnabled
-                  keyboardShouldPersistTaps="handled"
-                >
-                  {shareSearchResults.length === 0 ? (
-                    <Text style={[styles.shareSearchNoResults, rtlText]}>
-                      {t('app.userSearch.noResults')}
-                    </Text>
-                  ) : (
-                    shareSearchResults.map((user, idx) => (
+                {shareSearchResults.length === 0 ? (
+                  <Text style={[styles.shareSearchNoResults, rtlText]}>
+                    {t('app.userSearch.noResults')}
+                  </Text>
+                ) : (
+                  <ScrollView
+                    style={styles.shareSearchResultsScroll}
+                    contentContainerStyle={styles.shareSearchResultsContent}
+                    nestedScrollEnabled
+                    keyboardShouldPersistTaps="handled"
+                  >
+                    {shareSearchResults.map((user, idx) => (
                       <TouchableOpacity
                         key={`${user.email}-${user.userId ?? idx}`}
                         style={styles.shareSearchResultRow}
                         onPress={() => {
-                          handleUserPick(user);
+                          handleUserPick(user).catch(() => {});
                           setShareQuery('');
                           setShareSearchResults([]);
                           setShareSearchSearched(false);
@@ -1540,9 +1754,9 @@ export default function TaskDetailScreen() {
                           <Text style={[styles.shareSearchResultEmail, rtlText]}>{user.email}</Text>
                         ) : null}
                       </TouchableOpacity>
-                    ))
-                  )}
-                </ScrollView>
+                    ))}
+                  </ScrollView>
+                )}
               </View>
             ) : null}
           </View>
@@ -1579,10 +1793,10 @@ export default function TaskDetailScreen() {
             <Text style={[styles.taskStepsTabText, rtlText]}>{t('app.task.taskSteps')}</Text>
           </View>
 
-          {/* Only swap steps for a full-screen loader on *initial* load. Refreshing the task
-              (e.g. after Skip/Done → fetchTaskById) sets currentTaskLoading and would unmount
-              all steps, collapse the ScrollView, and jump scroll to the top (Bug 17). */}
-          {sectionsLoading || (currentTaskLoading && sections.length === 0) ? (
+          {/* Steps load independently of fetchTaskById. Tying the spinner to
+              currentTaskLoading left this block spinning forever when detail
+              fetch looped or hung while sections were already empty/failed. */}
+          {sectionsLoading ? (
             <View style={styles.loader}>
               <ActivityIndicator size="small" color={theme.colors.primary} />
             </View>
@@ -1781,9 +1995,12 @@ export default function TaskDetailScreen() {
       <UserPickerModal
         visible={pickerVisible}
         onClose={() => setPickerVisible(false)}
-        onSelect={handleUserPick}
+        onSelect={(user) => {
+          handleUserPick(user).catch(() => {});
+          setPickerVisible(false);
+        }}
         title={t('app.taskDetail.shareWithUserTitle')}
-        initialQuery={pickerVisible ? shareQuery : undefined}
+        initialQuery={shareQuery.trim().length >= 2 ? shareQuery : undefined}
       />
 
       <FinaliseTaskModal
@@ -1806,69 +2023,137 @@ export default function TaskDetailScreen() {
         onSubmit={handleSubmitTaskStepPost}
       />
 
-      <Modal visible={editVisible} transparent animationType="fade">
-        <View style={styles.modalBackdrop}>
+      <Modal
+        visible={editVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeEditModal}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalBackdrop}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
+        >
+          <TouchableWithoutFeedback onPress={dismissEditKeyboard} accessible={false}>
+            <View style={styles.editModalDismissArea} />
+          </TouchableWithoutFeedback>
           <View style={[styles.editModalCard, rtlDirection]}>
             <Text style={[styles.modalTitle, rtlText]}>{t('app.task.editTask')}</Text>
             <View style={styles.editModalBody}>
               <ScrollView
                 style={styles.editModalScroll}
                 contentContainerStyle={[styles.editModalScrollContent, rtlDirection]}
-                keyboardShouldPersistTaps="always"
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
                 showsVerticalScrollIndicator
               >
-              {editError ? (
-                <View style={screenStyles.errorBox}>
-                  <Text style={[screenStyles.errorText, rtlText]}>{editError}</Text>
-                </View>
-              ) : null}
-              <Text style={[screenStyles.formLabel, rtlText]}>{t('app.task.workOrder')}</Text>
-              <TextInput
-                style={[screenStyles.formInput, rtlInput]}
-                textAlign={rtlInput.textAlign}
-                value={workOrderNumber}
-                onChangeText={setWorkOrderNumber}
-                placeholder={t('app.tasksScreen.workOrderNumberPh')}
-                placeholderTextColor="#6c757d"
-                editable={!isActionLoading}
-              />
-              <Text style={[screenStyles.formLabel, rtlText]}>{t('app.task.notification')}</Text>
-              <TextInput
-                style={[screenStyles.formInput, rtlInput]}
-                textAlign={rtlInput.textAlign}
-                value={notificationNumber}
-                onChangeText={setNotificationNumber}
-                placeholder={t('app.tasksScreen.notificationNumberPh')}
-                placeholderTextColor="#6c757d"
-                editable={!isActionLoading}
-              />
-              <Text style={[screenStyles.formLabel, rtlText]}>{t('app.task.project')}</Text>
-              <TextInput
-                style={[screenStyles.formInput, rtlInput]}
-                textAlign={rtlInput.textAlign}
-                value={projectNumber}
-                onChangeText={setProjectNumber}
-                placeholder={t('app.tasksScreen.projectNumberPh')}
-                placeholderTextColor="#6c757d"
-                editable={!isActionLoading}
-              />
-              <Text style={[screenStyles.formLabel, rtlText]}>{t('app.task.assetId')}</Text>
-              <TextInput
-                style={[screenStyles.formInput, rtlInput]}
-                textAlign={rtlInput.textAlign}
-                value={assetId}
-                onChangeText={setAssetId}
-                placeholder={t('app.task.assetId')}
-                placeholderTextColor="#6c757d"
-                keyboardType="number-pad"
-                editable={!isActionLoading}
-              />
+                {editError ? (
+                  <View style={screenStyles.errorBox}>
+                    <Text style={[screenStyles.errorText, rtlText]}>{editError}</Text>
+                  </View>
+                ) : null}
+                <Text style={[screenStyles.formLabel, rtlText]}>{t('app.task.workOrder')}</Text>
+                <TextInput
+                  style={[
+                    screenStyles.formInput,
+                    rtlInput,
+                    editFieldErrors.workOrderOrNotification ? styles.editInputInvalid : null,
+                  ]}
+                  textAlign={rtlInput.textAlign}
+                  value={workOrderNumber}
+                  onChangeText={(text) => {
+                    setWorkOrderNumber(text);
+                    setEditFieldErrors((prev) => ({ ...prev, workOrderOrNotification: undefined }));
+                    setEditError(null);
+                  }}
+                  placeholder={t('app.tasksScreen.workOrderNumberPh')}
+                  placeholderTextColor="#6c757d"
+                  editable={!isActionLoading}
+                  returnKeyType="done"
+                  blurOnSubmit
+                  onSubmitEditing={dismissEditKeyboard}
+                />
+                <Text style={[screenStyles.formLabel, rtlText]}>{t('app.task.notification')}</Text>
+                <TextInput
+                  style={[
+                    screenStyles.formInput,
+                    rtlInput,
+                    editFieldErrors.workOrderOrNotification ? styles.editInputInvalid : null,
+                  ]}
+                  textAlign={rtlInput.textAlign}
+                  value={notificationNumber}
+                  onChangeText={(text) => {
+                    setNotificationNumber(text);
+                    setEditFieldErrors((prev) => ({ ...prev, workOrderOrNotification: undefined }));
+                    setEditError(null);
+                  }}
+                  placeholder={t('app.tasksScreen.notificationNumberPh')}
+                  placeholderTextColor="#6c757d"
+                  editable={!isActionLoading}
+                  returnKeyType="done"
+                  blurOnSubmit
+                  onSubmitEditing={dismissEditKeyboard}
+                />
+                {editFieldErrors.workOrderOrNotification ? (
+                  <Text style={[styles.editFieldError, rtlText]}>
+                    {editFieldErrors.workOrderOrNotification}
+                  </Text>
+                ) : null}
+                <Text style={[screenStyles.formLabel, rtlText]}>{t('app.task.project')}</Text>
+                <TextInput
+                  style={[
+                    screenStyles.formInput,
+                    rtlInput,
+                    editFieldErrors.project ? styles.editInputInvalid : null,
+                  ]}
+                  textAlign={rtlInput.textAlign}
+                  value={projectNumber}
+                  onChangeText={(text) => {
+                    setProjectNumber(text);
+                    setEditFieldErrors((prev) => ({ ...prev, project: undefined }));
+                    setEditError(null);
+                  }}
+                  placeholder={t('app.tasksScreen.projectNumberPh')}
+                  placeholderTextColor="#6c757d"
+                  editable={!isActionLoading}
+                  returnKeyType="done"
+                  blurOnSubmit
+                  onSubmitEditing={dismissEditKeyboard}
+                />
+                {editFieldErrors.project ? (
+                  <Text style={[styles.editFieldError, rtlText]}>{editFieldErrors.project}</Text>
+                ) : null}
+                <Text style={[screenStyles.formLabel, rtlText]}>{t('app.task.assetId')}</Text>
+                <TextInput
+                  style={[
+                    screenStyles.formInput,
+                    rtlInput,
+                    editFieldErrors.assetId ? styles.editInputInvalid : null,
+                  ]}
+                  textAlign={rtlInput.textAlign}
+                  value={assetId}
+                  onChangeText={(text) => {
+                    setAssetId(text);
+                    setEditFieldErrors((prev) => ({ ...prev, assetId: undefined }));
+                    setEditError(null);
+                  }}
+                  placeholder={t('app.task.assetId')}
+                  placeholderTextColor="#6c757d"
+                  keyboardType="number-pad"
+                  inputAccessoryViewID={
+                    Platform.OS === 'ios' ? EDIT_TASK_KEYBOARD_ACCESSORY_ID : undefined
+                  }
+                  editable={!isActionLoading}
+                />
+                {editFieldErrors.assetId ? (
+                  <Text style={[styles.editFieldError, rtlText]}>{editFieldErrors.assetId}</Text>
+                ) : null}
               </ScrollView>
             </View>
             <View style={[styles.modalActions, rtlRow]}>
               <TouchableOpacity
                 style={styles.modalCancelBtn}
-                onPress={() => setEditVisible(false)}
+                onPress={closeEditModal}
                 disabled={isActionLoading}
               >
                 <Text style={[styles.modalCancelBtnText, rtlText]}>{t('app.modal.cancel')}</Text>
@@ -1880,7 +2165,7 @@ export default function TaskDetailScreen() {
                   styles.modalSaveBtnInRow,
                   isActionLoading && styles.buttonDisabled,
                 ]}
-                onPressIn={handleSubmitEditPress}
+                onPress={handleSubmitEditPress}
                 disabled={isActionLoading}
               >
                 {isActionLoading ? (
@@ -1891,7 +2176,22 @@ export default function TaskDetailScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
+        {Platform.OS === 'ios' ? (
+          <InputAccessoryView nativeID={EDIT_TASK_KEYBOARD_ACCESSORY_ID}>
+            <View style={[styles.editKeyboardAccessory, rtlRow]}>
+              <Pressable
+                onPress={dismissEditKeyboard}
+                hitSlop={12}
+                style={styles.editKeyboardAccessoryBtn}
+              >
+                <Text style={[styles.editKeyboardAccessoryText, rtlText]}>
+                  {t('app.taskDetail.stepDone')}
+                </Text>
+              </Pressable>
+            </View>
+          </InputAccessoryView>
+        ) : null}
       </Modal>
     </>
   );
@@ -2056,6 +2356,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   shareSearchResults: {
+    minHeight: 56,
     maxHeight: 200,
     marginBottom: 12,
     borderWidth: 1,
@@ -2076,6 +2377,9 @@ const styles = StyleSheet.create({
   },
   shareSearchResultsScroll: {
     maxHeight: 200,
+  },
+  shareSearchResultsContent: {
+    flexGrow: 1,
   },
   shareSearchResultRow: {
     paddingVertical: 10,
@@ -2364,22 +2668,55 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 24,
   },
+  editModalDismissArea: {
+    ...StyleSheet.absoluteFillObject,
+  },
   editModalCard: {
     backgroundColor: theme.colors.cardBg,
     borderRadius: 12,
     padding: theme.spacing.cardPadding,
-    height: '85%',
     maxHeight: '90%',
+    width: '100%',
+    zIndex: 1,
   },
   editModalBody: {
-    flex: 1,
+    flexGrow: 1,
+    flexShrink: 1,
     minHeight: 0,
   },
   editModalScroll: {
-    flex: 1,
+    flexGrow: 0,
+    flexShrink: 1,
   },
   editModalScrollContent: {
     paddingBottom: 8,
+  },
+  editInputInvalid: {
+    borderColor: theme.colors.error ?? '#dc3545',
+  },
+  editFieldError: {
+    color: theme.colors.error ?? '#dc3545',
+    fontSize: 13,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  editKeyboardAccessory: {
+    backgroundColor: '#d1d5db',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#9ca3af',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  editKeyboardAccessoryBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  editKeyboardAccessoryText: {
+    color: theme.colors.primary,
+    fontSize: 16,
+    fontWeight: '600',
   },
   modalCard: {
     backgroundColor: theme.colors.cardBg,

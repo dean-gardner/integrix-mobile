@@ -23,6 +23,7 @@ import {
   rtlDirectionStyle,
   rtlRowStyle,
 } from '../../utils/rtlLayout';
+import { sanitizeApiErrorMessage } from '../../utils/httpErrorMessage';
 
 type InviteTeamMemberModalProps = {
   visible: boolean;
@@ -40,6 +41,14 @@ type InviteTeamMemberModalProps = {
 
 function getDefaultRoleId(roles: RoleDTO[]): string {
   return roles.find((role) => role.name.toLowerCase() === 'user')?.id ?? roles[0]?.id ?? '';
+}
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function isEmailValidationMessage(message: string): boolean {
+  return /email/i.test(message) && /(invalid|format|valid)/i.test(message);
 }
 
 export function InviteTeamMemberModal({
@@ -68,6 +77,7 @@ export function InviteTeamMemberModal({
   const [roleId, setRoleId] = useState('');
   const [teamId, setTeamId] = useState<number | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const wasVisibleRef = useRef(false);
 
   const defaultRoleId = useMemo(() => getDefaultRoleId(roles), [roles]);
@@ -86,9 +96,30 @@ export function InviteTeamMemberModal({
       setRoleId(isAdmin ? defaultAdminRoleId : defaultRoleId);
       setTeamId(defaultTeamId);
       setLocalError(null);
+      setEmailError(null);
     }
     wasVisibleRef.current = visible;
   }, [visible, isAdmin, defaultRoleId, defaultAdminRoleId, defaultTeamId]);
+
+  const cleanedApiError = useMemo(() => {
+    if (!error?.trim()) return null;
+    return sanitizeApiErrorMessage(error);
+  }, [error]);
+
+  const bannerError = useMemo(() => {
+    if (localError) return localError;
+    if (!cleanedApiError) return null;
+    if (isEmailValidationMessage(cleanedApiError)) return null;
+    return cleanedApiError;
+  }, [cleanedApiError, localError]);
+
+  const displayedEmailError = useMemo(() => {
+    if (emailError) return emailError;
+    if (cleanedApiError && isEmailValidationMessage(cleanedApiError)) {
+      return cleanedApiError;
+    }
+    return null;
+  }, [cleanedApiError, emailError]);
 
   useEffect(() => {
     if (!visible) return;
@@ -123,8 +154,15 @@ export function InviteTeamMemberModal({
     const cleanLastName = lastName.trim();
     const cleanPhone = phone.trim();
 
+    setLocalError(null);
+    setEmailError(null);
+
     if (!cleanEmail || !cleanFirstName || !cleanLastName) {
       setLocalError(t('app.inviteMember.requiredFields'));
+      return;
+    }
+    if (!isValidEmail(cleanEmail)) {
+      setEmailError(t('app.inviteMember.invalidEmail'));
       return;
     }
     if (!effectiveRoleId) {
@@ -136,7 +174,6 @@ export function InviteTeamMemberModal({
       return;
     }
 
-    setLocalError(null);
     try {
       await onSubmit({
         email: cleanEmail,
@@ -148,7 +185,7 @@ export function InviteTeamMemberModal({
       });
       onClose();
     } catch {
-      // Parent keeps API error state.
+      // Parent keeps API error state; email validation is shown inline when applicable.
     }
   };
 
@@ -162,9 +199,9 @@ export function InviteTeamMemberModal({
         >
           <View style={[styles.modalCard, rtlDirection]}>
             <Text style={[styles.modalTitle, rtlText]}>{t('app.inviteMember.title')}</Text>
-            {localError || error ? (
+            {bannerError ? (
               <View style={screenStyles.errorBox}>
-                <Text style={[screenStyles.errorText, rtlText]}>{localError || error}</Text>
+                <Text style={[screenStyles.errorText, rtlText]}>{bannerError}</Text>
               </View>
             ) : null}
             {inviteDisabledReason ? (
@@ -175,16 +212,26 @@ export function InviteTeamMemberModal({
 
             <Text style={[screenStyles.formLabel, rtlText]}>{t('app.inviteMember.emailPh')} *</Text>
             <TextInput
-              style={[screenStyles.formInput, rtlInput]}
+              style={[
+                screenStyles.formInput,
+                rtlInput,
+                displayedEmailError ? styles.inputInvalid : null,
+              ]}
               textAlign={rtlInput.textAlign}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(value) => {
+                setEmail(value);
+                if (emailError) setEmailError(null);
+              }}
               placeholder={t('app.inviteMember.emailPh')}
               placeholderTextColor="#6c757d"
               keyboardType="email-address"
               autoCapitalize="none"
               editable={!loading}
             />
+            {displayedEmailError ? (
+              <Text style={[styles.fieldErrorText, rtlText]}>{displayedEmailError}</Text>
+            ) : null}
 
             <Text style={[screenStyles.formLabel, rtlText]}>{t('app.inviteMember.firstNamePh')} *</Text>
             <TextInput
@@ -326,6 +373,15 @@ const styles = StyleSheet.create({
     padding: theme.spacing.cardPadding,
   },
   modalTitle: { fontSize: 18, fontWeight: '600', color: theme.colors.text, marginBottom: 10 },
+  inputInvalid: {
+    borderColor: theme.colors.error,
+  },
+  fieldErrorText: {
+    color: theme.colors.error,
+    fontSize: 13,
+    marginTop: -4,
+    marginBottom: 8,
+  },
   infoBox: {
     marginTop: 2,
     marginBottom: 8,

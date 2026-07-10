@@ -18,12 +18,15 @@ type TaskReferenceEdit = Pick<
 
 function applyPendingTaskReferenceEdits(
   items: DashboardTaskItem[],
-  pending: Record<string, TaskReferenceEdit>
+  pending?: Record<string, TaskReferenceEdit> | null
 ): DashboardTaskItem[] {
-  return items.map((item) => {
-    const edit = pending[item.id];
-    return edit ? { ...item, ...edit } : item;
-  });
+  return (items ?? [])
+    .filter((item): item is DashboardTaskItem => Boolean(item && typeof item === 'object' && item.id))
+    .map((item) => {
+      const edit = pending?.[item.id];
+      if (!edit || typeof edit !== 'object' || Array.isArray(edit)) return item;
+      return { ...item, ...edit };
+    });
 }
 
 export const fetchDashboardStats = createAsyncThunk<
@@ -169,6 +172,7 @@ const dashboardSlice = createSlice({
     // fetchDashboardTasks
     builder.addCase(fetchDashboardTasks.fulfilled, (state, { payload }) => {
       if (state.stats) {
+        state.pendingReferenceEdits ??= {};
         state.stats = {
           ...state.stats,
           tasks: {
@@ -211,6 +215,7 @@ const dashboardSlice = createSlice({
         notificationNumber: meta.arg.model.notificationNumber,
         projectNumber: meta.arg.model.projectNumber,
       };
+      state.pendingReferenceEdits ??= {};
       state.pendingReferenceEdits[meta.arg.taskId] = referenceEdit;
       if (state.stats?.tasks?.items) {
         state.stats.tasks.items = state.stats.tasks.items.map((item) =>

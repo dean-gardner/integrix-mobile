@@ -200,8 +200,6 @@ export default function SubscriptionScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.pageTitle}>{t('subscription.title')}</Text>
-
         <View style={styles.mainCard}>
           <Text style={styles.chooseTitle}>{t('subscription.chooseTitle')}</Text>
 
@@ -412,12 +410,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingTop: 10,
     paddingBottom: 86,
-  },
-  pageTitle: {
-    fontSize: 35,
-    fontWeight: '700',
-    color: '#1e2738',
-    marginBottom: 12,
   },
   mainCard: {
     backgroundColor: '#ffffff',

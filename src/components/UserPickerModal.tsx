@@ -11,9 +11,10 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  ScrollView,
+  FlatList,
   KeyboardAvoidingView,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { getUsersBySearch } from '../api/users';
 import type { FoundUserDTO } from '../types/user';
@@ -24,6 +25,8 @@ import { rtlAwareInputStyle, rtlAwareTextStyle, rtlDirectionStyle, rtlRowStyle }
 
 const MIN_QUERY_LENGTH = 2;
 const SEARCH_DEBOUNCE_MS = 300;
+const RESULTS_MIN_HEIGHT = 120;
+const RESULTS_MAX_HEIGHT = 280;
 
 export type UserPickerModalProps = {
   visible: boolean;
@@ -42,6 +45,7 @@ export function UserPickerModal({
   initialQuery,
 }: UserPickerModalProps) {
   const { t, i18n } = useTranslation();
+  const { height: windowHeight } = useWindowDimensions();
   const rtlText = useMemo(() => rtlAwareTextStyle(i18n), [i18n]);
   const rtlInput = useMemo(() => rtlAwareInputStyle(i18n), [i18n]);
   const rtlRow = useMemo(() => rtlRowStyle(i18n), [i18n]);
@@ -52,16 +56,37 @@ export function UserPickerModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
+  const [sessionKey, setSessionKey] = useState(0);
   const searchRequestIdRef = useRef(0);
+  const inputRef = useRef<TextInput>(null);
+  const wasVisibleRef = useRef(false);
+
+  // Keep an explicit height so iOS KeyboardAvoidingView + FlatList cannot collapse to a blank card.
+  const resultsAreaHeight = useMemo(
+    () => Math.min(RESULTS_MAX_HEIGHT, Math.max(RESULTS_MIN_HEIGHT, Math.floor(windowHeight * 0.35))),
+    [windowHeight]
+  );
 
   useEffect(() => {
-    if (!visible) return;
-    setQuery((initialQuery ?? '').trim());
-    setResults([]);
-    setError(null);
-    setSearched(false);
-    setLoading(false);
-    searchRequestIdRef.current += 1;
+    if (visible && !wasVisibleRef.current) {
+      const nextQuery = (initialQuery ?? '').trim();
+      searchRequestIdRef.current += 1;
+      setSessionKey((key) => key + 1);
+      setQuery(nextQuery);
+      setResults([]);
+      setError(null);
+      setSearched(false);
+      setLoading(false);
+      // Refocus after reopen so the second search attempt works reliably on iOS.
+      requestAnimationFrame(() => {
+        inputRef.current?.focus();
+      });
+    }
+    if (!visible && wasVisibleRef.current) {
+      searchRequestIdRef.current += 1;
+      setLoading(false);
+    }
+    wasVisibleRef.current = visible;
   }, [visible, initialQuery]);
 
   useEffect(() => {
@@ -91,7 +116,9 @@ export function UserPickerModal({
         onlyCompanyTeamUsers: true,
       })
         .then((res) => {
-          if (isActive && searchRequestIdRef.current === requestId) setResults(res.data ?? []);
+          if (isActive && searchRequestIdRef.current === requestId) {
+            setResults(Array.isArray(res.data) ? res.data : []);
+          }
         })
         .catch((e: unknown) => {
           if (!isActive || searchRequestIdRef.current !== requestId) return;
@@ -107,7 +134,7 @@ export function UserPickerModal({
       isActive = false;
       clearTimeout(timer);
     };
-  }, [query, t, visible]);
+  }, [query, t, visible, sessionKey]);
 
   const onSearch = useCallback(async () => {
     const q = (query ?? '').trim();
@@ -129,7 +156,9 @@ export function UserPickerModal({
         onlyRegisteredUsers: false,
         onlyCompanyTeamUsers: true,
       });
-      if (searchRequestIdRef.current === requestId) setResults(res.data ?? []);
+      if (searchRequestIdRef.current === requestId) {
+        setResults(Array.isArray(res.data) ? res.data : []);
+      }
     } catch (e: unknown) {
       if (searchRequestIdRef.current !== requestId) return;
       setResults([]);
@@ -155,93 +184,108 @@ export function UserPickerModal({
     setResults([]);
     setError(null);
     setSearched(false);
+    setLoading(false);
     onClose();
   }, [onClose]);
 
-  if (!visible) return null;
+  const renderResult = useCallback(
+    ({ item, index }: { item: FoundUserDTO; index: number }) => (
+      <TouchableOpacity
+        key={`${item.email}-${item.userId ?? index}`}
+        style={styles.resultRow}
+        onPress={() => handleSelect(item)}
+        activeOpacity={0.7}
+      >
+        <Text style={[styles.resultName, rtlText]}>{item.fullName || item.email}</Text>
+        {item.fullName ? <Text style={[screenStyles.muted, rtlText]}>{item.email}</Text> : null}
+        {item.companyTeam ? (
+          <Text style={[styles.team, rtlText]}>
+            {t('app.userSearch.teamLabel', { name: item.companyTeam.name })}
+          </Text>
+        ) : null}
+      </TouchableOpacity>
+    ),
+    [handleSelect, rtlText, t]
+  );
 
   return (
-    <Modal visible={visible} transparent animationType="fade">
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={handleClose}
+      // Avoid iOS presentation quirks that can leave a blank surface after reopen.
+      presentationStyle="overFullScreen"
+    >
       <KeyboardAvoidingView
         style={styles.backdrop}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}
       >
         <View style={[styles.card, rtlDirection]}>
-            <View style={[styles.header, rtlRow]}>
-              <Text style={[styles.title, rtlText]}>{resolvedTitle}</Text>
-              <TouchableOpacity onPress={handleClose} hitSlop={12}>
-                <Text style={[styles.closeText, rtlText]}>{t('app.modal.close')}</Text>
-              </TouchableOpacity>
+          <View style={[styles.header, rtlRow]}>
+            <Text style={[styles.title, rtlText]}>{resolvedTitle}</Text>
+            <TouchableOpacity onPress={handleClose} hitSlop={12}>
+              <Text style={[styles.closeText, rtlText]}>{t('app.modal.close')}</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={[styles.searchRow, rtlRow]}>
+            <TextInput
+              ref={inputRef}
+              style={[styles.input, rtlInput]}
+              textAlign={rtlInput.textAlign}
+              value={query}
+              onChangeText={(text) => {
+                setQuery(text);
+                setError(null);
+              }}
+              placeholder={t('app.userSearch.placeholder')}
+              placeholderTextColor="#6c757d"
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+              onSubmitEditing={onSearch}
+              // Keep the field usable across reopen / second search on iOS.
+              blurOnSubmit={false}
+            />
+            <TouchableOpacity
+              style={[styles.searchBtn, loading && styles.searchBtnDisabled]}
+              onPress={onSearch}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={[styles.searchBtnText, rtlText]}>{t('app.userSearch.search')}</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+          {error ? (
+            <View style={screenStyles.errorBox}>
+              <Text style={[screenStyles.errorText, rtlText]}>{error}</Text>
             </View>
-            <View style={[styles.searchRow, rtlRow]}>
-              <TextInput
-                style={[styles.input, rtlInput]}
-                textAlign={rtlInput.textAlign}
-                value={query}
-                onChangeText={(text) => {
-                  setQuery(text);
-                  setError(null);
-                }}
-                placeholder={t('app.userSearch.placeholder')}
-                placeholderTextColor="#6c757d"
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="search"
-                onSubmitEditing={onSearch}
-              />
-              <TouchableOpacity
-                style={[styles.searchBtn, loading && styles.searchBtnDisabled]}
-                onPress={onSearch}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={[styles.searchBtnText, rtlText]}>{t('app.userSearch.search')}</Text>
-                )}
-              </TouchableOpacity>
+          ) : null}
+          {loading ? (
+            <View style={styles.loader}>
+              <ActivityIndicator size="small" color={theme.colors.primary} />
             </View>
-            {error ? (
-              <View style={screenStyles.errorBox}>
-                <Text style={[screenStyles.errorText, rtlText]}>{error}</Text>
-              </View>
-            ) : null}
-            {loading ? (
-              <View style={styles.loader}>
-                <ActivityIndicator size="small" color={theme.colors.primary} />
-              </View>
-            ) : null}
-            {searched && !loading ? (
-              <ScrollView
-                style={styles.resultsScroll}
-                keyboardShouldPersistTaps="handled"
-                nestedScrollEnabled
-              >
-                {results.length === 0 ? (
-                  <Text style={[screenStyles.muted, rtlText]}>{t('app.userSearch.noResults')}</Text>
-                ) : (
-                  results.map((u, idx) => (
-                    <TouchableOpacity
-                      key={`${u.email}-${u.userId ?? idx}`}
-                      style={styles.resultRow}
-                      onPress={() => handleSelect(u)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.resultName, rtlText]}>{u.fullName || u.email}</Text>
-                      {u.fullName ? (
-                        <Text style={[screenStyles.muted, rtlText]}>{u.email}</Text>
-                      ) : null}
-                      {u.companyTeam ? (
-                        <Text style={[styles.team, rtlText]}>
-                          {t('app.userSearch.teamLabel', { name: u.companyTeam.name })}
-                        </Text>
-                      ) : null}
-                    </TouchableOpacity>
-                  ))
-                )}
-              </ScrollView>
-            ) : null}
+          ) : null}
+          {searched && !loading ? (
+            <View style={[styles.resultsWrap, { height: resultsAreaHeight }]}>
+              {results.length === 0 ? (
+                <Text style={[styles.noResults, rtlText]}>{t('app.userSearch.noResults')}</Text>
+              ) : (
+                <FlatList
+                  data={results}
+                  keyExtractor={(item, index) => `${item.email}-${item.userId ?? index}`}
+                  renderItem={renderResult}
+                  keyboardShouldPersistTaps="handled"
+                  style={styles.resultsList}
+                  contentContainerStyle={styles.resultsListContent}
+                />
+              )}
+            </View>
+          ) : null}
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -267,7 +311,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  title: { fontSize: 18, fontWeight: '600', color: theme.colors.text },
+  title: { fontSize: 18, fontWeight: '600', color: theme.colors.text, flex: 1, paddingEnd: 8 },
   closeText: { fontSize: 15, color: theme.colors.primary, fontWeight: '500' },
   searchRow: {
     flexDirection: 'row',
@@ -289,10 +333,27 @@ const styles = StyleSheet.create({
   searchBtnDisabled: { opacity: 0.7 },
   searchBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
   loader: { paddingVertical: 16, alignItems: 'center' },
-  resultsScroll: { maxHeight: 280 },
+  resultsWrap: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 8,
+    backgroundColor: '#fafbfc',
+    overflow: 'hidden',
+  },
+  resultsList: {
+    flex: 1,
+  },
+  resultsListContent: {
+    flexGrow: 1,
+  },
+  noResults: {
+    ...screenStyles.muted,
+    paddingHorizontal: 12,
+    paddingVertical: 16,
+  },
   resultRow: {
     paddingVertical: 12,
-    paddingHorizontal: 0,
+    paddingHorizontal: 12,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
   },

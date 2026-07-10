@@ -230,6 +230,33 @@ function formatSlashDatesInText(value: string, locale?: string): string {
   );
 }
 
+const LRI = '\u2066'; // Left-to-Right Isolate
+const PDI = '\u2069'; // Pop Directional Isolate
+const RLM = '\u200F'; // Right-to-Left Mark
+
+function isRtlLocale(locale?: string): boolean {
+  const code = (locale ?? '').toLowerCase().split('-')[0];
+  return code === 'ar' || code === 'ur';
+}
+
+/**
+ * Keep Latin/number runs (dates, English titles) as one LTR unit inside RTL copy,
+ * and leave an RLM so trailing punctuation stays on the RTL side.
+ */
+export function isolateLtrRunForRtl(value: string, locale?: string): string {
+  const text = (value ?? '').trim();
+  if (!text || !isRtlLocale(locale)) return text;
+  return `${LRI}${text}${PDI}${RLM}`;
+}
+
+/** Force RTL paragraph direction for mixed Arabic + Latin notification bodies. */
+export function ensureRtlParagraph(value: string, locale?: string): string {
+  const text = (value ?? '').trim();
+  if (!text || !isRtlLocale(locale)) return text;
+  if (text.startsWith(RLM) || text.startsWith('\u2067')) return text;
+  return `${RLM}${text}`;
+}
+
 export function translateNotificationMessage(
   message: string,
   translate: (key: string, options?: Record<string, unknown>) => string,
@@ -242,59 +269,90 @@ export function translateNotificationMessage(
     /^Reminder:\s*task\s+['"](.+?)['"]\s+is scheduled to start on\s+(.+?)\.?$/i
   );
   if (reminderMatch) {
-    const title = formatSlashDatesInText(cleanEmptyAddressPlaceholders(reminderMatch[1]), locale);
-    const startDate = formatSlashDatesInText(reminderMatch[2], locale);
-    return translate('app.notificationsScreen.reminderTaskScheduled', {
-      title,
-      startDate,
-    });
+    const title = isolateLtrRunForRtl(
+      formatSlashDatesInText(cleanEmptyAddressPlaceholders(reminderMatch[1]), locale),
+      locale
+    );
+    const startDate = isolateLtrRunForRtl(
+      formatSlashDatesInText(reminderMatch[2], locale),
+      locale
+    );
+    return ensureRtlParagraph(
+      translate('app.notificationsScreen.reminderTaskScheduled', {
+        title,
+        startDate,
+      }),
+      locale
+    );
   }
 
   const taskReportTitle = trimmed.match(
     /^The task completion report for ['"]?(.+?)['"]? is ready\.?$/i
   );
   if (taskReportTitle) {
-    return translate('app.notificationsScreen.taskCompletionReportReady', {
-      title: taskReportTitle[1],
-    });
+    return ensureRtlParagraph(
+      translate('app.notificationsScreen.taskCompletionReportReady', {
+        title: isolateLtrRunForRtl(taskReportTitle[1], locale),
+      }),
+      locale
+    );
   }
 
   const docPdfTitle = trimmed.match(
     /^A document ['"]?(.+?)['"]? PDF is ready(?: for download)?\.?$/i
   );
   if (docPdfTitle) {
-    return translate('app.notificationsScreen.documentPdfReady', { title: docPdfTitle[1] });
+    return ensureRtlParagraph(
+      translate('app.notificationsScreen.documentPdfReady', {
+        title: isolateLtrRunForRtl(docPdfTitle[1], locale),
+      }),
+      locale
+    );
   }
 
   const docPdfAlt = trimmed.match(/^The document ['"]?(.+?)['"]? PDF is ready(?: for download)?\.?$/i);
   if (docPdfAlt) {
-    return translate('app.notificationsScreen.documentPdfReady', { title: docPdfAlt[1] });
+    return ensureRtlParagraph(
+      translate('app.notificationsScreen.documentPdfReady', {
+        title: isolateLtrRunForRtl(docPdfAlt[1], locale),
+      }),
+      locale
+    );
   }
 
   const accessMatch = trimmed.match(
     /^You've been granted access to view the task ['"]?(.+?)['"]? by (.+?)\.?$/i
   );
   if (accessMatch) {
-    return translate('app.notificationsScreen.taskAccessGranted', {
-      task: accessMatch[1],
-      user: accessMatch[2],
-    });
+    return ensureRtlParagraph(
+      translate('app.notificationsScreen.taskAccessGranted', {
+        task: isolateLtrRunForRtl(accessMatch[1], locale),
+        user: isolateLtrRunForRtl(accessMatch[2], locale),
+      }),
+      locale
+    );
   }
 
   const newUserMatch = trimmed.match(
     /^New user alert:\s*A new user (.+?) has just joined the application\.\s*Please contact our support if it is a mistake\.\s*Thank you\.?$/i
   );
   if (newUserMatch) {
-    return translate('app.notificationsScreen.newUserAlert', {
-      user: newUserMatch[1],
-    });
+    return ensureRtlParagraph(
+      translate('app.notificationsScreen.newUserAlert', {
+        user: isolateLtrRunForRtl(newUserMatch[1], locale),
+      }),
+      locale
+    );
   }
 
-  return formatSlashDatesInText(cleanEmptyAddressPlaceholders(trimmed), locale)
-    .replace(/\byou(?:'|’)ve been granted access\b/gi, translate('app.notificationsScreen.grantedAccess'))
-    .replace(/\byou have been granted access\b/gi, translate('app.notificationsScreen.grantedAccess'))
-    .replace(/\bnew user alert\b/gi, translate('app.notificationsScreen.newUserAlertShort'))
-    .replace(/\bclick here\b/gi, translate('app.notificationsScreen.clickHere'));
+  return ensureRtlParagraph(
+    formatSlashDatesInText(cleanEmptyAddressPlaceholders(trimmed), locale)
+      .replace(/\byou(?:'|’)ve been granted access\b/gi, translate('app.notificationsScreen.grantedAccess'))
+      .replace(/\byou have been granted access\b/gi, translate('app.notificationsScreen.grantedAccess'))
+      .replace(/\bnew user alert\b/gi, translate('app.notificationsScreen.newUserAlertShort'))
+      .replace(/\bclick here\b/gi, translate('app.notificationsScreen.clickHere')),
+    locale
+  );
 }
 
 /** Map common English / Arabic link labels to the current locale; pass through unknown labels. */
@@ -333,7 +391,7 @@ export function buildNotificationDisplay(
 
   if (wasTranslated) {
     return {
-      bodyText: translated,
+      bodyText: ensureRtlParagraph(translated, locale),
       actionLabel,
       showActionLink: hasLink,
     };
@@ -341,9 +399,11 @@ export function buildNotificationDisplay(
 
   const stripped = hasLink ? stripEmbeddedUrlsFromDisplay(rawMessage) : rawMessage;
   return {
-    bodyText:
+    bodyText: ensureRtlParagraph(
       formatSlashDatesInText(cleanEmptyAddressPlaceholders(stripped), locale).trim() ||
-      translated.trim(),
+        translated.trim(),
+      locale
+    ),
     actionLabel,
     showActionLink: hasLink,
   };

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Modal,
   View,
@@ -42,10 +42,12 @@ function GpsPinPickerContent({
   const rtlRow = useMemo(() => rtlRowStyle(i18n), [i18n]);
   const rtlDirection = useMemo(() => rtlDirectionStyle(i18n), [i18n]);
   const [draft, setDraft] = useState<GpsPinCoords>(initial);
+  const draftRef = useRef<GpsPinCoords>(initial);
   const [mapLoading, setMapLoading] = useState(true);
   const [mapError, setMapError] = useState(false);
 
   useEffect(() => {
+    draftRef.current = initial;
     setDraft(initial);
     setMapLoading(true);
     setMapError(false);
@@ -63,7 +65,9 @@ function GpsPinPickerContent({
       const lat = typeof data.lat === 'number' ? data.lat : Number(data.lat);
       const lng = typeof data.lng === 'number' ? data.lng : Number(data.lng);
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-      setDraft({ lat, lng });
+      const nextDraft = { lat, lng };
+      draftRef.current = nextDraft;
+      setDraft(nextDraft);
     } catch {
       /* ignore malformed messages */
     }
@@ -122,7 +126,7 @@ function GpsPinPickerContent({
         <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
           <Text style={[styles.cancelBtnText, rtlText]}>{t('app.modal.cancel')}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.applyBtn} onPress={() => onApply(draft)}>
+        <TouchableOpacity style={styles.applyBtn} onPress={() => onApply(draftRef.current)}>
           <Text style={[styles.applyBtnText, rtlText]}>{t('app.taskStepPost.gpsPinPickerApply')}</Text>
         </TouchableOpacity>
       </View>

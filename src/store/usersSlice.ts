@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import i18n from '../i18n';
 import type { UserReadDTO, UserFilteringModel, UserEditDTO } from '../types/user';
 import { getUsers, editUser as apiEditUser, deleteUser as apiDeleteUser } from '../api/users';
+import { getHttpErrorMessage } from '../utils/httpErrorMessage';
 
 export const fetchUsers = createAsyncThunk<
   { items: UserReadDTO[]; totalCount: number },
@@ -13,8 +14,8 @@ export const fetchUsers = createAsyncThunk<
     try {
       const res = await getUsers(getState().users.filteringModel);
       return { items: res.data.items, totalCount: res.data.totalCount };
-    } catch (e: any) {
-      return rejectWithValue(e?.message ?? i18n.t('app.errors.loadUsers'));
+    } catch (e: unknown) {
+      return rejectWithValue(getHttpErrorMessage(e, i18n.t('app.errors.loadUsers')));
     }
   }
 );
@@ -45,8 +46,8 @@ export const fetchMoreUsers = createAsyncThunk<
         totalCount: res.data.totalCount,
         nextPageNumber: next.pageNumber,
       };
-    } catch (e: any) {
-      return rejectWithValue(e?.message ?? i18n.t('app.errors.loadMore'));
+    } catch (e: unknown) {
+      return rejectWithValue(getHttpErrorMessage(e, i18n.t('app.errors.loadMore')));
     }
   }
 );
@@ -60,9 +61,7 @@ export const editUser = createAsyncThunk<
     const res = await apiEditUser(model);
     return res.data;
   } catch (e: unknown) {
-    return rejectWithValue(
-      (e as { message?: string })?.message ?? i18n.t('app.errors.editUser')
-    );
+    return rejectWithValue(getHttpErrorMessage(e, i18n.t('app.errors.editUser')));
   }
 });
 
@@ -75,9 +74,7 @@ export const deleteUser = createAsyncThunk<
     await apiDeleteUser(userId);
     return userId;
   } catch (e: unknown) {
-    return rejectWithValue(
-      (e as { message?: string })?.message ?? i18n.t('app.errors.deleteUser')
-    );
+    return rejectWithValue(getHttpErrorMessage(e, i18n.t('app.errors.deleteUser')));
   }
 });
 
@@ -88,6 +85,7 @@ type UsersState = {
   filteringModel: UserFilteringModel;
   totalCount: number;
   noMorePages: boolean;
+  activeFetchRequestId: string | null;
 };
 
 const initialState: UsersState = {
@@ -97,6 +95,7 @@ const initialState: UsersState = {
   filteringModel: { pageNumber: 0, pageSize: 20 },
   totalCount: 0,
   noMorePages: false,
+  activeFetchRequestId: null,
 };
 
 const usersSlice = createSlice({
@@ -106,14 +105,22 @@ const usersSlice = createSlice({
     setUsersFilter: (state, { payload }: { payload: Partial<UserFilteringModel> }) => {
       state.filteringModel = { ...state.filteringModel, ...payload };
     },
+    clearUsersLoading: (state) => {
+      state.isLoading = false;
+      state.activeFetchRequestId = null;
+    },
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchUsers.pending, (state) => {
+      .addCase(fetchUsers.pending, (state, action) => {
+        state.activeFetchRequestId = action.meta.requestId;
         state.isLoading = true;
         state.error = null;
       })
-      .addCase(fetchUsers.fulfilled, (state, { payload }) => {
+      .addCase(fetchUsers.fulfilled, (state, action) => {
+        if (state.activeFetchRequestId !== action.meta.requestId) return;
+        const { payload } = action;
+        state.activeFetchRequestId = null;
         state.isLoading = false;
         state.items = payload.items;
         state.totalCount = payload.totalCount;
@@ -122,7 +129,10 @@ const usersSlice = createSlice({
           state.filteringModel.pageNumber + 1;
         state.error = null;
       })
-      .addCase(fetchUsers.rejected, (state, { payload }) => {
+      .addCase(fetchUsers.rejected, (state, action) => {
+        if (state.activeFetchRequestId !== action.meta.requestId) return;
+        const { payload } = action;
+        state.activeFetchRequestId = null;
         state.isLoading = false;
         state.error = payload ?? i18n.t('app.errors.loadUsers');
       });
@@ -153,5 +163,5 @@ const usersSlice = createSlice({
   },
 });
 
-export const { setUsersFilter } = usersSlice.actions;
+export const { setUsersFilter, clearUsersLoading } = usersSlice.actions;
 export default usersSlice.reducer;

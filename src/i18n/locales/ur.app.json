@@ -112,6 +112,8 @@
       "notificationNumber": "نوٹیفیکیشن نمبر",
       "project": "پروجیکٹ",
       "assetId": "اثاثہ آئی ڈی",
+      "fieldRequired": "یہ فیلڈ ضروری ہے",
+      "fillRequiredBeforeSave": "محفوظ کرنے سے پہلے تمام ضروری فیلڈز بھریں۔",
       "sharePh": "صارفین درج کریں (بیرونی صارفین کے لیے ای میل لکھ کر Enter دبائیں)",
       "usersToShare": "صارفین کے ساتھ شیئر",
       "finaliseSuccess": "کام کامیابی سے مکمل ہو گیا۔",
@@ -566,6 +568,7 @@
       "lastNamePh": "آخری نام",
       "send": "دعوت بھیجیں",
       "requiredFields": "ای میل، پہلا نام اور آخری نام لازمی ہیں۔",
+      "invalidEmail": "ای میل کی شکل درست نہیں۔",
       "selectRole": "براہ کرم کردار منتخب کریں۔",
       "selectTeam": "براہ کرم ٹیم منتخب کریں۔",
       "userRole": "صارف کردار",
@@ -805,7 +808,7 @@
       "newUserAlertShort": "نئے صارف کا الرٹ",
       "documentPdfReady": "دستاویز \"{{title}}\" (PDF) ڈاؤن لوڈ کے لیے تیار ہے۔ رپورٹ کھولنے کے لیے نیچے دیئے گئے عمل کا استعمال کریں۔",
       "taskCompletionReportReady": "ٹاسک تکمیل کی رپورٹ \"{{title}}\" تیار ہے۔ رپورٹ کھولنے کے لیے نیچے دیئے گئے عمل کا استعمال کریں۔",
-      "reminderTaskScheduled": "یاد دہانی: کام \"{{title}}\" {{startDate}} کو شروع ہونے کے لیے شیڈول ہے۔"
+      "reminderTaskScheduled": "یاد دہانی: کام \"{{title}}\" {{startDate}} کو شروع ہونے کے لیے شیڈول ہے"
     },
     "roles": {
       "admin": "ایڈمن",

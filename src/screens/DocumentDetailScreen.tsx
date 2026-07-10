@@ -17,7 +17,6 @@ import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '../store';
 import { fetchDocumentById, editDocument } from '../store/documentsSlice';
 import {
-  generateDocumentReport,
   getDocumentById as apiGetDocumentById,
   getDocumentHistory,
   getDocumentSectionTaskSteps,
@@ -79,17 +78,6 @@ function parseHistoryDescription(value?: string): ParsedHistoryDescription {
   };
 }
 
-function hasSubmittedGpsCoordinates(payload: Extract<TaskStepPostPayload, { kind: 'defect' }>): boolean {
-  return Boolean(
-    payload.template?.fields?.some((field) => {
-      const isGpsField = field.type === 3 || field.name.toLowerCase().includes('gps');
-      if (!isGpsField) return false;
-      const value = (payload.fieldValues[field.id] ?? '').trim();
-      return Boolean(value && value.toLowerCase() !== 'auto');
-    })
-  );
-}
-
 function formatCompactHistoryDate(dateUtc: string | undefined, locale: string): string {
   if (!dateUtc) return '-';
   const date = new Date(dateUtc);
@@ -120,10 +108,20 @@ function buildTaskStepStatuses(task: TaskWithDetailsReadDTO | null): Record<stri
   return map;
 }
 
+/** Treat empty / placeholder API values as “export not ready yet”. */
+function normalizeExportUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (/^(null|undefined|none|n\/a|-)$/i.test(trimmed)) return null;
+  return trimmed;
+}
+
 async function openExternalUrl(url: string): Promise<boolean> {
-  if (!url) return false;
+  const safeUrl = normalizeExportUrl(url);
+  if (!safeUrl) return false;
   try {
-    await Linking.openURL(url);
+    await Linking.openURL(safeUrl);
     return true;
   } catch {
     return false;
@@ -183,10 +181,10 @@ export default function DocumentDetailScreen() {
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [downloadingLargePdf, setDownloadingLargePdf] = useState(false);
   const [exportFeedback, setExportFeedback] = useState<{ type: 'info' | 'error'; message: string } | null>(null);
-  const [exportReportUrl, setExportReportUrl] = useState<string | null>(doc?.exportReportUrl ?? null);
-  const [exportLargeReportUrl, setExportLargeReportUrl] = useState<string | null>(
-    doc?.exportLargeReportUrl ?? null
-  );
+  // Prefer polled/API URLs over route-param snapshots so stale list data cannot keep Download active.
+  const [exportReportUrl, setExportReportUrl] = useState<string | null>(null);
+  const [exportLargeReportUrl, setExportLargeReportUrl] = useState<string | null>(null);
+  const [exportUrlsReady, setExportUrlsReady] = useState(false);
 
   const [postModalVisible, setPostModalVisible] = useState(false);
   const [postTaskStep, setPostTaskStep] = useState<TaskStepReadDTO | null>(null);
@@ -202,8 +200,9 @@ export default function DocumentDetailScreen() {
   }, [doc]);
 
   const exportRequestInFlight = downloadingPdf || downloadingLargePdf;
-  const currentExportReportUrl = doc?.exportReportUrl ?? exportReportUrl;
-  const currentExportLargeReportUrl = doc?.exportLargeReportUrl ?? exportLargeReportUrl;
+  // Only use API-polled URLs for Download. Route-param snapshots can be stale while export runs.
+  const currentExportReportUrl = exportUrlsReady ? exportReportUrl : null;
+  const currentExportLargeReportUrl = exportUrlsReady ? exportLargeReportUrl : null;
   const normalizedDocumentStatus = String(doc?.versionStatusCode ?? '').trim().toLowerCase();
   const canShareDocument = normalizedDocumentStatus === 'draft' || normalizedDocumentStatus === 'published';
   const isPdfExportPending = !currentExportReportUrl;
@@ -219,8 +218,6 @@ export default function DocumentDetailScreen() {
 
   useEffect(() => {
     setEditDescription(doc?.description ?? '');
-    setExportReportUrl(doc?.exportReportUrl ?? null);
-    setExportLargeReportUrl(doc?.exportLargeReportUrl ?? null);
     setExportFeedback(null);
     setHistory([]);
     setHistoryLoaded(false);
@@ -228,7 +225,10 @@ export default function DocumentDetailScreen() {
     setTask(null);
     setStepStatuses({});
     setExpandedSectionId(null);
-  }, [doc?.description, doc?.exportLargeReportUrl, doc?.exportReportUrl, doc?.id]);
+    setExportUrlsReady(false);
+    setExportReportUrl(null);
+    setExportLargeReportUrl(null);
+  }, [doc?.id]);
 
   useEffect(() => {
     setShareAutoOpened(false);
@@ -236,29 +236,42 @@ export default function DocumentDetailScreen() {
 
   useEffect(() => {
     if (!doc?.documentId || !doc?.id) return;
-    if (currentExportReportUrl && currentExportLargeReportUrl) return;
 
     let isCancelled = false;
+    let bothReady = false;
+
     const refreshExportUrls = async () => {
+      if (bothReady) return;
       try {
         const response = await apiGetDocumentById(doc.documentId, doc.id);
         if (isCancelled) return;
-        setExportReportUrl(response.data?.exportReportUrl ?? null);
-        setExportLargeReportUrl(response.data?.exportLargeReportUrl ?? null);
+        const nextReportUrl = normalizeExportUrl(response.data?.exportReportUrl);
+        const nextLargeUrl = normalizeExportUrl(response.data?.exportLargeReportUrl);
+        setExportReportUrl(nextReportUrl);
+        setExportLargeReportUrl(nextLargeUrl);
+        setExportUrlsReady(true);
+        bothReady = Boolean(nextReportUrl && nextLargeUrl);
+        if (nextReportUrl || nextLargeUrl) {
+          dispatch(fetchDocumentById({ documentId: doc.documentId, versionId: doc.id })).catch(() => {});
+        }
       } catch {
-        // Keep the pending UI; a later poll or screen refresh can update the URLs.
+        if (!isCancelled) {
+          // Keep pending UI; later polls can still pick up ready URLs.
+          setExportUrlsReady(true);
+        }
       }
     };
 
+    refreshExportUrls().catch(() => {});
     const intervalId = setInterval(() => {
       refreshExportUrls().catch(() => {});
-    }, 10000);
+    }, 5000);
 
     return () => {
       isCancelled = true;
       clearInterval(intervalId);
     };
-  }, [currentExportLargeReportUrl, currentExportReportUrl, doc?.documentId, doc?.id]);
+  }, [dispatch, doc?.documentId, doc?.id]);
 
   useEffect(() => {
     if (!route.params?.openShare || shareAutoOpened || !canShareDocument) return;
@@ -452,6 +465,19 @@ export default function DocumentDetailScreen() {
   const handleDownloadReport = useCallback(
     async (isLarge: boolean) => {
       if (!doc) return;
+      const existingUrl = isLarge ? currentExportLargeReportUrl : currentExportReportUrl;
+      // Download buttons must only open a ready URL. Never trigger generate/export from here —
+      // that path produced the "Export is still in progress" alert while buttons looked active.
+      if (!existingUrl) {
+        setExportFeedback({
+          type: 'info',
+          message: isLarge
+            ? t('app.document.largePdfExportInProgress')
+            : t('app.document.pdfExportInProgress'),
+        });
+        return;
+      }
+
       setExportFeedback(null);
       if (isLarge) {
         setDownloadingLargePdf(true);
@@ -460,37 +486,12 @@ export default function DocumentDetailScreen() {
       }
 
       try {
-        const existingUrl = isLarge ? currentExportLargeReportUrl : currentExportReportUrl;
-
-        if (existingUrl) {
-          const opened = await openExternalUrl(existingUrl);
-          if (!opened) {
-            setExportFeedback({ type: 'error', message: t('app.document.downloadFail') });
-          }
-          return;
-        }
-
-        const response = await generateDocumentReport(doc.documentId, doc.id, isLarge);
-        const nextReportUrl = response.data?.exportReportUrl ?? null;
-        const nextLargeUrl = response.data?.exportLargeReportUrl ?? null;
-        if (nextReportUrl !== null) {
-          setExportReportUrl(nextReportUrl);
-        }
-        if (nextLargeUrl !== null) {
-          setExportLargeReportUrl(nextLargeUrl);
-        }
-
-        const generatedUrl = isLarge ? nextLargeUrl ?? nextReportUrl : nextReportUrl ?? nextLargeUrl;
-        if (generatedUrl) {
-          const opened = await openExternalUrl(generatedUrl);
-          if (!opened) {
-            setExportFeedback({ type: 'error', message: t('app.document.downloadFail') });
-          }
-        } else {
-          setExportFeedback({ type: 'info', message: t('app.document.exportProgress') });
+        const opened = await openExternalUrl(existingUrl);
+        if (!opened) {
+          setExportFeedback({ type: 'error', message: t('app.document.downloadFail') });
         }
       } catch {
-        setExportFeedback({ type: 'error', message: t('app.document.exportFail') });
+        setExportFeedback({ type: 'error', message: t('app.document.downloadFail') });
       } finally {
         if (isLarge) {
           setDownloadingLargePdf(false);
@@ -536,7 +537,7 @@ export default function DocumentDetailScreen() {
         });
 
         if (payload.kind === 'defect') {
-          formData.append('IsAutoSetPosition', hasSubmittedGpsCoordinates(payload) ? 'false' : 'true');
+          formData.append('IsAutoSetPosition', payload.isAutoSetPosition ? 'true' : 'false');
           formData.append('RemediationDetails', payload.remediationDetails);
 
           if (payload.template) {
@@ -551,12 +552,15 @@ export default function DocumentDetailScreen() {
 
               let value = payload.fieldValues[field.id] ?? '';
               const lowerFieldName = field.name.toLowerCase();
+              const fieldType = typeof field.type === 'number' ? field.type : Number(field.type);
+              const isGps =
+                fieldType === 3 || lowerFieldName.includes('gps');
               if (lowerFieldName.includes('description')) {
                 value = payload.description;
               } else if (lowerFieldName.includes('asset') && task.asset?.name) {
                 value = task.asset.name;
-              } else if (lowerFieldName.includes('gps') && !value) {
-                value = 'auto';
+              } else if (isGps && !value) {
+                value = payload.isAutoSetPosition ? 'auto' : value;
               } else if (field.type === 1 && !value) {
                 value = 'false';
               }
@@ -916,65 +920,70 @@ export default function DocumentDetailScreen() {
           </Text>
         </View>
 
-        {currentExportReportUrl ? (
-          <TouchableOpacity
-            style={[styles.downloadButton, isPdfDownloadDisabled && styles.downloadButtonDisabled]}
-            onPress={() => {
-              if (isPdfDownloadDisabled) return;
-              handleDownloadReport(false).catch(() => { });
-            }}
-            disabled={isPdfDownloadDisabled}
-          >
-            {downloadingPdf ? (
-              <View style={[styles.downloadButtonInner, isRtl && styles.rowRtl]}>
-                <ActivityIndicator size="small" color="#ffffff" />
-                <Text style={[styles.downloadButtonText, directionTextStyle]}>
-                  {t('app.documentDetail.downloadPdf')}
-                </Text>
-              </View>
-            ) : (
-              <Text style={[styles.downloadButtonText, directionTextStyle]}>
+        <TouchableOpacity
+          style={[styles.downloadButton, isPdfDownloadDisabled && styles.downloadButtonDisabled]}
+          onPress={() => {
+            if (isPdfDownloadDisabled) return;
+            handleDownloadReport(false).catch(() => {});
+          }}
+          disabled={isPdfDownloadDisabled}
+        >
+          {downloadingPdf || isPdfExportPending ? (
+            <View style={[styles.downloadButtonInner, isRtl && styles.rowRtl]}>
+              <ActivityIndicator
+                size="small"
+                color={isPdfDownloadDisabled ? '#5d6780' : '#ffffff'}
+              />
+              <Text
+                style={[
+                  styles.downloadButtonText,
+                  isPdfDownloadDisabled && styles.downloadButtonTextDisabled,
+                  directionTextStyle,
+                ]}
+              >
                 {t('app.documentDetail.downloadPdf')}
               </Text>
-            )}
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.exportPendingNotice}>
-            <Text style={[styles.exportPendingText, directionTextStyle]}>
-              {t('app.document.pdfExportInProgress')}
+            </View>
+          ) : (
+            <Text style={[styles.downloadButtonText, directionTextStyle]}>
+              {t('app.documentDetail.downloadPdf')}
             </Text>
-          </View>
-        )}
+          )}
+        </TouchableOpacity>
 
-        {currentExportLargeReportUrl ? (
-          <TouchableOpacity
-            style={[styles.downloadButton, isLargePdfDownloadDisabled && styles.downloadButtonDisabled]}
-            onPress={() => {
-              if (isLargePdfDownloadDisabled) return;
-              handleDownloadReport(true).catch(() => { });
-            }}
-            disabled={isLargePdfDownloadDisabled}
-          >
-            {downloadingLargePdf ? (
-              <View style={[styles.downloadButtonInner, isRtl && styles.rowRtl]}>
-                <ActivityIndicator size="small" color="#ffffff" />
-                <Text style={[styles.downloadButtonText, directionTextStyle]}>
-                  {t('app.documentDetail.downloadLargePdf')}
-                </Text>
-              </View>
-            ) : (
-              <Text style={[styles.downloadButtonText, directionTextStyle]}>
+        <TouchableOpacity
+          style={[
+            styles.downloadButton,
+            isLargePdfDownloadDisabled && styles.downloadButtonDisabled,
+          ]}
+          onPress={() => {
+            if (isLargePdfDownloadDisabled) return;
+            handleDownloadReport(true).catch(() => {});
+          }}
+          disabled={isLargePdfDownloadDisabled}
+        >
+          {downloadingLargePdf || isLargePdfExportPending ? (
+            <View style={[styles.downloadButtonInner, isRtl && styles.rowRtl]}>
+              <ActivityIndicator
+                size="small"
+                color={isLargePdfDownloadDisabled ? '#5d6780' : '#ffffff'}
+              />
+              <Text
+                style={[
+                  styles.downloadButtonText,
+                  isLargePdfDownloadDisabled && styles.downloadButtonTextDisabled,
+                  directionTextStyle,
+                ]}
+              >
                 {t('app.documentDetail.downloadLargePdf')}
               </Text>
-            )}
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.exportPendingNotice}>
-            <Text style={[styles.exportPendingText, directionTextStyle]}>
-              {t('app.document.largePdfExportInProgress')}
+            </View>
+          ) : (
+            <Text style={[styles.downloadButtonText, directionTextStyle]}>
+              {t('app.documentDetail.downloadLargePdf')}
             </Text>
-          </View>
-        )}
+          )}
+        </TouchableOpacity>
 
         {exportFeedback ? (
           <View
@@ -1185,16 +1194,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
+  downloadButtonTextDisabled: {
+    color: '#5d6780',
+  },
   exportPendingNotice: {
     alignSelf: 'flex-start',
     maxWidth: '100%',
     marginTop: -2,
     marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   exportPendingText: {
     color: '#5d6780',
     fontSize: 13,
     lineHeight: 18,
+    flexShrink: 1,
   },
   exportFeedback: {
     borderRadius: 4,

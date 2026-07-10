@@ -22,7 +22,6 @@ import { theme } from '../theme';
 import {
   isRtlLayout,
   rtlAwareTextStyle,
-  rtlBlockAlignStyle,
 } from '../utils/rtlLayout';
 
 export default function EditProfileScreen() {
@@ -31,7 +30,6 @@ export default function EditProfileScreen() {
   const user = useSelector((s: RootState) => s.auth.user);
   const isRtl = isRtlLayout(i18n);
   const rtlText = rtlAwareTextStyle(i18n);
-  const rtlBlock = rtlBlockAlignStyle(i18n);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -127,9 +125,6 @@ export default function EditProfileScreen() {
       style={styles.container}
       contentContainerStyle={[styles.content, isRtl && styles.rtlContent]}
     >
-      <View style={rtlBlock}>
-        <Text style={[styles.pageTitle, rtlText]}>{t('app.editProfile.pageTitle')}</Text>
-      </View>
       {error ? (
         <View style={styles.errorBox}>
           <Text style={[styles.errorText, rtlText]}>{error}</Text>
@@ -235,12 +230,6 @@ const styles = StyleSheet.create({
   },
   rtlContent: {
     direction: 'rtl',
-  },
-  pageTitle: {
-    fontSize: 35,
-    fontWeight: '700',
-    color: '#1f2737',
-    marginBottom: 12,
   },
   errorBox: {
     backgroundColor: '#fee',

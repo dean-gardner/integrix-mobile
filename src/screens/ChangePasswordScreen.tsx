@@ -83,7 +83,6 @@ export default function ChangePasswordScreen() {
       contentContainerStyle={[screenStyles.content, rtlDirection]}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={[screenStyles.title, rtlText]}>{t('app.changePassword.title')}</Text>
       {error ? (
         <View style={screenStyles.errorBox}>
           <Text style={[screenStyles.errorText, rtlText]}>{error}</Text>

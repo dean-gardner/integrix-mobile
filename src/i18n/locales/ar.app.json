@@ -112,6 +112,8 @@
       "notificationNumber": "رقم الإشعار",
       "project": "المشروع",
       "assetId": "معرف الأصل",
+      "fieldRequired": "هذا الحقل مطلوب",
+      "fillRequiredBeforeSave": "يرجى تعبئة جميع الحقول المطلوبة قبل الحفظ.",
       "sharePh": "أدخل المستخدمين (للمستخدمين الخارجيين اكتب البريد الإلكتروني واضغط إدخال)",
       "usersToShare": "مشاركة مع المستخدمين",
       "finaliseSuccess": "تم إنهاء المهمة بنجاح.",
@@ -570,6 +572,7 @@
       "lastNamePh": "اسم العائلة",
       "send": "إرسال الدعوة",
       "requiredFields": "البريد الإلكتروني والاسم الأول واسم العائلة مطلوبة.",
+      "invalidEmail": "صيغة البريد الإلكتروني غير صالحة.",
       "selectRole": "اختر دوراً.",
       "selectTeam": "اختر فريقاً.",
       "userRole": "دور المستخدم",
@@ -830,7 +833,7 @@
       "newUserAlertShort": "تنبيه مستخدم جديد",
       "documentPdfReady": "المستند \"{{title}}\" (PDF) جاهز للتنزيل. استخدم الإجراء أدناه لفتح التقرير.",
       "taskCompletionReportReady": "تقرير إتمام المهمة \"{{title}}\" جاهز. استخدم الإجراء أدناه لفتح التقرير.",
-      "reminderTaskScheduled": "تذكير: المهمة \"{{title}}\" مجدولة للبدء في {{startDate}}."
+      "reminderTaskScheduled": "تذكير: المهمة \"{{title}}\" مجدولة للبدء في {{startDate}}"
     },
     "roles": {
       "admin": "مسؤول",

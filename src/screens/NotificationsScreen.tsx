@@ -28,6 +28,7 @@ import {
   isRtlLayout,
   rtlAwareTextStyle,
   rtlBlockAlignStyle,
+  rtlDirectionStyle,
   rtlRowStyle,
 } from '../utils/rtlLayout';
 
@@ -52,9 +53,6 @@ export default function NotificationsScreen() {
   const onMarkAllRead = () => {
     dispatch(markAllNotificationsRead());
   };
-
-  const formatDate = (dateUtc?: string): string =>
-    formatLocaleDateTime(dateUtc, i18n.language, 'notifications');
 
   const onOpenFromNotification = (notification: NotificationDTO) => {
     if (notification.link?.trim()) {
@@ -84,9 +82,14 @@ export default function NotificationsScreen() {
   const rtlText = rtlAwareTextStyle(i18n);
   const rtlRow = rtlRowStyle(i18n);
   const rtlBlock = rtlBlockAlignStyle(i18n);
+  const rtlDirection = rtlDirectionStyle(i18n);
   const contentDirStyle: ViewStyle | undefined = isRtl
     ? { direction: 'rtl' }
     : undefined;
+  const formatDate = (dateUtc?: string): string => {
+    const formatted = formatLocaleDateTime(dateUtc, i18n.language, 'notifications');
+    return isRtl && formatted ? `\u200F${formatted}\u200F` : formatted;
+  };
 
   return (
     <ScrollView
@@ -137,13 +140,14 @@ export default function NotificationsScreen() {
                 t,
                 i18n.language
               );
+              const messageText = bodyText.trim() || t('app.notificationsScreen.openActionHint');
 
               return (
                 <TouchableOpacity
                   key={notification.id}
                   style={[
                     styles.itemRow,
-                    rtlRow,
+                    isRtl && styles.itemRowRtl,
                     !notification.isRead && styles.itemRowUnread,
                   ]}
                   onPress={() => onPressNotification(notification)}
@@ -152,23 +156,25 @@ export default function NotificationsScreen() {
                   <View style={styles.itemIconWrap}>
                     <MaterialIcons name="mail-outline" size={22} color="#2f3b57" />
                   </View>
-                  <View style={[styles.itemBody, isRtl && styles.rtlAlignedBlock]}>
-                    <Text style={[styles.itemMessage, rtlText]}>
-                      {bodyText.trim() || t('app.notificationsScreen.openActionHint')}
-                    </Text>
-                    {showActionLink ? (
-                      <Text
-                        style={[styles.itemLinkInline, rtlText]}
-                        onPress={() => {
-                          onPressLinkText(notification);
-                        }}
-                      >
-                        {actionLabel}
+                  <View style={[styles.itemBody, isRtl ? styles.rtlAlignedBlock : rtlDirection]}>
+                    <View style={[styles.itemTextColumn, isRtl && styles.itemTextColumnRtl]}>
+                      <Text style={[styles.itemMessage, rtlText, isRtl && styles.itemTextRtl]}>
+                        {isRtl ? `\u200F${messageText}\u200F` : messageText}
                       </Text>
-                    ) : null}
-                    <Text style={[styles.itemDate, rtlText]}>
-                      {formatDate(notification.createdOnUtc)}
-                    </Text>
+                      {showActionLink ? (
+                        <Text
+                          style={[styles.itemLinkInline, rtlText, isRtl && styles.itemTextRtl]}
+                          onPress={() => {
+                            onPressLinkText(notification);
+                          }}
+                        >
+                          {actionLabel}
+                        </Text>
+                      ) : null}
+                      <Text style={[styles.itemDate, rtlText, isRtl && styles.itemTextRtl]}>
+                        {formatDate(notification.createdOnUtc)}
+                      </Text>
+                    </View>
                   </View>
                 </TouchableOpacity>
               );
@@ -268,12 +274,17 @@ const styles = StyleSheet.create({
   itemRow: {
     minHeight: 88,
     flexDirection: 'row',
+    direction: 'ltr',
     borderBottomWidth: 1,
     borderBottomColor: '#d8dbe2',
     backgroundColor: '#ffffff',
     paddingHorizontal: 10,
     paddingVertical: 10,
     gap: 10,
+  },
+  itemRowRtl: {
+    flexDirection: 'row-reverse',
+    direction: 'ltr',
   },
   itemRowUnread: {
     backgroundColor: '#d6dbe8',
@@ -287,12 +298,36 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   rtlAlignedBlock: {
+    flex: 1,
+    direction: 'ltr',
+    alignItems: 'flex-end',
+  },
+  itemTextColumn: {
+    width: '100%',
+  },
+  itemTextColumnRtl: {
+    width: '100%',
     alignItems: 'flex-end',
   },
   itemMessage: {
     color: '#212633',
     fontSize: 14,
     lineHeight: 22,
+    width: '100%',
+  },
+  itemTextRtl: {
+    maxWidth: '100%',
+    textAlign: 'right',
+    writingDirection: 'rtl',
+    direction: 'rtl',
+    alignSelf: 'flex-end',
+    marginLeft: 'auto',
+  },
+  itemMetaText: {
+    textAlign: 'left',
+    writingDirection: 'ltr',
+    direction: 'ltr',
+    alignSelf: 'stretch',
   },
   itemLinkInline: {
     color: '#243aa8',

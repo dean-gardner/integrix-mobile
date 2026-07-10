@@ -74,6 +74,7 @@ type UserInvitationsState = {
   error: string | null;
   filteringModel: UserInvitationFilteringModel;
   totalCount: number;
+  activeFetchRequestId: string | null;
 };
 
 const initialState: UserInvitationsState = {
@@ -87,6 +88,7 @@ const initialState: UserInvitationsState = {
     pageSize: 10,
   },
   totalCount: 0,
+  activeFetchRequestId: null,
 };
 
 const userInvitationsSlice = createSlice({
@@ -99,25 +101,37 @@ const userInvitationsSlice = createSlice({
     ) => {
       state.filteringModel = { ...state.filteringModel, ...payload };
     },
+    clearUserInvitationsLoading: (state) => {
+      state.isLoading = false;
+      state.activeFetchRequestId = null;
+    },
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchUserInvitations.pending, (state) => {
+      .addCase(fetchUserInvitations.pending, (state, action) => {
+        state.activeFetchRequestId = action.meta.requestId;
         state.isLoading = true;
         state.error = null;
       })
-      .addCase(fetchUserInvitations.fulfilled, (state, { payload }) => {
+      .addCase(fetchUserInvitations.fulfilled, (state, action) => {
+        if (state.activeFetchRequestId !== action.meta.requestId) return;
+        const { payload } = action;
+        state.activeFetchRequestId = null;
         state.isLoading = false;
         state.items = payload.items;
         state.totalCount = payload.totalCount;
         state.error = null;
       })
-      .addCase(fetchUserInvitations.rejected, (state, { payload }) => {
+      .addCase(fetchUserInvitations.rejected, (state, action) => {
+        if (state.activeFetchRequestId !== action.meta.requestId) return;
+        const { payload } = action;
+        state.activeFetchRequestId = null;
         state.isLoading = false;
         state.error = payload ?? i18n.t('app.errors.loadInvitations');
       });
   },
 });
 
-export const { setUserInvitationsFilter } = userInvitationsSlice.actions;
+export const { setUserInvitationsFilter, clearUserInvitationsLoading } =
+  userInvitationsSlice.actions;
 export default userInvitationsSlice.reducer;

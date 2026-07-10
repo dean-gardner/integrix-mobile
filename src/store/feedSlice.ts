@@ -10,12 +10,13 @@ type TaskReferenceEdit = Pick<
 >;
 
 function applyPendingTaskReferenceEdit(
-  item: FeedItemDTO,
-  pending: Record<string, TaskReferenceEdit>
+  item: FeedItemDTO | null | undefined,
+  pending?: Record<string, TaskReferenceEdit> | null
 ): FeedItemDTO {
-  if (!item.taskId) return item;
-  const edit = pending[item.taskId];
-  return edit ? { ...item, ...edit } : item;
+  if (!item || typeof item !== 'object' || !item.taskId) return item as FeedItemDTO;
+  const edit = pending?.[item.taskId];
+  if (!edit || typeof edit !== 'object' || Array.isArray(edit)) return item;
+  return { ...item, ...edit };
 }
 
 export const fetchFeedItems = createAsyncThunk<
@@ -101,9 +102,10 @@ const feedSlice = createSlice({
       })
       .addCase(fetchFeedItems.fulfilled, (state, { payload }) => {
         state.isLoading = false;
-        state.items = payload.items.map((item) =>
-          applyPendingTaskReferenceEdit(item, state.pendingReferenceEdits)
-        );
+        state.pendingReferenceEdits ??= {};
+        state.items = (payload.items ?? [])
+          .filter((item): item is FeedItemDTO => Boolean(item && typeof item === 'object'))
+          .map((item) => applyPendingTaskReferenceEdit(item, state.pendingReferenceEdits));
         state.totalCount = payload.totalCount;
         state.filteringModel.pageNumber = 0;
         state.noMorePages =
@@ -121,9 +123,10 @@ const feedSlice = createSlice({
       })
       .addCase(fetchMoreFeedItems.fulfilled, (state, { payload }) => {
         state.isLoading = false;
-        state.items = payload.items.map((item) =>
-          applyPendingTaskReferenceEdit(item, state.pendingReferenceEdits)
-        );
+        state.pendingReferenceEdits ??= {};
+        state.items = (payload.items ?? [])
+          .filter((item): item is FeedItemDTO => Boolean(item && typeof item === 'object'))
+          .map((item) => applyPendingTaskReferenceEdit(item, state.pendingReferenceEdits));
         state.totalCount = payload.totalCount;
         state.filteringModel.pageNumber = payload.nextPageNumber;
         state.noMorePages =
@@ -140,6 +143,7 @@ const feedSlice = createSlice({
           notificationNumber: meta.arg.model.notificationNumber,
           projectNumber: meta.arg.model.projectNumber,
         };
+        state.pendingReferenceEdits ??= {};
         state.pendingReferenceEdits[meta.arg.taskId] = referenceEdit;
         state.items = state.items.map((item) =>
           item.taskId === meta.arg.taskId ? { ...item, ...referenceEdit } : item

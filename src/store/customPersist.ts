@@ -1,5 +1,6 @@
 /**
  * Custom persistence without redux-persist: save/load whitelist slices to AsyncStorage.
+ * Loading/error flags are never persisted so a killed mid-fetch cannot leave the UI spinning forever.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -23,11 +24,31 @@ const WHITELIST: string[] = [
 
 export type StoredState = Record<string, unknown>;
 
+function sanitizeSliceForPersist(slice: unknown): unknown {
+  if (!slice || typeof slice !== 'object' || Array.isArray(slice)) return slice;
+  const next = { ...(slice as Record<string, unknown>) };
+  if ('isLoading' in next) next.isLoading = false;
+  if ('currentTaskLoading' in next) next.currentTaskLoading = false;
+  if ('isActionLoading' in next) next.isActionLoading = false;
+  if ('error' in next) next.error = null;
+  if ('activeFetchRequestId' in next) next.activeFetchRequestId = null;
+  return next;
+}
+
+function sanitizeStoredState(state: StoredState): StoredState {
+  const sanitized: StoredState = {};
+  for (const [key, value] of Object.entries(state)) {
+    sanitized[key] = sanitizeSliceForPersist(value);
+  }
+  return sanitized;
+}
+
 export async function getStoredState(): Promise<StoredState | null> {
   try {
     const raw = await AsyncStorage.getItem(PERSIST_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as StoredState;
+    const parsed = JSON.parse(raw) as StoredState;
+    return sanitizeStoredState(parsed);
   } catch {
     return null;
   }
@@ -38,7 +59,7 @@ export async function setStoredState(state: StoredState): Promise<void> {
     const toStore: StoredState = {};
     for (const key of WHITELIST) {
       if (key in state && state[key] !== undefined) {
-        toStore[key] = state[key] as Record<string, unknown>;
+        toStore[key] = sanitizeSliceForPersist(state[key]);
       }
     }
     await AsyncStorage.setItem(PERSIST_KEY, JSON.stringify(toStore));

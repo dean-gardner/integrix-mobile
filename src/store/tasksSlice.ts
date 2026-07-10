@@ -25,6 +25,7 @@ import {
   deleteTask as apiDeleteTask,
   finaliseTask as apiFinaliseTask,
 } from '../api/tasks';
+import { getHttpErrorMessage } from '../utils/httpErrorMessage';
 
 type TaskReferenceEdit = Pick<
   TaskCreateDTO,
@@ -32,12 +33,13 @@ type TaskReferenceEdit = Pick<
 >;
 
 function applyPendingTaskReferenceEdit<T extends TaskReadDTO>(
-  task: T,
-  pending?: Record<string, TaskReferenceEdit>
+  task: T | null | undefined,
+  pending?: Record<string, TaskReferenceEdit> | null
 ): T {
-  if (!task?.id) return task;
+  if (!task || typeof task !== 'object' || !task.id) return task as T;
   const edit = pending?.[task.id];
-  return edit ? { ...task, ...edit } : task;
+  if (!edit || typeof edit !== 'object' || Array.isArray(edit)) return task;
+  return { ...task, ...edit };
 }
 
 function isTaskReadDTO(value: unknown): value is TaskReadDTO {
@@ -476,12 +478,12 @@ export const editTaskEntry = createAsyncThunk<
     try {
       const res = await apiEditTask(documentId, versionId, taskId, model);
       return res.data;
-    } catch (e: any) {
-      const statusCode = e?.response?.status;
+    } catch (e: unknown) {
+      const statusCode = (e as { response?: { status?: number } })?.response?.status;
       if (statusCode != null && statusCode >= 500) {
         return rejectWithValue(i18n.t('app.errors.unableSaveTask'));
       }
-      return rejectWithValue(e?.message ?? i18n.t('app.errors.editTask'));
+      return rejectWithValue(getHttpErrorMessage(e, i18n.t('app.errors.editTask')));
     }
   }
 );
@@ -573,7 +575,8 @@ const tasksSlice = createSlice({
         const { payload } = action;
         state.activeFetchRequestId = null;
         state.isLoading = false;
-        state.items = payload.items.map((task) =>
+        state.pendingReferenceEdits ??= {};
+        state.items = normalizeTaskItems(payload.items).map((task) =>
           applyPendingTaskReferenceEdit(task, state.pendingReferenceEdits)
         );
         state.totalCount = payload.totalCount;
@@ -596,7 +599,8 @@ const tasksSlice = createSlice({
       })
       .addCase(fetchMoreTasks.fulfilled, (state, { payload }) => {
         state.isLoading = false;
-        state.items = payload.items.map((task) =>
+        state.pendingReferenceEdits ??= {};
+        state.items = normalizeTaskItems(payload.items).map((task) =>
           applyPendingTaskReferenceEdit(task, state.pendingReferenceEdits)
         );
         state.totalCount = payload.totalCount;
@@ -618,7 +622,8 @@ const tasksSlice = createSlice({
       })
       .addCase(goToTasksPage.fulfilled, (state, { payload }) => {
         state.isLoading = false;
-        state.items = payload.items.map((task) =>
+        state.pendingReferenceEdits ??= {};
+        state.items = normalizeTaskItems(payload.items).map((task) =>
           applyPendingTaskReferenceEdit(task, state.pendingReferenceEdits)
         );
         state.totalCount = payload.totalCount;
@@ -639,6 +644,7 @@ const tasksSlice = createSlice({
       .addCase(fetchTaskById.fulfilled, (state, { payload }) => {
         state.currentTaskLoading = false;
         if (!isTaskReadDTO(payload)) return;
+        state.pendingReferenceEdits ??= {};
         const task = applyPendingTaskReferenceEdit(payload, state.pendingReferenceEdits);
         state.currentTask = task;
         const i = state.items.findIndex((t) => t.id === payload.id);

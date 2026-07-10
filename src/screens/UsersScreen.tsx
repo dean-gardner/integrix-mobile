@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import { useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
 import NetInfo from '@react-native-community/netinfo';
 import type { AppDispatch, RootState } from '../store';
@@ -24,13 +25,15 @@ import {
 } from '../types/invitation';
 import type { RoleDTO, UserReadDTO } from '../types/user';
 import { fetchTeams } from '../store/teamsSlice';
-import { fetchUsers, setUsersFilter } from '../store/usersSlice';
+import { clearUsersLoading, fetchUsers, setUsersFilter } from '../store/usersSlice';
 import {
+  clearUserInvitationsLoading,
   createInvitation,
   fetchUserInvitations,
   setUserInvitationsFilter,
 } from '../store/userInvitationsSlice';
 import { useTranslation } from 'react-i18next';
+import { sanitizeApiErrorMessage } from '../utils/httpErrorMessage';
 import { isRtlLayout, rtlAwareTextStyle, rtlDirectionStyle, rtlRowStyle } from '../utils/rtlLayout';
 
 type UsersTab = 'members' | 'invitations';
@@ -156,6 +159,11 @@ export default function UsersScreen() {
   const fromIndex = activeTotalCount === 0 ? 0 : pageNumber * pageSize + 1;
   const toIndex = activeTotalCount === 0 ? 0 : Math.min(activeTotalCount, (pageNumber + 1) * pageSize);
 
+  const usersPageNumber = usersFilteringModel.pageNumber;
+  const usersPageSize = usersFilteringModel.pageSize;
+  const invitationsPageNumber = invitationsFilteringModel.pageNumber;
+  const invitationsPageSize = invitationsFilteringModel.pageSize;
+
   useEffect(() => {
     dispatch(setUsersFilter({ pageNumber: 0, pageSize: 10 }));
     dispatch(setUserInvitationsFilter({ pageNumber: 0, pageSize: 10 }));
@@ -169,15 +177,26 @@ export default function UsersScreen() {
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (!initialized || activeTab !== 'members') return;
-    dispatch(fetchUsers());
-  }, [activeTab, dispatch, initialized, usersFilteringModel]);
-
-  useEffect(() => {
-    if (!initialized || activeTab !== 'invitations') return;
-    dispatch(fetchUserInvitations());
-  }, [activeTab, dispatch, initialized, invitationsFilteringModel]);
+  // Fetch on focus (drawer return from Tasks) and whenever page/tab filters change.
+  useFocusEffect(
+    useCallback(() => {
+      if (!initialized) return undefined;
+      if (activeTab === 'members') {
+        dispatch(fetchUsers());
+      } else {
+        dispatch(fetchUserInvitations());
+      }
+      return undefined;
+    }, [
+      activeTab,
+      dispatch,
+      initialized,
+      usersPageNumber,
+      usersPageSize,
+      invitationsPageNumber,
+      invitationsPageSize,
+    ])
+  );
 
   const updateActivePage = (nextPageNumber: number) => {
     if (activeTab === 'members') {
@@ -208,6 +227,16 @@ export default function UsersScreen() {
     } finally {
       setRefreshing(false);
     }
+  };
+
+  const handleRetry = () => {
+    if (activeTab === 'members') {
+      dispatch(clearUsersLoading());
+      dispatch(fetchUsers());
+      return;
+    }
+    dispatch(clearUserInvitationsLoading());
+    dispatch(fetchUserInvitations());
   };
 
   const openPageSizeMenu = () => {
@@ -288,10 +317,11 @@ export default function UsersScreen() {
       Alert.alert(t('app.users.inviteSentTitle'), t('app.users.inviteSentBody'));
     } catch (e) {
       const fallback = t('app.users.inviteFailed');
-      const message =
+      const rawMessage =
         typeof e === 'string'
           ? e || fallback
           : (e as { message?: string })?.message ?? fallback;
+      const message = sanitizeApiErrorMessage(rawMessage) || fallback;
       setInviteError(message);
       throw new Error(message);
     } finally {
@@ -344,6 +374,9 @@ export default function UsersScreen() {
         {activeError ? (
           <View style={styles.errorWrap}>
             <Text style={[styles.errorText, rtlText]}>{activeError}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={handleRetry} activeOpacity={0.85}>
+              <Text style={[styles.retryButtonText, rtlText]}>{t('app.common.retry')}</Text>
+            </TouchableOpacity>
           </View>
         ) : null}
 
@@ -356,6 +389,15 @@ export default function UsersScreen() {
             <Text style={[styles.emptyText, rtlText]}>
               {activeTab === 'members' ? t('app.users.noMembers') : t('app.users.noInvites')}
             </Text>
+            {!activeError ? (
+              <TouchableOpacity
+                style={[styles.retryButton, styles.retryButtonCentered]}
+                onPress={handleRetry}
+                activeOpacity={0.85}
+              >
+                <Text style={[styles.retryButtonText, rtlText]}>{t('app.common.retry')}</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         ) : (
           <ScrollView
@@ -573,6 +615,22 @@ const styles = StyleSheet.create({
   errorText: {
     color: theme.colors.error,
     fontSize: 13,
+  },
+  retryButton: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    backgroundColor: theme.colors.primary,
+    borderRadius: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  retryButtonCentered: {
+    alignSelf: 'center',
+  },
+  retryButtonText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '600',
   },
   tableHScroll: {
     marginTop: 10,

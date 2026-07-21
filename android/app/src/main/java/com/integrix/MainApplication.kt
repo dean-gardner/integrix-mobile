@@ -1,4 +1,4 @@
-package com.dean_gardner
+package com.integrix
 
 import android.app.Application
 import com.facebook.react.PackageList

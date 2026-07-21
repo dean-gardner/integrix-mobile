@@ -1,4 +1,4 @@
-package com.dean_gardner
+package com.integrix
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate

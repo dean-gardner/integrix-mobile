@@ -26,7 +26,7 @@ type DocumentTarget = {
 
 type ScreenTarget = {
   kind: 'screen';
-  screen: 'Subscription' | 'Tasks' | 'Documents';
+  screen: 'Tasks' | 'Documents';
 };
 
 type NotificationLinkTarget = TaskTarget | DocumentTarget | ScreenTarget | null;
@@ -166,8 +166,9 @@ function resolveNotificationLinkTarget(rawLink: string): NotificationLinkTarget 
   }
 
   const combined = variants.join(' ').toLowerCase();
+  // Subscription is managed on web only; ignore mobile subscription deep links.
   if (combined.includes('subscription')) {
-    return { kind: 'screen', screen: 'Subscription' };
+    return null;
   }
   if (combined.includes('/app/tasks') || combined.includes('/tasks') || combined.includes('task')) {
     return { kind: 'screen', screen: 'Tasks' };

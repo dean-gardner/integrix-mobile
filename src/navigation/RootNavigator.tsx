@@ -35,7 +35,6 @@ import UserSearchScreen from '../screens/UserSearchScreen';
 import TeamsScreen from '../screens/TeamsScreen';
 import CompanyAssetsScreen from '../screens/CompanyAssetsScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
-import SubscriptionScreen from '../screens/SubscriptionScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import ObservationsScreen from '../screens/ObservationsScreen';
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
@@ -65,7 +64,6 @@ function getHeaderTitle(routeName: string, t: TFunction): string {
     Teams: 'nav.teams',
     CompanyAssets: 'nav.companyAssets',
     EditProfile: 'nav.editProfile',
-    Subscription: 'nav.subscription',
     Notifications: 'nav.notifications',
     ChangePassword: 'nav.changePassword',
   };
@@ -128,7 +126,6 @@ function MainStack() {
         <Stack.Screen name="Teams" component={TeamsScreen} />
         <Stack.Screen name="CompanyAssets" component={CompanyAssetsScreen} />
         <Stack.Screen name="EditProfile" component={EditProfileScreen} options={profileTransitionOptions} />
-        <Stack.Screen name="Subscription" component={SubscriptionScreen} />
         <Stack.Screen name="Notifications" component={NotificationsScreen} />
         <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={profileTransitionOptions} />
       </Stack.Navigator>

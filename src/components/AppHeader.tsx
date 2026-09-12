@@ -276,10 +276,6 @@ export function AppHeader({ title, showMenu = true }: AppHeaderProps) {
                   <MaterialIcons name="lock-outline" size={20} color="#5b6e88" />
                   <Text style={[styles.dropdownRowText, rtlText]}>{t('nav.changePassword')}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.dropdownRow, rtlRow]} onPress={() => navigateFromProfile('Subscription')}>
-                  <MaterialIcons name="card-membership" size={20} color="#5b6e88" />
-                  <Text style={[styles.dropdownRowText, rtlText]}>{t('drawer.subscription')}</Text>
-                </TouchableOpacity>
                 <TouchableOpacity style={[styles.dropdownRow, rtlRow, styles.signOutRow]} onPress={handleSignOut}>
                   <MaterialIcons name="logout" size={20} color="#5b6e88" />
                   <Text style={[styles.dropdownRowText, rtlText]}>{t('drawer.signOut')}</Text>
